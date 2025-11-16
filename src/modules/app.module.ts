@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { CommonModule } from '../common/common.module';
 import { KitModule } from "./kit/kit.module";
 import { ProductModule } from "./product/product.module";
+import {AppController} from "./app.controller";
 
 @Module({
   imports: [
@@ -48,5 +49,6 @@ import { ProductModule } from "./product/product.module";
     UserModule,
     UserGuardModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
