@@ -6,7 +6,7 @@ import { UpdateClanWarDto } from './dtos/update-clan-war.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 
 @ApiTags('ClanWar')
-@Controller('war')
+@Controller('wars')
 export class ClanWarController {
   constructor(private readonly clanWarService: ClanWarService) {}
 

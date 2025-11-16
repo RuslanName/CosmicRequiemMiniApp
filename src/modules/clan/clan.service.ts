@@ -625,4 +625,32 @@ export class ClanService {
     application.status = ClanApplicationStatus.REJECTED;
     return this.clanApplicationRepository.save(application);
   }
+
+  async getUserClan(userId: number): Promise<Clan> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan', 'clan.leader', 'clan.members'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.clan) {
+      throw new NotFoundException('User is not in a clan');
+    }
+
+    return user.clan;
+  }
+
+  async getActiveWars(clanId: number): Promise<ClanWar[]> {
+    return this.clanWarRepository.find({
+      where: [
+        { clan_1: { id: clanId }, status: ClanWarStatus.IN_PROGRESS },
+        { clan_2: { id: clanId }, status: ClanWarStatus.IN_PROGRESS },
+      ],
+      relations: ['clan_1', 'clan_2'],
+      order: { start_time: 'DESC' },
+    });
+  }
 }

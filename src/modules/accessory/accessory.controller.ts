@@ -10,7 +10,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Accessory')
-@Controller('accessory')
+@Controller('accessories')
 export class AccessoryController {
   constructor(private readonly accessoryService: AccessoryService) {}
 

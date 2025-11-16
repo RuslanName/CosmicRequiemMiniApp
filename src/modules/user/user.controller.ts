@@ -17,7 +17,7 @@ export class UserController {
   @CacheKey('user:list')
   @ApiOperation({ summary: 'Получить всех пользователей с пагинацией' })
   @ApiResponse({ status: 200, description: 'Возвращает список пользователей с пагинацией' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: (User & { strength: number })[]; total: number; page: number; limit: number }> {
+  async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: (User & { strength: number; referral_link?: string })[]; total: number; page: number; limit: number }> {
     return this.userService.findAll(paginationDto);
   }
 
@@ -25,7 +25,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Получить текущего аутентифицированного пользователя' })
   @ApiResponse({ status: 200, description: 'Возвращает текущего пользователя с силой' })
-  async findMe(@Request() req): Promise<User & { strength: number }> {
+  async findMe(@Request() req): Promise<User & { strength: number; referral_link?: string }> {
     return this.userService.findMe(req.user.id);
   }
 
@@ -34,7 +34,7 @@ export class UserController {
   @CacheKey('user::id')
   @ApiOperation({ summary: 'Получить пользователя по ID' })
   @ApiResponse({ status: 200, description: 'Возвращает пользователя с силой' })
-  async findOne(@Param('id') id: string): Promise<User & { strength: number }> {
+  async findOne(@Param('id') id: string): Promise<User & { strength: number; referral_link?: string }> {
     return this.userService.findOne(+id);
   }
 

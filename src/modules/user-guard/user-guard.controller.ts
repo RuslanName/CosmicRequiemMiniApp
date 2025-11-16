@@ -7,7 +7,7 @@ import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 
 @ApiTags('UserGuard')
-@Controller('user-guard')
+@Controller('user-guards')
 export class UserGuardController {
   constructor(private readonly userGuardService: UserGuardService) {}
 

@@ -7,6 +7,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/setting-key.enum';
 import { UserGuard } from '../user-guard/user-guard.entity';
+import { ENV } from '../../config/constants';
 
 @Injectable()
 export class UserService {
@@ -26,7 +27,16 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: (User & { strength: number })[]; total: number; page: number; limit: number }> {
+  private transformUserForResponse(user: User): User & { referral_link?: string } {
+    const transformed: any = { ...user };
+    if (user.referral_link_id) {
+      transformed.referral_link = `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`;
+      delete transformed.referral_link_id;
+    }
+    return transformed;
+  }
+
+  async findAll(paginationDto: PaginationDto): Promise<{ data: (User & { strength: number; referral_link?: string })[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -36,10 +46,13 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = data.map(user => ({
-      ...user,
-      strength: this.calculateUserPower(user.guards || []),
-    }));
+    const dataWithStrength = data.map(user => {
+      const transformed = this.transformUserForResponse(user);
+      return {
+        ...transformed,
+        strength: this.calculateUserPower(user.guards || []),
+      };
+    });
 
     return {
       data: dataWithStrength,
@@ -49,7 +62,7 @@ export class UserService {
     };
   }
 
-  async findOne(id: number): Promise<User & { strength: number }> {
+  async findOne(id: number): Promise<User & { strength: number; referral_link?: string }> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['clan', 'guards'],
@@ -59,13 +72,14 @@ export class UserService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
+    const transformed = this.transformUserForResponse(user);
     return {
-      ...user,
+      ...transformed,
       strength: this.calculateUserPower(user.guards || []),
     };
   }
 
-  async findMe(userId: number): Promise<User & { strength: number }> {
+  async findMe(userId: number): Promise<User & { strength: number; referral_link?: string }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'guards'],
@@ -75,8 +89,9 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
+    const transformed = this.transformUserForResponse(user);
     return {
-      ...user,
+      ...transformed,
       strength: this.calculateUserPower(user.guards || []),
     };
   }

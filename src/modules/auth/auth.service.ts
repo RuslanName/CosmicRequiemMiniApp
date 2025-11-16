@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
-import { createHmac } from 'crypto';
+import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from './auth.dto';
 import {ENV} from "../../config/constants";
 
@@ -29,8 +29,18 @@ export class AuthService {
 
         let dbUser = await this.userRepository.findOne({
             where: { vk_id },
-            relations: ['clan'],
+            relations: ['clan', 'referrer'],
         });
+
+        const startParam = vk_params.start;
+        let referrerUser: User | null = null;
+
+        if (startParam && startParam.startsWith('ref_')) {
+            const referrerLinkId = startParam.replace('ref_', '');
+            referrerUser = await this.userRepository.findOne({
+                where: { referral_link_id: referrerLinkId },
+            });
+        }
 
         if (!dbUser) {
             dbUser = this.userRepository.create({
@@ -41,6 +51,8 @@ export class AuthService {
                 avatar_url: user.photo_max_orig || user.photo_200 || '',
                 birthday_date: this.formatBirthday(user.bdate, user.bdate_visibility),
                 last_login_at: new Date(),
+                referral_link_id: randomUUID(),
+                referrer: referrerUser || undefined,
             });
             await this.userRepository.save(dbUser);
 
@@ -58,6 +70,15 @@ export class AuthService {
             dbUser.avatar_url = user.photo_max_orig || user.photo_200 || dbUser.avatar_url;
             dbUser.birthday_date = this.formatBirthday(user.bdate, user.bdate_visibility);
             dbUser.last_login_at = new Date();
+            
+            if (!dbUser.referral_link_id) {
+                dbUser.referral_link_id = randomUUID();
+            }
+            
+            if (!dbUser.referrer && referrerUser) {
+                dbUser.referrer = referrerUser;
+            }
+            
             await this.userRepository.save(dbUser);
         }
 
@@ -66,10 +87,10 @@ export class AuthService {
     }
 
     private verifySignature(params: Record<string, string>, sign: string): boolean {
-        const APP_SECRET = ENV.APP_SECRET;
+        const VK_APP_SECRET = ENV.VK_APP_SECRET;
 
-        if (!APP_SECRET) {
-            throw new Error('APP_SECRET is not set');
+        if (!VK_APP_SECRET) {
+            throw new Error('VK_APP_SECRET is not set');
         }
 
         if (!params || typeof params !== 'object') {
@@ -82,7 +103,7 @@ export class AuthService {
             .map(key => `${key}=${params[key]}`)
             .join('&');
 
-        const computedHash = createHmac('sha256', APP_SECRET)
+        const computedHash = createHmac('sha256', VK_APP_SECRET)
             .update(queryString)
             .digest('base64url');
 

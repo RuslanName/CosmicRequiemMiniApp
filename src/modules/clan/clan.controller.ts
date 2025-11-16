@@ -17,7 +17,7 @@ import { ClanApplication } from './entities/clan-application.entity';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Clan')
-@Controller('clan')
+@Controller('clans')
 export class ClanController {
   constructor(private readonly clanService: ClanService) {}
 
@@ -53,6 +53,71 @@ export class ClanController {
   })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{ data: Clan[]; total: number; page: number; limit: number }> {
     return this.clanService.findAll(paginationDto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('clan:me')
+  @ApiOperation({ 
+    summary: 'Получить клан текущего пользователя',
+    description: 'Возвращает полную информацию о клане текущего авторизованного пользователя, включая список участников и лидера.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Успешно возвращен клан',
+    schema: {
+      example: {
+        id: 1,
+        name: 'Elite Warriors',
+        max_members: 50,
+        status: 'active',
+        members: [],
+        leader: { id: 1, first_name: 'John' },
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z'
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
+  async getMyClan(@Request() req): Promise<Clan> {
+    return this.clanService.getUserClan(req.user.id);
+  }
+
+  @Get('me/wars')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(30)
+  @CacheKey('clan:me:wars')
+  @ApiOperation({ 
+    summary: 'Получить активные войны клана текущего пользователя',
+    description: 'Возвращает список всех активных войн клана текущего авторизованного пользователя.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Список активных войн',
+    schema: {
+      example: [
+        {
+          id: 1,
+          clan_1: { id: 1, name: 'Elite Warriors' },
+          clan_2: { id: 2, name: 'Dark Knights' },
+          start_time: '2024-01-01T00:00:00.000Z',
+          end_time: '2024-01-01T06:00:00.000Z',
+          status: 'in_progress',
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z'
+        }
+      ]
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
+  async getMyClanWars(@Request() req): Promise<ClanWar[]> {
+    const clan = await this.clanService.getUserClan(req.user.id);
+    return this.clanService.getActiveWars(clan.id);
   }
 
   @Get(':id')
@@ -153,7 +218,7 @@ export class ClanController {
     return this.clanService.remove(+id);
   }
 
-  @Get('war/available')
+  @Get('wars/available')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ 
@@ -182,7 +247,7 @@ export class ClanController {
     return this.clanService.getAvailableClansForWar(req.user.id);
   }
 
-  @Post('war/declare')
+  @Post('wars/declare')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ 
@@ -219,7 +284,7 @@ export class ClanController {
     return this.clanService.declareWar(req.user.id, declareWarDto.target_clan_id);
   }
 
-  @Get('war/enemy-members')
+  @Get('wars/enemy-members')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ 
@@ -251,7 +316,7 @@ export class ClanController {
     return this.clanService.getEnemyClanMembers(req.user.id);
   }
 
-  @Post('war/attack')
+  @Post('wars/attack')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ 

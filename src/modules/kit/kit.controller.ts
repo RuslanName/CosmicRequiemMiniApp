@@ -10,7 +10,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Kit')
-@Controller('kit')
+@Controller('kits')
 export class KitController {
   constructor(private readonly kitService: KitService) {}
 

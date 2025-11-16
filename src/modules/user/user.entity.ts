@@ -82,4 +82,13 @@ export class User {
 
     @OneToMany(() => UserGuard, userGuard => userGuard.user)
     guards?: UserGuard[];
+
+    @ManyToOne(() => User, user => user.referrals, { nullable: true })
+    referrer?: User;
+
+    @OneToMany(() => User, user => user.referrer)
+    referrals?: User[];
+
+    @Column({ type: 'uuid', unique: true, nullable: true })
+    referral_link_id?: string;
 }

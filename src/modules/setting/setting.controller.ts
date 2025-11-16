@@ -7,7 +7,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Setting')
-@Controller('setting')
+@Controller('settings')
 export class SettingController {
   constructor(private readonly settingService: SettingService) {}
 

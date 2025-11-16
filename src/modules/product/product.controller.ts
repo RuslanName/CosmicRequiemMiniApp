@@ -8,7 +8,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { CacheTTL, CacheKey, InvalidateCache } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Product')
-@Controller('product')
+@Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
