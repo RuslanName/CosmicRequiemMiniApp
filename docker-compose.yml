@@ -83,9 +83,8 @@ services:
     env_file:
       - .env
     environment:
-      - NGINX_DOMAIN=${NGINX_DOMAIN}
+      - NGINX_BASE_DOMAIN=${NGINX_BASE_DOMAIN}
       - NGINX_SERVER_PORT=${NGINX_SERVER_PORT}
-      - NGINX_ADMIN_DOMAIN=${NGINX_ADMIN_DOMAIN}
     ports:
       - "80:80"
       - "443:443"

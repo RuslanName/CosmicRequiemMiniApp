@@ -1,5 +1,4 @@
 .idea
 .git
 .env
-.cursor
 /nginx/conf.d/default.conf
