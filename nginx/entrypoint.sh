@@ -12,18 +12,36 @@ if [ -f /etc/nginx/templates/default.conf.template ]; then
     ADMIN_CERT="/etc/letsencrypt/live/admin.${NGINX_BASE_DOMAIN}/fullchain.pem"
     
     if [ ! -f "$API_CERT" ] || [ ! -f "$ADMIN_CERT" ]; then
-        echo "Warning: SSL certificates not found. Disabling SSL blocks and HTTPS redirects..."
-        sed -i '/listen 443 ssl;/d' /etc/nginx/conf.d/default.conf
-        sed -i '/http2 on;/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_certificate/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_certificate_key/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_protocols/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_ciphers/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_prefer_server_ciphers/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_session_cache/d' /etc/nginx/conf.d/default.conf
-        sed -i '/ssl_session_timeout/d' /etc/nginx/conf.d/default.conf
-        sed -i 's/return 301 https:\/\/\$host\$request_uri;/# return 301 https:\/\/$host$request_uri; # Disabled: no SSL certs/' /etc/nginx/conf.d/default.conf
-        echo "SSL disabled. Nginx will work in HTTP-only mode until certificates are obtained."
+        echo "Warning: SSL certificates not found. Removing SSL server blocks..."
+        awk '
+        BEGIN { in_ssl_block = 0; brace_count = 0 }
+        /^server {$/ {
+            if (in_ssl_block == 0) {
+                print
+                getline
+                if (/listen 443 ssl/) {
+                    in_ssl_block = 1
+                    brace_count = 1
+                    next
+                } else {
+                    print
+                }
+            }
+            next
+        }
+        in_ssl_block == 1 {
+            if (/\{/) brace_count++
+            if (/\}/) {
+                brace_count--
+                if (brace_count == 0) {
+                    in_ssl_block = 0
+                }
+            }
+            next
+        }
+        { print }
+        ' /etc/nginx/conf.d/default.conf > /tmp/nginx.conf.tmp && mv /tmp/nginx.conf.tmp /etc/nginx/conf.d/default.conf
+        echo "SSL server blocks removed. Nginx will work in HTTP-only mode until certificates are obtained."
     fi
 fi
 
