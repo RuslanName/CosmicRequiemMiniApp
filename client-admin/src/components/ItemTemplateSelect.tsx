@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { itemTemplatesApi, type ItemTemplate } from '../api/item-templates.api';
-import { ItemTemplateTypeLabels } from '../enums/item-template-type.enum';
+import { ItemTemplateType, ItemTemplateTypeLabels } from '../enums/item-template-type.enum';
 
 interface ItemTemplateSelectProps {
   value: number | undefined;
@@ -62,7 +62,7 @@ const ItemTemplateSelect = ({ value, onChange, label = 'Шаблон предм�
         <option value="">-- Выберите шаблон --</option>
         {filteredTemplates.map((template) => (
           <option key={template.id} value={template.id}>
-            #{template.id} - {template.name} ({ItemTemplateTypeLabels[template.type] || template.type})
+            #{template.id} - {template.name} ({ItemTemplateTypeLabels[template.type as ItemTemplateType] || template.type})
           </option>
         ))}
       </select>

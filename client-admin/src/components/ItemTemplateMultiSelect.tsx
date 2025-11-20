@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { itemTemplatesApi, type ItemTemplate } from '../api/item-templates.api';
-import { ItemTemplateTypeLabels } from '../enums/item-template-type.enum';
+import { ItemTemplateType, ItemTemplateTypeLabels } from '../enums/item-template-type.enum';
 
 interface ItemTemplateMultiSelectProps {
   value: number[];
@@ -129,7 +129,7 @@ const ItemTemplateMultiSelect = ({ value, onChange, label = 'Шаблоны пр
                 style={{ cursor: 'pointer' }}
               />
               <span>
-                #{template.id} - {template.name} ({ItemTemplateTypeLabels[template.type] || template.type})
+                #{template.id} - {template.name} ({ItemTemplateTypeLabels[template.type as ItemTemplateType] || template.type})
               </span>
             </div>
           ))
