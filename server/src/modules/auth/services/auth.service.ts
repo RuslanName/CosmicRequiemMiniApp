@@ -4,6 +4,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
+import { Clan } from '../../clan/entities/clan.entity';
+import { ClanApplication } from '../../clan/entities/clan-application.entity';
+import { ClanApplicationStatus } from '../../clan/enums/clan-application.enum';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
@@ -16,6 +19,10 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    @InjectRepository(Clan)
+    private readonly clanRepository: Repository<Clan>,
+    @InjectRepository(ClanApplication)
+    private readonly clanApplicationRepository: Repository<ClanApplication>,
   ) {}
 
   async validateAuth(dto: AuthDto): Promise<string> {
@@ -34,11 +41,18 @@ export class AuthService {
 
     const startParam = vk_params.start;
     let referrerUser: User | null = null;
+    let targetClan: Clan | null = null;
 
     if (startParam && startParam.startsWith('ref_')) {
       const referrerLinkId = startParam.replace('ref_', '');
       referrerUser = await this.userRepository.findOne({
         where: { referral_link_id: referrerLinkId },
+      });
+    } else if (startParam && startParam.startsWith('clan_')) {
+      const clanLinkId = startParam.replace('clan_', '');
+      targetClan = await this.clanRepository.findOne({
+        where: { referral_link_id: clanLinkId },
+        relations: ['members'],
       });
     }
 
@@ -84,6 +98,36 @@ export class AuthService {
       }
 
       await this.userRepository.save(dbUser);
+    }
+
+    if (targetClan) {
+      const userWithClan = await this.userRepository.findOne({
+        where: { id: dbUser.id },
+        relations: ['clan'],
+      });
+
+      if (userWithClan && !userWithClan.clan) {
+        const existingApplication =
+          await this.clanApplicationRepository.findOne({
+            where: {
+              user_id: userWithClan.id,
+              clan_id: targetClan.id,
+              status: ClanApplicationStatus.PENDING,
+            },
+          });
+
+        if (!existingApplication) {
+          const clanMembersCount = targetClan.members?.length || 0;
+          if (clanMembersCount < targetClan.max_members) {
+            const application = this.clanApplicationRepository.create({
+              user: userWithClan,
+              clan: targetClan,
+              status: ClanApplicationStatus.PENDING,
+            });
+            await this.clanApplicationRepository.save(application);
+          }
+        }
+      }
     }
 
     const payload = { sub: dbUser.id };

@@ -13,7 +13,7 @@ import { ItemTemplate } from '../item-template/item-template.entity';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
-import { ProductType } from '../item-template/enums/product-type.enum';
+import { ItemTemplateType } from '../item-template/enums/item-template-type.enum';
 import { Currency } from '../../common/enums/currency.enum';
 import { ShopItemStatus } from '../shop-item/enums/shop-item-status.enum';
 import { Settings } from '../../config/setting.config';
@@ -198,9 +198,9 @@ export class KitService {
     const userAccessories: UserAccessory[] = [];
     const userBoosts: UserBoost[] = [];
 
-    for (const product of kit.item_templates) {
-      if (product.type === ProductType.GUARD) {
-        const guardStrength = parseInt(product.value, 10);
+    for (const itemTemplate of kit.item_templates) {
+      if (itemTemplate.type === ItemTemplateType.GUARD) {
+        const guardStrength = parseInt(itemTemplate.value, 10);
         const guard = this.userGuardRepository.create({
           name: `Guard #${Date.now()}`,
           strength: guardStrength,
@@ -209,7 +209,7 @@ export class KitService {
         });
         const createdGuard = await this.userGuardRepository.save(guard);
         createdGuards.push(createdGuard);
-      } else if (product.type === ProductType.SHIELD) {
+      } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
         const purchaseShieldCooldown =
           Settings[SettingKey.PURCHASE_SHIELD_COOLDOWN];
         if (user.last_shield_purchase_time) {
@@ -217,13 +217,14 @@ export class KitService {
             user.last_shield_purchase_time.getTime() + purchaseShieldCooldown,
           );
           if (cooldownEndTime > new Date()) {
-            throw new BadRequestException(
-              'Shield purchase cooldown is still active',
-            );
+            throw new BadRequestException({
+              message: 'Shield purchase cooldown is still active',
+              cooldown_end: cooldownEndTime,
+            });
           }
         }
 
-        const shieldHours = parseInt(product.value, 10);
+        const shieldHours = parseInt(itemTemplate.value, 10);
         const now = new Date();
         const shieldEndTime =
           user.shield_end_time && user.shield_end_time > now
@@ -237,21 +238,42 @@ export class KitService {
 
         const userBoost = this.userBoostRepository.create({
           type: UserBoostType.SHIELD,
+          end_time: shieldEndTime,
           user,
         });
         const createdBoost = await this.userBoostRepository.save(userBoost);
         userBoosts.push(createdBoost);
       } else if (
-        product.type === ProductType.NICKNAME_COLOR ||
-        product.type === ProductType.NICKNAME_ICON ||
-        product.type === ProductType.AVATAR_FRAME
+        itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
+        itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
+      ) {
+        const boostHours = parseInt(itemTemplate.value, 10);
+        const now = new Date();
+        const boostEndTime = new Date(
+          now.getTime() + boostHours * 60 * 60 * 1000,
+        );
+
+        const userBoost = this.userBoostRepository.create({
+          type:
+            itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
+              ? UserBoostType.REWARD_DOUBLING
+              : UserBoostType.COOLDOWN_HALVING,
+          end_time: boostEndTime,
+          user,
+        });
+        const createdBoost = await this.userBoostRepository.save(userBoost);
+        userBoosts.push(createdBoost);
+      } else if (
+        itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
+        itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||
+        itemTemplate.type === ItemTemplateType.AVATAR_FRAME
       ) {
         const userAccessory = this.userAccessoryRepository.create({
           name: kit.name,
           currency: kit.currency,
           price: kit.price,
           user,
-          item_template: product,
+          item_template: itemTemplate,
         });
         const createdUserAccessory =
           await this.userAccessoryRepository.save(userAccessory);
@@ -262,7 +284,7 @@ export class KitService {
           currency: kit.currency,
           price: kit.price,
           user,
-          item_template: product,
+          item_template: itemTemplate,
         });
         const createdUserAccessory =
           await this.userAccessoryRepository.save(userAccessory);

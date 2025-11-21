@@ -9,6 +9,7 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { ClanApplication } from './entities/clan-application.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
+import { EventHistoryModule } from '../event-history/event-history.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UserBoostModule } from '../user-boost/user-boost.module';
       ClanApplication,
     ]),
     UserBoostModule,
+    EventHistoryModule,
   ],
   controllers: [ClanController],
   providers: [ClanService],

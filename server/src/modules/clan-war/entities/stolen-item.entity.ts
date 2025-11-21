@@ -31,12 +31,14 @@ export class StolenItem {
   @ManyToOne(() => User)
   victim: User;
 
-  @Column({ type: 'int' })
-  clan_war_id: number;
+  @Column({ type: 'int', nullable: true })
+  clan_war_id: number | null;
 
-  @ManyToOne(() => ClanWar, (clanWar) => clanWar.stolen_items)
+  @ManyToOne(() => ClanWar, (clanWar) => clanWar.stolen_items, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'clan_war_id' })
-  clan_war: ClanWar;
+  clan_war?: ClanWar | null;
 
   @CreateDateColumn()
   created_at: Date;

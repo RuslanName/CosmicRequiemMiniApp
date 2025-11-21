@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ProductType } from './enums/product-type.enum';
+import { ItemTemplateType } from './enums/item-template-type.enum';
 
 @Entity()
 export class ItemTemplate {
@@ -17,9 +17,9 @@ export class ItemTemplate {
 
   @Column({
     type: 'enum',
-    enum: ProductType,
+    enum: ItemTemplateType,
   })
-  type: ProductType;
+  type: ItemTemplateType;
 
   @Column({ type: 'varchar' })
   value: string;

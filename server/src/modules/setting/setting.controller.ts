@@ -11,6 +11,9 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { SettingService } from './services/setting.service';
@@ -35,10 +38,28 @@ export class SettingController {
   @CacheTTL(3600)
   @CacheKey('setting:list')
   @ApiOperation({ summary: 'Получить все настройки с пагинацией' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список настроек с пагинацией',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            key: 'TRAINING_COOLDOWN',
+            value: '900000',
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        total: 20,
+        page: 1,
+        limit: 10,
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
   ): Promise<{ data: Setting[]; total: number; page: number; limit: number }> {
@@ -51,7 +72,21 @@ export class SettingController {
   @CacheTTL(3600)
   @CacheKey('setting::id')
   @ApiOperation({ summary: 'Получить настройку по ID' })
-  @ApiResponse({ status: 200, description: 'Возвращает настройку' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        key: 'TRAINING_COOLDOWN',
+        value: '900000',
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Настройка не найдена' })
   async findOne(@Param('id') id: string): Promise<Setting> {
     return this.settingService.findOne(+id);
   }
@@ -62,7 +97,21 @@ export class SettingController {
   @CacheTTL(3600)
   @CacheKey('setting:key::key')
   @ApiOperation({ summary: 'Получить настройку по ключу' })
-  @ApiResponse({ status: 200, description: 'Возвращает настройку по ключу' })
+  @ApiParam({ name: 'key', type: String, example: 'TRAINING_COOLDOWN' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        key: 'TRAINING_COOLDOWN',
+        value: '900000',
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Настройка не найдена' })
   async findByKey(@Param('key') key: string): Promise<Setting | null> {
     return this.settingService.findByKey(key);
   }
@@ -72,7 +121,21 @@ export class SettingController {
   @ApiCookieAuth()
   @InvalidateCache('setting::id', 'setting:key:*', 'setting:list')
   @ApiOperation({ summary: 'Обновить настройку' })
-  @ApiResponse({ status: 200, description: 'Возвращает обновленную настройку' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiBody({ type: UpdateSettingDto })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        key: 'TRAINING_COOLDOWN',
+        value: '1800000',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Настройка не найдена' })
   async update(
     @Param('id') id: string,
     @Body() updateSettingDto: UpdateSettingDto,

@@ -25,6 +25,9 @@ import { Express } from 'express';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { ENV } from '../../config/constants';
+import { randomUUID } from 'crypto';
+import { EventHistoryService } from '../event-history/event-history.service';
+import { EventHistoryType } from '../event-history/event-history-type.enum';
 
 @Injectable()
 export class ClanService {
@@ -42,6 +45,7 @@ export class ClanService {
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
     private readonly userBoostService: UserBoostService,
+    private readonly eventHistoryService: EventHistoryService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -140,6 +144,7 @@ export class ClanService {
     const clan = this.clanRepository.create({
       ...createClanDto,
       image_path: imagePath,
+      referral_link_id: randomUUID(),
     });
     const savedClan = await this.clanRepository.save(clan);
     return this.transformClanForResponse(savedClan);
@@ -181,6 +186,16 @@ export class ClanService {
     if (!clan) {
       throw new NotFoundException(`Clan with ID ${id} not found`);
     }
+
+    if (clan.image_path) {
+      await this.deleteClanImage(clan.image_path);
+    }
+
+    await this.clanRepository.remove(clan);
+  }
+
+  async deleteClanByLeader(userId: number): Promise<void> {
+    const clan = await this.getLeaderClan(userId);
 
     if (clan.image_path) {
       await this.deleteClanImage(clan.image_path);
@@ -378,25 +393,20 @@ export class ClanService {
       throw new NotFoundException('Attacker or defender not found');
     }
 
-    // Проверяем и завершаем истекшие SHIELD бусты у защитника
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
       targetUserId,
       defender.shield_end_time || null,
     );
 
-    // Проверяем активный SHIELD буст у защитника
     const defenderActiveBoosts =
       await this.userBoostService.findActiveByUserId(targetUserId);
     const defenderShieldBoost = defenderActiveBoosts.find(
       (b) => b.type === UserBoostType.SHIELD,
     );
 
-    // Проверяем shield_end_time (для обратной совместимости и проверки времени)
     if (defender.shield_end_time && defender.shield_end_time > new Date()) {
       throw new BadRequestException('Cannot attack user with active shield');
     }
-
-    // Если есть активный SHIELD буст, но shield_end_time истек, завершаем буст
     if (
       defenderShieldBoost &&
       (!defender.shield_end_time || defender.shield_end_time <= new Date())
@@ -406,7 +416,6 @@ export class ClanService {
 
     attacker.shield_end_time = undefined;
 
-    // Проверяем активные бусты у атакующего
     const attackerActiveBoosts =
       await this.userBoostService.findActiveByUserId(userId);
     const cooldownHalvingBoost = attackerActiveBoosts.find(
@@ -416,7 +425,6 @@ export class ClanService {
     let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
     if (cooldownHalvingBoost) {
       attackCooldown = attackCooldown / 2;
-      // Завершаем буст после использования
       await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
@@ -425,7 +433,10 @@ export class ClanService {
         attacker.last_attack_time.getTime() + attackCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Attack cooldown is still active');
+        throw new BadRequestException({
+          message: 'Attack cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
       }
     }
 
@@ -543,6 +554,18 @@ export class ClanService {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
 
+      await this.eventHistoryService.create(
+        attacker.id,
+        EventHistoryType.ATTACK,
+        stolen_items,
+      );
+
+      await this.eventHistoryService.create(
+        defender.id,
+        EventHistoryType.DEFENSE,
+        stolen_items,
+      );
+
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
       return {
@@ -557,6 +580,18 @@ export class ClanService {
 
     attacker.last_attack_time = new Date();
     await this.userRepository.save(attacker);
+
+    await this.eventHistoryService.create(
+      attacker.id,
+      EventHistoryType.ATTACK,
+      [],
+    );
+
+    await this.eventHistoryService.create(
+      defender.id,
+      EventHistoryType.DEFENSE,
+      [],
+    );
 
     const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
@@ -779,6 +814,31 @@ export class ClanService {
     return this.transformClanForResponse(user.clan);
   }
 
+  async updateClanReferralLink(
+    userId: number,
+  ): Promise<Clan & { referral_link?: string }> {
+    const clan = await this.getLeaderClan(userId);
+
+    clan.referral_link_id = randomUUID();
+    const savedClan = await this.clanRepository.save(clan);
+
+    return this.transformClanForResponse(savedClan);
+  }
+
+  async getClanReferralLink(
+    userId: number,
+  ): Promise<{ referral_link: string }> {
+    const clan = await this.getLeaderClan(userId);
+
+    if (!clan.referral_link_id) {
+      throw new NotFoundException('Clan referral link not found');
+    }
+
+    return {
+      referral_link: `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`,
+    };
+  }
+
   async getActiveWars(clanId: number): Promise<ClanWar[]> {
     return this.clanWarRepository.find({
       where: [
@@ -787,6 +847,97 @@ export class ClanService {
       ],
       relations: ['clan_1', 'clan_2'],
       order: { start_time: 'DESC' },
+    });
+  }
+
+  async getEnemyClans(
+    userId: number,
+  ): Promise<(Clan & { referral_link?: string })[]> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan'],
+    });
+
+    if (!user || !user.clan) {
+      throw new NotFoundException('User is not in a clan');
+    }
+
+    const activeWars = await this.clanWarRepository.find({
+      where: [
+        { clan_1_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+        { clan_2_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+      ],
+      relations: ['clan_1', 'clan_2', 'clan_1.leader', 'clan_2.leader'],
+    });
+
+    const enemyClanIds = activeWars.map((war) =>
+      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
+    );
+
+    if (enemyClanIds.length === 0) {
+      return [];
+    }
+
+    const enemyClans = await this.clanRepository.find({
+      where: { id: In(enemyClanIds) },
+      relations: ['leader', 'members'],
+    });
+
+    return enemyClans.map((clan) => this.transformClanForResponse(clan));
+  }
+
+  async getEnemyClanById(
+    userId: number,
+    enemyClanId: number,
+  ): Promise<Clan & { referral_link?: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan'],
+    });
+
+    if (!user || !user.clan) {
+      throw new NotFoundException('User is not in a clan');
+    }
+
+    const activeWars = await this.clanWarRepository.find({
+      where: [
+        { clan_1_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+        { clan_2_id: user.clan.id, status: ClanWarStatus.IN_PROGRESS },
+      ],
+      relations: ['clan_1', 'clan_2'],
+    });
+
+    const enemyClanIds = activeWars.map((war) =>
+      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
+    );
+
+    if (!enemyClanIds.includes(enemyClanId)) {
+      throw new BadRequestException(
+        'Clan is not an enemy or war is not active',
+      );
+    }
+
+    const enemyClan = await this.clanRepository.findOne({
+      where: { id: enemyClanId },
+      relations: ['leader', 'members'],
+    });
+
+    if (!enemyClan) {
+      throw new NotFoundException('Enemy clan not found');
+    }
+
+    return this.transformClanForResponse(enemyClan);
+  }
+
+  async getEnemyClanMembersById(
+    userId: number,
+    enemyClanId: number,
+  ): Promise<User[]> {
+    await this.getEnemyClanById(userId, enemyClanId);
+
+    return await this.userRepository.find({
+      where: { clan_id: enemyClanId },
+      relations: ['clan', 'guards'],
     });
   }
 

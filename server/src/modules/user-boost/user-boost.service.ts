@@ -1,11 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan, IsNull, Or } from 'typeorm';
 import { UserBoost } from './user-boost.entity';
 import { CreateUserBoostDto } from './dtos/create-user-boost.dto';
 import { UpdateUserBoostDto } from './dtos/update-user-boost.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import { UserBoostStatus } from './enums/user-boost-status.enum';
 import { UserBoostType } from './enums/user-boost-type.enum';
 
 @Injectable()
@@ -61,10 +60,11 @@ export class UserBoostService {
   }
 
   async findActiveByUserId(userId: number): Promise<UserBoost[]> {
+    const now = new Date();
     return this.userBoostRepository.find({
       where: {
         user: { id: userId },
-        status: UserBoostStatus.ACTIVE,
+        end_time: Or(MoreThan(now), IsNull()),
       },
       relations: ['user'],
       order: { created_at: 'DESC' },
@@ -75,11 +75,12 @@ export class UserBoostService {
     userId: number,
     type: UserBoostType,
   ): Promise<UserBoost | null> {
+    const now = new Date();
     return this.userBoostRepository.findOne({
       where: {
         user: { id: userId },
         type,
-        status: UserBoostStatus.ACTIVE,
+        end_time: Or(MoreThan(now), IsNull()),
       },
       relations: ['user'],
     });
@@ -90,20 +91,19 @@ export class UserBoostService {
     shieldEndTime: Date | null,
   ): Promise<void> {
     if (!shieldEndTime || shieldEndTime > new Date()) {
-      return; // Shield еще активен
+      return;
     }
-
-    // Если shield_end_time истек, завершаем все активные SHIELD бусты
+    const now = new Date();
     const activeShieldBoosts = await this.userBoostRepository.find({
       where: {
         user: { id: userId },
         type: UserBoostType.SHIELD,
-        status: UserBoostStatus.ACTIVE,
+        end_time: Or(MoreThan(now), IsNull()),
       },
     });
 
     for (const boost of activeShieldBoosts) {
-      boost.status = UserBoostStatus.COMPLETED;
+      boost.end_time = new Date();
       await this.userBoostRepository.save(boost);
     }
   }
@@ -143,7 +143,7 @@ export class UserBoostService {
       throw new NotFoundException(`UserBoost with ID ${id} not found`);
     }
 
-    userBoost.status = UserBoostStatus.COMPLETED;
+    userBoost.end_time = new Date();
     return this.userBoostRepository.save(userBoost);
   }
 

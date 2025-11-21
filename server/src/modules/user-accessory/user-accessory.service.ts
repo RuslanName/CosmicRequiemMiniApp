@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserAccessory } from './user-accessory.entity';
 import { UserAccessoryStatus } from './enums/user-accessory-status.enum';
-import { ProductType } from '../item-template/enums/product-type.enum';
+import { ItemTemplateType } from '../item-template/enums/item-template-type.enum';
 
 @Injectable()
 export class UserAccessoryService {
@@ -51,9 +51,9 @@ export class UserAccessoryService {
     const itemTemplateType = accessory.item_template.type;
 
     if (
-      itemTemplateType !== ProductType.NICKNAME_COLOR &&
-      itemTemplateType !== ProductType.NICKNAME_ICON &&
-      itemTemplateType !== ProductType.AVATAR_FRAME
+      itemTemplateType !== ItemTemplateType.NICKNAME_COLOR &&
+      itemTemplateType !== ItemTemplateType.NICKNAME_ICON &&
+      itemTemplateType !== ItemTemplateType.AVATAR_FRAME
     ) {
       throw new BadRequestException('This accessory type cannot be equipped');
     }

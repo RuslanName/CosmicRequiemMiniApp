@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { AuthenticatedRequest } from '../../common/types/request.types';
 import {
   ApiTags,
   ApiOperation,
@@ -44,28 +45,11 @@ export class KitController {
   @ApiCookieAuth()
   @CacheTTL(180)
   @CacheKey('kit:list')
-  @ApiOperation({
-    summary: 'Получить все наборы с пагинацией',
-    description:
-      'Возвращает список всех доступных наборов с поддержкой пагинации. Каждый набор содержит несколько продуктов, которые будут применены при покупке.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить все наборы с пагинацией' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Список наборов успешно возвращен',
     schema: {
       example: {
         data: [
@@ -87,6 +71,7 @@ export class KitController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
   ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
@@ -98,28 +83,11 @@ export class KitController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('kit:public-list')
-  @ApiOperation({
-    summary: 'Получить список доступных наборов (Для Mini App)',
-    description:
-      'Возвращает список наборов со статусом IN_STOCK с поддержкой пагинации.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить список доступных наборов (Для Mini App)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Список доступных наборов успешно возвращен',
     schema: {
       example: {
         data: [
@@ -141,6 +109,7 @@ export class KitController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getKitsList(
     @Query() paginationDto: PaginationDto,
   ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
@@ -152,15 +121,10 @@ export class KitController {
   @ApiCookieAuth()
   @CacheTTL(300)
   @CacheKey('kit::id')
-  @ApiOperation({
-    summary: 'Получить набор по ID',
-    description:
-      'Возвращает полную информацию о наборе по его идентификатору, включая все продукты, входящие в набор.',
-  })
-  @ApiParam({ name: 'id', type: Number, description: 'ID набора', example: 1 })
+  @ApiOperation({ summary: 'Получить набор по ID' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    description: 'Набор успешно возвращен',
     schema: {
       example: {
         id: 1,
@@ -187,6 +151,7 @@ export class KitController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор не найден' })
   async findOne(@Param('id') id: string): Promise<Kit> {
     return this.kitService.findOne(+id);
@@ -196,12 +161,23 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @InvalidateCache('kit:list')
-  @ApiOperation({
-    summary: 'Создать новый набор',
-    description: 'Создает новый набор.',
-  })
+  @ApiOperation({ summary: 'Создать новый набор' })
   @ApiBody({ type: CreateKitDto })
-  @ApiResponse({ status: 201, description: 'Возвращает созданный набор' })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        id: 1,
+        name: 'Premium Kit',
+        currency: 'virtual',
+        price: 5000,
+        status: 'in_stock',
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(@Body() createKitDto: CreateKitDto): Promise<Kit> {
     return this.kitService.create(createKitDto);
   }
@@ -210,12 +186,23 @@ export class KitController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @InvalidateCache('kit::id', 'kit:list')
-  @ApiOperation({
-    summary: 'Обновить набор',
-    description: 'Обновляет информацию о наборе.',
-  })
+  @ApiOperation({ summary: 'Обновить набор' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateKitDto })
-  @ApiResponse({ status: 200, description: 'Возвращает обновленный набор' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        name: 'Premium Kit',
+        currency: 'virtual',
+        price: 5000,
+        status: 'in_stock',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Набор не найден' })
   async update(
     @Param('id') id: string,
     @Body() updateKitDto: UpdateKitDto,
@@ -228,7 +215,17 @@ export class KitController {
   @ApiCookieAuth()
   @InvalidateCache('kit::id', 'kit:list')
   @ApiOperation({ summary: 'Удалить набор' })
-  @ApiResponse({ status: 200, description: 'Набор успешно удален' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        message: 'Kit deleted successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Набор не найден' })
   async remove(@Param('id') id: string): Promise<void> {
     return this.kitService.remove(+id);
   }
@@ -236,15 +233,10 @@ export class KitController {
   @Post('purchase')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Купить набор (Для Mini App)',
-    description:
-      'Покупает набор продуктов за виртуальную валюту. Обрабатывает все продукты в наборе: GUARD - создает стражей, SHIELD - создает UserBoost и продлевает щит (с проверкой кулдауна), NICKNAME_COLOR/NICKNAME_ICON/AVATAR_FRAME - сохраняет в профиль и создает UserAccessory.',
-  })
+  @ApiOperation({ summary: 'Купить набор (Для Mini App)' })
   @ApiBody({ type: PurchaseKitDto })
   @ApiResponse({
     status: 200,
-    description: 'Набор успешно куплен',
     schema: {
       example: {
         user: {
@@ -257,19 +249,29 @@ export class KitController {
           { id: 10, name: 'Guard #1234567890', strength: 50, is_first: false },
         ],
         user_accessories: [
-          { id: 1, name: 'Premium Kit', product: { type: 'nickname_color' } },
+          {
+            id: 1,
+            name: 'Premium Kit',
+            item_template: { type: 'nickname_color' },
+          },
         ],
       },
     },
   })
   @ApiResponse({
     status: 400,
-    description:
-      'Недостаточно средств, набор недоступен, кулдаун на покупку щита активен',
+    schema: {
+      example: {
+        message: 'Insufficient funds',
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Набор или пользователь не найден' })
-  async purchase(@Request() req, @Body() purchaseKitDto: PurchaseKitDto) {
+  async purchase(
+    @Request() req: AuthenticatedRequest,
+    @Body() purchaseKitDto: PurchaseKitDto,
+  ) {
     return this.kitService.purchase(req.user.id, purchaseKitDto.kit_id);
   }
 }

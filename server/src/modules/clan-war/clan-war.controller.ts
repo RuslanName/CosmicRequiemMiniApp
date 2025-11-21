@@ -12,6 +12,9 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { ClanWarService } from './services/clan-war.service';
@@ -29,10 +32,29 @@ export class ClanWarController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все войны с пагинацией' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список войн с пагинацией',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            clan_1: { id: 1, name: 'Elite Warriors' },
+            clan_2: { id: 2, name: 'Dark Knights' },
+            start_time: '2024-01-01T00:00:00.000Z',
+            end_time: '2024-01-01T06:00:00.000Z',
+            status: 'in_progress',
+          },
+        ],
+        total: 100,
+        page: 1,
+        limit: 10,
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
   ): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
@@ -41,14 +63,43 @@ export class ClanWarController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Получить войну по ID' })
-  @ApiResponse({ status: 200, description: 'Возвращает войну' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        clan_1: { id: 1, name: 'Elite Warriors' },
+        clan_2: { id: 2, name: 'Dark Knights' },
+        start_time: '2024-01-01T00:00:00.000Z',
+        end_time: '2024-01-01T06:00:00.000Z',
+        status: 'in_progress',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Война не найдена' })
   async findOne(@Param('id') id: string): Promise<ClanWar> {
     return this.clanWarService.findOne(+id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Обновить войну' })
-  @ApiResponse({ status: 200, description: 'Возвращает обновленную войну' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiBody({ type: UpdateClanWarDto })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        clan_1: { id: 1, name: 'Elite Warriors' },
+        clan_2: { id: 2, name: 'Dark Knights' },
+        status: 'completed',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Война не найдена' })
   async update(
     @Param('id') id: string,
     @Body() updateClanWarDto: UpdateClanWarDto,
@@ -58,7 +109,17 @@ export class ClanWarController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Удалить войну' })
-  @ApiResponse({ status: 200, description: 'Война успешно удалена' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        message: 'Clan war deleted successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Война не найдена' })
   async remove(@Param('id') id: string): Promise<void> {
     return this.clanWarService.remove(+id);
   }

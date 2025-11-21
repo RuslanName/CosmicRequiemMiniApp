@@ -40,28 +40,11 @@ export class ItemTemplateController {
   @Get()
   @CacheTTL(180)
   @CacheKey('item-template:list')
-  @ApiOperation({
-    summary: 'Получить все продукты с пагинацией',
-    description:
-      'Возвращает список всех продуктов с поддержкой пагинации. Продукты могут быть разных типов: NICKNAME_COLOR, NICKNAME_ICON, AVATAR_FRAME, GUARD, SHIELD.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить все шаблоны предметов с пагинацией' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Список продуктов успешно возвращен',
     schema: {
       example: {
         data: [
@@ -80,6 +63,7 @@ export class ItemTemplateController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: ItemTemplate[];
     total: number;
@@ -92,20 +76,10 @@ export class ItemTemplateController {
   @Get(':id')
   @CacheTTL(300)
   @CacheKey('item-template::id')
-  @ApiOperation({
-    summary: 'Получить продукт по ID',
-    description:
-      'Возвращает полную информацию о продукте по его идентификатору.',
-  })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'ID продукта',
-    example: 1,
-  })
+  @ApiOperation({ summary: 'Получить шаблон предмета по ID' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    description: 'Продукт успешно возвращен',
     schema: {
       example: {
         id: 1,
@@ -117,51 +91,18 @@ export class ItemTemplateController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Продукт не найден' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
   async findOne(@Param('id') id: string): Promise<ItemTemplate> {
     return this.itemTemplateService.findOne(+id);
   }
 
   @Post()
   @InvalidateCache('item-template:list')
-  @ApiOperation({
-    summary: 'Создать новый продукт',
-    description:
-      'Создает новый продукт с валидацией значения в зависимости от типа: NICKNAME_COLOR - значение из enum Color (red, blue, green, colorful), NICKNAME_ICON - значение из enum NicknameIcon, AVATAR_FRAME - значение из enum AvatarFrame, GUARD - положительное число (сила), SHIELD - положительное число (часы).',
-  })
-  @ApiBody({
-    schema: {
-      examples: {
-        nicknameColor: {
-          value: {
-            name: 'Red Nickname',
-            type: 'nickname_color',
-            value: 'red',
-          },
-          description: 'Пример создания продукта типа NICKNAME_COLOR',
-        },
-        guard: {
-          value: {
-            name: 'Strong Guard',
-            type: 'guard',
-            value: '100',
-          },
-          description: 'Пример создания продукта типа GUARD (сила стража)',
-        },
-        shield: {
-          value: {
-            name: '24h Shield',
-            type: 'shield',
-            value: '24',
-          },
-          description: 'Пример создания продукта типа SHIELD (часы защиты)',
-        },
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Создать новый шаблон предмета' })
+  @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
     status: 201,
-    description: 'Продукт успешно создан',
     schema: {
       example: {
         id: 1,
@@ -175,8 +116,13 @@ export class ItemTemplateController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Неверное значение для типа продукта',
+    schema: {
+      example: {
+        message: 'Invalid value for item template type',
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createItemTemplateDto: CreateItemTemplateDto,
   ): Promise<ItemTemplate> {
@@ -186,10 +132,21 @@ export class ItemTemplateController {
   @Patch(':id')
   @InvalidateCache('item-template::id', 'item-template:list')
   @ApiOperation({ summary: 'Обновить шаблон предмета' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiBody({ type: UpdateItemTemplateDto })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает обновленный шаблон предмета',
+    schema: {
+      example: {
+        id: 1,
+        name: 'Red Nickname',
+        type: 'nickname_color',
+        value: 'red',
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
   async update(
     @Param('id') id: string,
     @Body() updateItemTemplateDto: UpdateItemTemplateDto,
@@ -200,7 +157,17 @@ export class ItemTemplateController {
   @Delete(':id')
   @InvalidateCache('item-template::id', 'item-template:list')
   @ApiOperation({ summary: 'Удалить шаблон предмета' })
-  @ApiResponse({ status: 200, description: 'Шаблон предмета успешно удален' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        message: 'Item template deleted successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
   async remove(@Param('id') id: string): Promise<void> {
     return this.itemTemplateService.remove(+id);
   }

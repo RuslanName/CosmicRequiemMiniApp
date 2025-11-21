@@ -18,22 +18,10 @@ export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
 
   @Post('login')
-  @ApiOperation({
-    summary: 'Вход в панель администрации',
-    description:
-      'Аутентифицирует администратора и устанавливает токен в HTTP-only cookie',
-  })
-  @ApiBody({
-    schema: {
-      example: {
-        username: '123456789',
-        password: 'your_password',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Вход в панель администрации' })
+  @ApiBody({ type: AdminLoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Успешная аутентификация',
     schema: {
       example: {
         success: true,
@@ -41,7 +29,14 @@ export class AdminAuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+  @ApiResponse({
+    status: 401,
+    schema: {
+      example: {
+        message: 'Invalid credentials',
+      },
+    },
+  })
   async login(
     @Body() loginDto: AdminLoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -66,7 +61,16 @@ export class AdminAuthController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @ApiOperation({ summary: 'Выход из панели администрации' })
-  @ApiResponse({ status: 200, description: 'Успешный выход' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        success: true,
+        message: 'Logout successful',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   logout(@Res({ passthrough: true }) res: Response): {
     success: boolean;
     message: string;

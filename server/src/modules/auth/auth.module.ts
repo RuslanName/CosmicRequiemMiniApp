@@ -9,13 +9,15 @@ import { JwtModule } from '@nestjs/jwt';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { Admin } from '../admin/admin.entity';
+import { Clan } from '../clan/entities/clan.entity';
+import { ClanApplication } from '../clan/entities/clan-application.entity';
 import { ENV } from '../../config/constants';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserGuard, Admin]),
+    TypeOrmModule.forFeature([User, UserGuard, Admin, Clan, ClanApplication]),
     PassportModule,
     JwtModule.register({
       secret: ENV.JWT_SECRET,

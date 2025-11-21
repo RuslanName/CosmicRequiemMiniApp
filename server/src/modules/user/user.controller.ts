@@ -8,7 +8,9 @@ import {
   Request,
   Query,
   Post,
+  BadRequestException,
 } from '@nestjs/common';
+import { AuthenticatedRequest } from '../../common/types/request.types';
 import {
   ApiTags,
   ApiOperation,
@@ -32,7 +34,9 @@ import {
 } from '../../common/decorators/cache.decorator';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
+import { UserGuard } from '../user-guard/user-guard.entity';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
+import { AttackPlayerDto } from './dtos/attack-player.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -45,10 +49,32 @@ export class UserController {
   @CacheTTL(60)
   @CacheKey('user:list')
   @ApiOperation({ summary: 'Получить всех пользователей с пагинацией' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список пользователей с пагинацией',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            vk_id: 123456789,
+            first_name: 'Иван',
+            last_name: 'Иванов',
+            sex: 2,
+            avatar_url: 'https://example.com/avatar.jpg',
+            money: 10000,
+            strength: 250,
+            referral_link: 'https://vk.com/app123456?start=ref_abc123',
+          },
+        ],
+        total: 100,
+        page: 1,
+        limit: 10,
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number; referral_link?: string })[];
     total: number;
@@ -62,14 +88,29 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить текущего аутентифицированного пользователя',
+    summary:
+      'Получить текущего аутентифицированного пользователя (Для Mini App)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает текущего пользователя с силой',
+    schema: {
+      example: {
+        id: 1,
+        vk_id: 123456789,
+        first_name: 'Иван',
+        last_name: 'Иванов',
+        sex: 2,
+        avatar_url: 'https://example.com/avatar.jpg',
+        money: 10000,
+        strength: 250,
+        referral_link: 'https://vk.com/app123456?start=ref_abc123',
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findMe(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<User & { strength: number; referral_link?: string }> {
     return this.userService.findMe(req.user.id);
   }
@@ -80,7 +121,25 @@ export class UserController {
   @CacheTTL(120)
   @CacheKey('user::id')
   @ApiOperation({ summary: 'Получить пользователя по ID' })
-  @ApiResponse({ status: 200, description: 'Возвращает пользователя с силой' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        vk_id: 123456789,
+        first_name: 'Иван',
+        last_name: 'Иванов',
+        sex: 2,
+        avatar_url: 'https://example.com/avatar.jpg',
+        money: 10000,
+        strength: 250,
+        referral_link: 'https://vk.com/app123456?start=ref_abc123',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findOne(
     @Param('id') id: string,
   ): Promise<User & { strength: number; referral_link?: string }> {
@@ -92,10 +151,24 @@ export class UserController {
   @ApiCookieAuth()
   @InvalidateCache('user::id', 'user:list')
   @ApiOperation({ summary: 'Обновить пользователя' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает обновленного пользователя',
+    schema: {
+      example: {
+        id: 1,
+        vk_id: 123456789,
+        first_name: 'Иван',
+        last_name: 'Иванов',
+        sex: 2,
+        avatar_url: 'https://example.com/avatar.jpg',
+        money: 10000,
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -106,35 +179,36 @@ export class UserController {
   @Post('training')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Тренировка стражей пользователя',
-    description:
-      'Тренирует всех стражей пользователя, увеличивая их силу. Стоимость зависит от текущей общей силы. Проверяет кулдаун TRAINING_COOLDOWN (15 минут) и наличие достаточного количества денег.',
-  })
+  @ApiOperation({ summary: 'Тренировка стражей пользователя (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    description: 'Тренировка успешно завершена',
     schema: {
       example: {
         user: { id: 1, money: 4500 },
         training_cost: 500,
         power_increase: 25,
         new_power: 275,
+        training_cooldown_end: '2024-01-01T12:15:00.000Z',
       },
     },
   })
   @ApiResponse({
     status: 400,
-    description:
-      'Недостаточно денег, кулдаун тренировки активен, нет стражей для тренировки',
+    schema: {
+      example: {
+        message: 'Training cooldown is still active',
+        cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async training(@Request() req): Promise<{
+  async training(@Request() req: AuthenticatedRequest): Promise<{
     user: User;
     training_cost: number;
     power_increase: number;
     new_power: number;
+    training_cooldown_end: Date;
   }> {
     return this.userService.training(req.user.id);
   }
@@ -143,26 +217,34 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Выполнить контракт для заработка денег',
-    description:
-      'Выполняет контракт для заработка виртуальной валюты. Доход рассчитывается на основе текущей силы пользователя (55% от стоимости тренировки). Проверяет кулдаун CONTRACT_COOLDOWN (15 минут).',
+    summary: 'Выполнить контракт для заработка денег (Для Mini App)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Контракт успешно выполнен',
     schema: {
       example: {
         user: { id: 1, money: 5500 },
         contract_income: 275,
+        contract_cooldown_end: '2024-01-01T12:15:00.000Z',
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Кулдаун контракта активен' })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Contract cooldown is still active',
+        cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async contract(
-    @Request() req,
-  ): Promise<{ user: User; contract_income: number }> {
+  async contract(@Request() req: AuthenticatedRequest): Promise<{
+    user: User;
+    contract_income: number;
+    contract_cooldown_end: Date;
+  }> {
     return this.userService.contract(req.user.id);
   }
 
@@ -171,25 +253,28 @@ export class UserController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('user:rating')
-  @ApiOperation({ summary: 'Получить рейтинг пользователей' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить рейтинг пользователей (Для Mini App)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает рейтинг пользователей',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            first_name: 'Иван',
+            last_name: 'Иванов',
+            strength: 500,
+          },
+        ],
+        total: 100,
+        page: 1,
+        limit: 10,
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(@Query() paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number })[];
     total: number;
@@ -202,55 +287,149 @@ export class UserController {
   @Get('me/boosts')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить бусты текущего пользователя' })
+  @ApiOperation({
+    summary: 'Получить бусты текущего пользователя (Для Mini App)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список бустов',
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          type: 'cooldown_halving',
+          end_time: '2024-01-01T12:00:00.000Z',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      },
+    },
   })
-  async getMyBoosts(@Request() req): Promise<UserBoost[]> {
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getMyBoosts(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserBoost[]> {
     return this.userService.getUserBoosts(req.user.id);
   }
 
   @Get('me/accessories')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить аксессуары текущего пользователя' })
+  @ApiOperation({
+    summary: 'Получить аксессуары текущего пользователя (Для Mini App)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список аксессуаров',
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          name: 'Меч силы',
+          currency: 'money',
+          price: 1000,
+          status: 'unequipped',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      },
+    },
   })
-  async getMyAccessories(@Request() req): Promise<UserAccessory[]> {
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getMyAccessories(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserAccessory[]> {
     return this.userService.getUserAccessories(req.user.id);
+  }
+
+  @Get('me/guards')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить стражей текущего пользователя (Для Mini App)',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          name: 'Страж Альфа',
+          strength: 150,
+          is_first: false,
+          user_id: 5,
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async getMyGuards(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserGuard[]> {
+    return this.userService.getUserGuards(req.user.id);
   }
 
   @Get('me/equipped-accessories')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить надетые аксессуары пользователя' })
+  @ApiOperation({
+    summary: 'Получить надетые аксессуары пользователя (Для Mini App)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Возвращает список надетых аксессуаров',
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          name: 'Меч силы',
+          currency: 'money',
+          price: 1000,
+          status: 'equipped',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      },
+    },
   })
-  async getEquippedAccessories(@Request() req): Promise<UserAccessory[]> {
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getEquippedAccessories(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserAccessory[]> {
     return this.userService.getEquippedAccessories(req.user.id);
   }
 
   @Post('equip-accessory')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Надеть аксессуар' })
+  @ApiOperation({ summary: 'Надеть аксессуар (Для Mini App)' })
   @ApiBody({ type: EquipAccessoryDto })
   @ApiResponse({
     status: 200,
-    description: 'Аксессуар успешно надет',
+    schema: {
+      example: {
+        id: 1,
+        name: 'Меч силы',
+        currency: 'money',
+        price: 1000,
+        status: 'equipped',
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
   })
   @ApiResponse({
     status: 400,
-    description: 'Аксессуар не принадлежит пользователю',
+    schema: {
+      example: {
+        message: 'Аксессуар не принадлежит пользователю',
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
   async equipAccessory(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() equipAccessoryDto: EquipAccessoryDto,
   ): Promise<UserAccessory> {
     return this.userService.equipAccessory(
@@ -262,26 +441,213 @@ export class UserController {
   @Post('unequip-accessory/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Снять аксессуар' })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'ID аксессуара',
-    example: 1,
-  })
+  @ApiOperation({ summary: 'Снять аксессуар (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    description: 'Аксессуар успешно снят',
+    schema: {
+      example: {
+        id: 1,
+        name: 'Меч силы',
+        currency: 'money',
+        price: 1000,
+        status: 'unequipped',
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
   })
   @ApiResponse({
     status: 400,
-    description: 'Аксессуар не принадлежит пользователю или уже снят',
+    schema: {
+      example: {
+        message: 'Аксессуар не принадлежит пользователю или уже снят',
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
   async unequipAccessory(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<UserAccessory> {
     return this.userService.unequipAccessory(req.user.id, +id);
+  }
+
+  @Get('me/referral-link')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить реферальную ссылку пользователя (Для Mini App)',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        referral_link: 'https://vk.com/app123456?start=ref_abc123...',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async getReferralLink(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<{ referral_link: string }> {
+    return this.userService.getUserReferralLink(req.user.id);
+  }
+
+  @Get('attackable')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('user:attackable')
+  @ApiOperation({
+    summary: 'Получить список пользователей для атаки (Для Mini App)',
+  })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    enum: ['top', 'suitable', 'friends'],
+    example: 'top',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        data: [
+          {
+            id: 2,
+            first_name: 'Петр',
+            last_name: 'Петров',
+            strength: 300,
+            referral_link: 'https://vk.com/app123456?start=ref_xyz789',
+          },
+        ],
+        total: 50,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Filter parameter must be one of: top, suitable, friends',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getAttackableUsers(
+    @Request() req: AuthenticatedRequest,
+    @Query('filter') filter?: 'top' | 'suitable' | 'friends',
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<{
+    data: (User & { strength: number; referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
+      throw new BadRequestException(
+        'Filter parameter must be one of: top, suitable, friends',
+      );
+    }
+    return this.userService.getAttackableUsers(
+      req.user.id,
+      filter,
+      paginationDto,
+    );
+  }
+
+  @Post('attack')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Атаковать игрока (Для Mini App)' })
+  @ApiBody({ type: AttackPlayerDto })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        win_chance: 65.5,
+        is_win: true,
+        stolen_money: 1500,
+        captured_guards: 2,
+        attack_cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Active shield on defender, cannot attack',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async attackPlayer(
+    @Request() req: AuthenticatedRequest,
+    @Body() attackPlayerDto: AttackPlayerDto,
+  ): Promise<{
+    win_chance: number;
+    is_win: boolean;
+    stolen_money: number;
+    captured_guards: number;
+    attack_cooldown_end: Date;
+  }> {
+    return this.userService.attackPlayer(
+      req.user.id,
+      attackPlayerDto.target_user_id,
+    );
+  }
+
+  @Get('me/event-history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(30)
+  @ApiOperation({
+    summary: 'Получить историю событий пользователя (Для Mini App)',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            type: 'attack',
+            user_id: 5,
+            stolen_items: [
+              {
+                id: 1,
+                type: 'money',
+                amount: 1500,
+              },
+            ],
+            created_at: '2024-01-01T12:00:00.000Z',
+          },
+        ],
+        total: 50,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getEventHistory(
+    @Request() req: AuthenticatedRequest,
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    return this.userService.getEventHistory(req.user.id, paginationDto);
   }
 }

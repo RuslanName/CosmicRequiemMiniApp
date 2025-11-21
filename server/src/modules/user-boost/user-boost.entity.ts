@@ -7,7 +7,6 @@ import {
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { UserBoostType } from './enums/user-boost-type.enum';
-import { UserBoostStatus } from './enums/user-boost-status.enum';
 
 @Entity()
 export class UserBoost {
@@ -20,12 +19,8 @@ export class UserBoost {
   })
   type: UserBoostType;
 
-  @Column({
-    type: 'enum',
-    enum: UserBoostStatus,
-    default: UserBoostStatus.ACTIVE,
-  })
-  status: UserBoostStatus;
+  @Column({ type: 'timestamp', nullable: true })
+  end_time?: Date;
 
   @ManyToOne(() => User)
   user: User;

@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { User } from './user.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -17,6 +17,11 @@ import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
+import { randomUUID } from 'crypto';
+import { EventHistoryService } from '../event-history/event-history.service';
+import { EventHistoryType } from '../event-history/event-history-type.enum';
+import { StolenItem } from '../clan-war/entities/stolen-item.entity';
+import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
 
 @Injectable()
 export class UserService {
@@ -25,8 +30,11 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    @InjectRepository(StolenItem)
+    private readonly stolenItemRepository: Repository<StolenItem>,
     private readonly userBoostService: UserBoostService,
     private readonly userAccessoryService: UserAccessoryService,
+    private readonly eventHistoryService: EventHistoryService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -164,7 +172,10 @@ export class UserService {
         user.last_training_time.getTime() + trainingCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Training cooldown is still active');
+        throw new BadRequestException({
+          message: 'Training cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
       }
     }
 
@@ -270,7 +281,10 @@ export class UserService {
         user.last_contract_time.getTime() + contractCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Contract cooldown is still active');
+        throw new BadRequestException({
+          message: 'Contract cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
       }
     }
 
@@ -353,6 +367,19 @@ export class UserService {
     return this.userAccessoryService.findByUserId(userId);
   }
 
+  async getUserGuards(userId: number): Promise<UserGuard[]> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['guards'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user.guards || [];
+  }
+
   async getEquippedAccessories(userId: number): Promise<UserAccessory[]> {
     return this.userAccessoryService.findEquippedByUserId(userId);
   }
@@ -369,5 +396,362 @@ export class UserService {
     accessoryId: number,
   ): Promise<UserAccessory> {
     return this.userAccessoryService.unequip(userId, accessoryId);
+  }
+
+  async getUserReferralLink(
+    userId: number,
+  ): Promise<{ referral_link: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.referral_link_id) {
+      user.referral_link_id = randomUUID();
+      await this.userRepository.save(user);
+    }
+
+    return {
+      referral_link: `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`,
+    };
+  }
+
+  async getAttackableUsers(
+    userId: number,
+    filter?: 'top' | 'suitable' | 'friends',
+    paginationDto?: PaginationDto,
+  ): Promise<{
+    data: (User & { strength: number; referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page = 1, limit = 10 } = paginationDto || {};
+    const skip = (page - 1) * limit;
+
+    const currentUser = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan', 'guards'],
+    });
+
+    if (!currentUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const currentUserClanId = currentUser.clan?.id || null;
+
+    let users: User[];
+    let total: number;
+
+    if (!filter || filter === 'top') {
+      users = await this.userRepository.find({
+        relations: ['clan', 'guards'],
+      });
+
+      const dataWithStrength = users
+        .filter((user) => user.id !== userId)
+        .filter(
+          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
+        )
+        .map((user) => ({
+          ...this.transformUserForResponse(user),
+          strength: this.calculateUserPower(user.guards || []),
+        }));
+
+      dataWithStrength.sort((a, b) => b.strength - a.strength);
+
+      total = dataWithStrength.length;
+      const paginatedData = dataWithStrength.slice(skip, skip + limit);
+
+      return {
+        data: paginatedData,
+        total,
+        page,
+        limit,
+      };
+    } else if (filter === 'suitable') {
+      const currentStrength = this.calculateUserPower(currentUser.guards || []);
+      const strengthRange = Math.max(currentStrength * 0.3, 50);
+
+      users = await this.userRepository.find({
+        relations: ['clan', 'guards'],
+        where: {
+          id: MoreThan(0),
+        },
+      });
+
+      const dataWithStrength = users
+        .filter((user) => user.id !== userId)
+        .filter(
+          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
+        )
+        .map((user) => ({
+          ...this.transformUserForResponse(user),
+          strength: this.calculateUserPower(user.guards || []),
+        }))
+        .filter(
+          (user) =>
+            user.strength >= currentStrength - strengthRange &&
+            user.strength <= currentStrength + strengthRange,
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(a.strength - currentStrength) -
+            Math.abs(b.strength - currentStrength),
+        );
+
+      total = dataWithStrength.length;
+      const paginatedData = dataWithStrength.slice(skip, skip + limit);
+
+      return {
+        data: paginatedData,
+        total,
+        page,
+        limit,
+      };
+    } else if (filter === 'friends') {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+      };
+    }
+
+    throw new BadRequestException('Invalid filter parameter');
+  }
+
+  async attackPlayer(
+    userId: number,
+    targetUserId: number,
+  ): Promise<{
+    win_chance: number;
+    is_win: boolean;
+    stolen_money: number;
+    captured_guards: number;
+    attack_cooldown_end: Date;
+  }> {
+    const attacker = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan', 'guards'],
+    });
+
+    const defender = await this.userRepository.findOne({
+      where: { id: targetUserId },
+      relations: ['clan', 'guards'],
+    });
+
+    if (!attacker || !defender) {
+      throw new NotFoundException('Attacker or defender not found');
+    }
+
+    if (attacker.id === defender.id) {
+      throw new BadRequestException('Cannot attack yourself');
+    }
+
+    if (
+      attacker.clan &&
+      defender.clan &&
+      attacker.clan.id === defender.clan.id
+    ) {
+      throw new BadRequestException('Cannot attack member of your own clan');
+    }
+
+    await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
+      targetUserId,
+      defender.shield_end_time || null,
+    );
+
+    const defenderActiveBoosts =
+      await this.userBoostService.findActiveByUserId(targetUserId);
+    const defenderShieldBoost = defenderActiveBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+
+    if (defender.shield_end_time && defender.shield_end_time > new Date()) {
+      throw new BadRequestException('Cannot attack user with active shield');
+    }
+
+    if (
+      defenderShieldBoost &&
+      (!defender.shield_end_time || defender.shield_end_time <= new Date())
+    ) {
+      await this.userBoostService.complete(defenderShieldBoost.id);
+    }
+
+    attacker.shield_end_time = undefined;
+
+    const attackerActiveBoosts =
+      await this.userBoostService.findActiveByUserId(userId);
+    const cooldownHalvingBoost = attackerActiveBoosts.find(
+      (b) => b.type === UserBoostType.COOLDOWN_HALVING,
+    );
+
+    let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
+    if (cooldownHalvingBoost) {
+      attackCooldown = attackCooldown / 2;
+      await this.userBoostService.complete(cooldownHalvingBoost.id);
+    }
+
+    if (attacker.last_attack_time) {
+      const cooldownEndTime = new Date(
+        attacker.last_attack_time.getTime() + attackCooldown,
+      );
+      if (cooldownEndTime > new Date()) {
+        throw new BadRequestException({
+          message: 'Attack cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
+      }
+    }
+
+    const attacker_power = this.calculateUserPower(attacker.guards || []);
+    const attacker_guards = this.getGuardsCount(attacker.guards || []);
+    const defender_power = this.calculateUserPower(defender.guards || []);
+    const capturableDefenderGuards = defender.guards
+      ? defender.guards.filter((guard) => !guard.is_first)
+      : [];
+    const defender_guards = capturableDefenderGuards.length;
+
+    if (
+      attacker_guards === 0 ||
+      !defender.guards ||
+      defender.guards.length === 0
+    ) {
+      throw new BadRequestException('Attacker or defender has no guards');
+    }
+
+    if (defender_guards === 0) {
+      throw new BadRequestException('Defender has no capturable guards');
+    }
+
+    const win_chance = Math.min(
+      75,
+      Math.max(
+        25,
+        ((attacker_power * attacker_guards) /
+          (defender_power * defender_guards)) *
+          100,
+      ),
+    );
+    const is_win = Math.random() * 100 < win_chance;
+    const stolen_items: StolenItem[] = [];
+
+    if (is_win) {
+      const stolen_money = Math.round(
+        defender.money * 0.15 * (win_chance / 100),
+      );
+
+      if (stolen_money > 0) {
+        defender.money = Number(defender.money) - stolen_money;
+        attacker.money = Number(attacker.money) + stolen_money;
+        await this.userRepository.save([defender, attacker]);
+
+        const moneyItem = this.stolenItemRepository.create({
+          type: StolenItemType.MONEY,
+          value: stolen_money.toString(),
+          thief: attacker,
+          victim: defender,
+          clan_war_id: null,
+        });
+        await this.stolenItemRepository.save(moneyItem);
+        stolen_items.push(moneyItem);
+      }
+
+      const captured_guards = Math.round(
+        defender_guards * 0.08 * (win_chance / 100),
+      );
+
+      if (
+        captured_guards > 0 &&
+        defender.guards &&
+        defender.guards.length > 0
+      ) {
+        const capturableGuards = defender.guards.filter(
+          (guard) => !guard.is_first,
+        );
+        const guardsToCapture = capturableGuards.slice(0, captured_guards);
+
+        for (const guard of guardsToCapture) {
+          guard.user = attacker;
+          await this.userGuardRepository.save(guard);
+
+          const guardItem = this.stolenItemRepository.create({
+            type: StolenItemType.GUARD,
+            value: guard.id.toString(),
+            thief: attacker,
+            victim: defender,
+            clan_war_id: null,
+          });
+          await this.stolenItemRepository.save(guardItem);
+          stolen_items.push(guardItem);
+        }
+      }
+
+      attacker.last_attack_time = new Date();
+      await this.userRepository.save(attacker);
+
+      await this.eventHistoryService.create(
+        attacker.id,
+        EventHistoryType.ATTACK,
+        stolen_items,
+      );
+
+      await this.eventHistoryService.create(
+        defender.id,
+        EventHistoryType.DEFENSE,
+        stolen_items,
+      );
+
+      const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
+
+      return {
+        win_chance,
+        is_win: true,
+        stolen_money: stolen_money || 0,
+        captured_guards: captured_guards || 0,
+        attack_cooldown_end: attackCooldownEnd,
+      };
+    }
+
+    attacker.last_attack_time = new Date();
+    await this.userRepository.save(attacker);
+
+    await this.eventHistoryService.create(
+      attacker.id,
+      EventHistoryType.ATTACK,
+      [],
+    );
+
+    await this.eventHistoryService.create(
+      defender.id,
+      EventHistoryType.DEFENSE,
+      [],
+    );
+
+    const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
+
+    return {
+      win_chance,
+      is_win: false,
+      stolen_money: 0,
+      captured_guards: 0,
+      attack_cooldown_end: attackCooldownEnd,
+    };
+  }
+
+  async getEventHistory(
+    userId: number,
+    paginationDto?: PaginationDto,
+  ): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    return this.eventHistoryService.findByUserId(userId, paginationDto);
   }
 }

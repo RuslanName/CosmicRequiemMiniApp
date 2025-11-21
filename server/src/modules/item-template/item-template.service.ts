@@ -9,7 +9,7 @@ import { ItemTemplate } from './item-template.entity';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
 import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import { ProductType } from './enums/product-type.enum';
+import { ItemTemplateType } from './enums/item-template-type.enum';
 import { Color } from './enums/color.enum';
 import { NicknameIcon } from './enums/nickname-icon.enum';
 import { AvatarFrame } from './enums/avatar-frame.enum';
@@ -55,30 +55,33 @@ export class ItemTemplateService {
     return itemTemplate;
   }
 
-  private validateProductValue(type: ProductType, value: string): void {
+  private validateItemTemplateValue(
+    type: ItemTemplateType,
+    value: string,
+  ): void {
     switch (type) {
-      case ProductType.NICKNAME_COLOR:
+      case ItemTemplateType.NICKNAME_COLOR:
         if (!Object.values(Color).includes(value as Color)) {
           throw new BadRequestException(
             `Value must be one of: ${Object.values(Color).join(', ')}`,
           );
         }
         break;
-      case ProductType.NICKNAME_ICON:
+      case ItemTemplateType.NICKNAME_ICON:
         if (!Object.values(NicknameIcon).includes(value as NicknameIcon)) {
           throw new BadRequestException(
             `Value must be one of: ${Object.values(NicknameIcon).join(', ')}`,
           );
         }
         break;
-      case ProductType.AVATAR_FRAME:
+      case ItemTemplateType.AVATAR_FRAME:
         if (!Object.values(AvatarFrame).includes(value as AvatarFrame)) {
           throw new BadRequestException(
             `Value must be one of: ${Object.values(AvatarFrame).join(', ')}`,
           );
         }
         break;
-      case ProductType.GUARD:
+      case ItemTemplateType.GUARD:
         const guardStrength = parseInt(value, 10);
         if (isNaN(guardStrength) || guardStrength <= 0) {
           throw new BadRequestException(
@@ -86,11 +89,13 @@ export class ItemTemplateService {
           );
         }
         break;
-      case ProductType.SHIELD:
-        const shieldHours = parseInt(value, 10);
-        if (isNaN(shieldHours) || shieldHours <= 0) {
+      case ItemTemplateType.SHIELD:
+      case ItemTemplateType.REWARD_DOUBLING:
+      case ItemTemplateType.COOLDOWN_HALVING:
+        const timeValue = parseInt(value, 10);
+        if (isNaN(timeValue) || timeValue <= 0) {
           throw new BadRequestException(
-            'Value must be a positive number for SHIELD type',
+            'Value must be a positive number (time in hours) for SHIELD, REWARD_DOUBLING, and COOLDOWN_HALVING types',
           );
         }
         break;
@@ -100,7 +105,7 @@ export class ItemTemplateService {
   async create(
     createItemTemplateDto: CreateItemTemplateDto,
   ): Promise<ItemTemplate> {
-    this.validateProductValue(
+    this.validateItemTemplateValue(
       createItemTemplateDto.type,
       createItemTemplateDto.value,
     );
@@ -126,7 +131,7 @@ export class ItemTemplateService {
     const valueToValidate = updateItemTemplateDto.value || itemTemplate.value;
 
     if (updateItemTemplateDto.type || updateItemTemplateDto.value) {
-      this.validateProductValue(typeToValidate, valueToValidate);
+      this.validateItemTemplateValue(typeToValidate, valueToValidate);
     }
 
     Object.assign(itemTemplate, updateItemTemplateDto);
