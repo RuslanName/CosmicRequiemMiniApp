@@ -58,7 +58,12 @@ export class UserService {
   }
 
   async findAll(paginationDto: PaginationDto): Promise<{
-    data: (User & { strength: number; referral_link?: string })[];
+    data: (User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -72,13 +77,20 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = data.map((user) => {
-      const transformed = this.transformUserForResponse(user);
-      return {
-        ...transformed,
-        strength: this.calculateUserPower(user.guards || []),
-      };
-    });
+    const dataWithStrength = await Promise.all(
+      data.map(async (user) => {
+        const transformed = this.transformUserForResponse(user);
+        const guardsCount = this.getGuardsCount(user.guards || []);
+        const equippedAccessories =
+          await this.userAccessoryService.findEquippedByUserId(user.id);
+        return {
+          ...transformed,
+          strength: this.calculateUserPower(user.guards || []),
+          guards_count: guardsCount,
+          equipped_accessories: equippedAccessories,
+        };
+      }),
+    );
 
     return {
       data: dataWithStrength,
@@ -90,7 +102,14 @@ export class UserService {
 
   async findOne(
     id: number,
-  ): Promise<User & { strength: number; referral_link?: string }> {
+  ): Promise<
+    User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    }
+  > {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['clan', 'guards'],
@@ -101,15 +120,27 @@ export class UserService {
     }
 
     const transformed = this.transformUserForResponse(user);
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const equippedAccessories =
+      await this.userAccessoryService.findEquippedByUserId(user.id);
     return {
       ...transformed,
       strength: this.calculateUserPower(user.guards || []),
+      guards_count: guardsCount,
+      equipped_accessories: equippedAccessories,
     };
   }
 
   async findMe(
     userId: number,
-  ): Promise<User & { strength: number; referral_link?: string }> {
+  ): Promise<
+    User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    }
+  > {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'guards'],
@@ -120,9 +151,14 @@ export class UserService {
     }
 
     const transformed = this.transformUserForResponse(user);
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const equippedAccessories =
+      await this.userAccessoryService.findEquippedByUserId(user.id);
     return {
       ...transformed,
       strength: this.calculateUserPower(user.guards || []),
+      guards_count: guardsCount,
+      equipped_accessories: equippedAccessories,
     };
   }
 
@@ -382,6 +418,21 @@ export class UserService {
 
   async getEquippedAccessories(userId: number): Promise<UserAccessory[]> {
     return this.userAccessoryService.findEquippedByUserId(userId);
+  }
+
+  async getInventory(userId: number): Promise<{
+    boosts: UserBoost[];
+    accessories: UserAccessory[];
+  }> {
+    const [boosts, accessories] = await Promise.all([
+      this.getUserBoosts(userId),
+      this.getUserAccessories(userId),
+    ]);
+
+    return {
+      boosts,
+      accessories,
+    };
   }
 
   async equipAccessory(

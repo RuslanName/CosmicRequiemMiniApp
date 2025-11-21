@@ -82,7 +82,11 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
-    data: (Clan & { referral_link?: string; money?: number; strength?: number })[];
+    data: (Clan & {
+      referral_link?: string;
+      money?: number;
+      strength?: number;
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -119,7 +123,11 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClansList(@Query() paginationDto: PaginationDto): Promise<{
-    data: (Clan & { referral_link?: string; money?: number; strength?: number })[];
+    data: (Clan & {
+      referral_link?: string;
+      money?: number;
+      strength?: number;
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -411,7 +419,9 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Клан не найден' })
   async findOne(
     @Param('id') id: string,
-  ): Promise<Clan & { referral_link?: string; money?: number; strength?: number }> {
+  ): Promise<
+    Clan & { referral_link?: string; money?: number; strength?: number }
+  > {
     return this.clanService.findOne(+id);
   }
 

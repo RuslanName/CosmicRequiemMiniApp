@@ -65,6 +65,8 @@ export class UserController {
             avatar_url: 'https://example.com/avatar.jpg',
             money: 10000,
             strength: 250,
+            guards_count: 5,
+            equipped_accessories: [],
             referral_link: 'https://vk.com/app123456?start=ref_abc123',
           },
         ],
@@ -76,7 +78,12 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
-    data: (User & { strength: number; referral_link?: string })[];
+    data: (User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -103,6 +110,8 @@ export class UserController {
         avatar_url: 'https://example.com/avatar.jpg',
         money: 10000,
         strength: 250,
+        guards_count: 5,
+        equipped_accessories: [],
         referral_link: 'https://vk.com/app123456?start=ref_abc123',
       },
     },
@@ -111,7 +120,14 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findMe(
     @Request() req: AuthenticatedRequest,
-  ): Promise<User & { strength: number; referral_link?: string }> {
+  ): Promise<
+    User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    }
+  > {
     return this.userService.findMe(req.user.id);
   }
 
@@ -134,6 +150,8 @@ export class UserController {
         avatar_url: 'https://example.com/avatar.jpg',
         money: 10000,
         strength: 250,
+        guards_count: 5,
+        equipped_accessories: [],
         referral_link: 'https://vk.com/app123456?start=ref_abc123',
       },
     },
@@ -142,7 +160,14 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findOne(
     @Param('id') id: string,
-  ): Promise<User & { strength: number; referral_link?: string }> {
+  ): Promise<
+    User & {
+      strength: number;
+      guards_count: number;
+      equipped_accessories: UserAccessory[];
+      referral_link?: string;
+    }
+  > {
     return this.userService.findOne(+id);
   }
 
@@ -284,60 +309,44 @@ export class UserController {
     return this.userService.getRating(paginationDto);
   }
 
-  @Get('me/boosts')
+  @Get('me/inventory')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить бусты текущего пользователя (Для Mini App)',
+    summary:
+      'Получить инвентарь текущего пользователя (бусты и аксессуары) (Для Mini App)',
   })
   @ApiResponse({
     status: 200,
     schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          type: 'cooldown_halving',
-          end_time: '2024-01-01T12:00:00.000Z',
-          created_at: '2024-01-01T00:00:00.000Z',
-        },
+      example: {
+        boosts: [
+          {
+            id: 1,
+            type: 'cooldown_halving',
+            end_time: '2024-01-01T12:00:00.000Z',
+            created_at: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        accessories: [
+          {
+            id: 1,
+            name: 'Меч силы',
+            currency: 'money',
+            price: 1000,
+            status: 'unequipped',
+            created_at: '2024-01-01T00:00:00.000Z',
+          },
+        ],
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getMyBoosts(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<UserBoost[]> {
-    return this.userService.getUserBoosts(req.user.id);
-  }
-
-  @Get('me/accessories')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Получить аксессуары текущего пользователя (Для Mini App)',
-  })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          name: 'Меч силы',
-          currency: 'money',
-          price: 1000,
-          status: 'unequipped',
-          created_at: '2024-01-01T00:00:00.000Z',
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getMyAccessories(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<UserAccessory[]> {
-    return this.userService.getUserAccessories(req.user.id);
+  async getInventory(@Request() req: AuthenticatedRequest): Promise<{
+    boosts: UserBoost[];
+    accessories: UserAccessory[];
+  }> {
+    return this.userService.getInventory(req.user.id);
   }
 
   @Get('me/guards')

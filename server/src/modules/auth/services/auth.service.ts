@@ -74,7 +74,9 @@ export class AuthService {
 
       const firstGuard = this.userGuardRepository.create({
         name: `#${dbUser.id}`,
-        strength: Settings[SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD] as number,
+        strength: Settings[
+          SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+        ] as number,
         is_first: true,
         user: dbUser,
       });

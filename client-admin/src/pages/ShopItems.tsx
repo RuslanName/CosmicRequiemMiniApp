@@ -127,7 +127,7 @@ const ShopItems = () => {
     setError('');
   };
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
 
   if (loading) {
     return <div>Загрузка...</div>;

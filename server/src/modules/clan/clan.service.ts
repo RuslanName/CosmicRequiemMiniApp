@@ -78,17 +78,21 @@ export class ClanService {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
       delete transformed.referral_link_id;
     }
-    
+
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
       transformed.strength = this.calculateClanStrength(clan.members);
     }
-    
+
     return transformed;
   }
 
   async findAll(paginationDto: PaginationDto): Promise<{
-    data: (Clan & { referral_link?: string; money?: number; strength?: number })[];
+    data: (Clan & {
+      referral_link?: string;
+      money?: number;
+      strength?: number;
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -114,7 +118,11 @@ export class ClanService {
     };
   }
 
-  async findOne(id: number): Promise<Clan & { referral_link?: string; money?: number; strength?: number }> {
+  async findOne(
+    id: number,
+  ): Promise<
+    Clan & { referral_link?: string; money?: number; strength?: number }
+  > {
     const clan = await this.clanRepository.findOne({
       where: { id },
       relations: ['members', 'members.guards', 'leader'],
