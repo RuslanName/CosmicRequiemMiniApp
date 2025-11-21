@@ -10,6 +10,8 @@ import { ClanApplicationStatus } from '../../clan/enums/clan-application.enum';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
+import { Settings } from '../../../config/setting.config';
+import { SettingKey } from '../../setting/setting-key.enum';
 
 @Injectable()
 export class AuthService {
@@ -72,7 +74,7 @@ export class AuthService {
 
       const firstGuard = this.userGuardRepository.create({
         name: `#${dbUser.id}`,
-        strength: 0,
+        strength: Settings[SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD] as number,
         is_first: true,
         user: dbUser,
       });

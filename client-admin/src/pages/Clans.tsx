@@ -169,7 +169,8 @@ const Clans = () => {
             <th>Изображение</th>
             <th>Макс. участников</th>
             <th>ID лидера</th>
-            <th>Реферальная ссылка</th>
+            <th>Деньги</th>
+            <th>Сила</th>
             <th>Статус</th>
             <th>Действия</th>
           </tr>
@@ -190,15 +191,8 @@ const Clans = () => {
               </td>
               <td>{clan.max_members}</td>
               <td>{clan.leader_id || '-'}</td>
-              <td>
-                {clan.referral_link ? (
-                  <a href={clan.referral_link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#007bff' }}>
-                    Ссылка
-                  </a>
-                ) : (
-                  <span style={{ color: '#999' }}>—</span>
-                )}
-              </td>
+              <td>{clan.money ?? '-'}</td>
+              <td>{clan.strength ?? '-'}</td>
               <td>{ClanStatusLabels[clan.status as ClanStatus] || clan.status}</td>
               <td>
                 <div className="actions">

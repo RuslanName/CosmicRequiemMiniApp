@@ -141,6 +141,7 @@ const Users = () => {
             <th>Имя</th>
             <th>Фамилия</th>
             <th>Деньги</th>
+            <th>Сила</th>
             <th>Статус</th>
             <th>Действия</th>
           </tr>
@@ -153,6 +154,7 @@ const Users = () => {
               <td>{user.first_name}</td>
               <td>{user.last_name || '-'}</td>
               <td>{user.money}</td>
+              <td>{user.strength || 0}</td>
               <td>{UserStatusLabels[user.status as UserStatus] || user.status}</td>
               <td>
                 <div className="actions">

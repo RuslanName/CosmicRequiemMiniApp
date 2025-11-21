@@ -11,6 +11,8 @@ export interface Clan {
   members?: any[];
   referral_link?: string;
   referral_link_id?: string;
+  money?: number;
+  strength?: number;
 }
 
 export interface CreateClanDto {

@@ -57,19 +57,38 @@ export class ClanService {
     return guards ? guards.length : 0;
   }
 
+  private calculateClanMoney(members: User[]): number {
+    if (!members || members.length === 0) return 0;
+    return members.reduce((sum, member) => sum + Number(member.money || 0), 0);
+  }
+
+  private calculateClanStrength(members: User[]): number {
+    if (!members || members.length === 0) return 0;
+    return members.reduce((sum, member) => {
+      const userStrength = this.calculateUserPower(member.guards || []);
+      return sum + userStrength;
+    }, 0);
+  }
+
   private transformClanForResponse(
     clan: Clan,
-  ): Clan & { referral_link?: string } {
+  ): Clan & { referral_link?: string; money?: number; strength?: number } {
     const transformed: any = { ...clan };
     if (clan.referral_link_id) {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
       delete transformed.referral_link_id;
     }
+    
+    if (clan.members) {
+      transformed.money = this.calculateClanMoney(clan.members);
+      transformed.strength = this.calculateClanStrength(clan.members);
+    }
+    
     return transformed;
   }
 
   async findAll(paginationDto: PaginationDto): Promise<{
-    data: (Clan & { referral_link?: string })[];
+    data: (Clan & { referral_link?: string; money?: number; strength?: number })[];
     total: number;
     page: number;
     limit: number;
@@ -78,7 +97,7 @@ export class ClanService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.clanRepository.findAndCount({
-      relations: ['members', 'leader'],
+      relations: ['members', 'members.guards', 'leader'],
       skip,
       take: limit,
     });
@@ -95,10 +114,10 @@ export class ClanService {
     };
   }
 
-  async findOne(id: number): Promise<Clan & { referral_link?: string }> {
+  async findOne(id: number): Promise<Clan & { referral_link?: string; money?: number; strength?: number }> {
     const clan = await this.clanRepository.findOne({
       where: { id },
-      relations: ['members', 'leader'],
+      relations: ['members', 'members.guards', 'leader'],
     });
 
     if (!clan) {
