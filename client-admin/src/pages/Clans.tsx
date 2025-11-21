@@ -185,7 +185,7 @@ const Clans = () => {
                   <img 
                     src={`http://localhost:5000/${clan.image_path}`} 
                     alt={clan.name}
-                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                    style={{ width: '50px', height: '50px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                   />
                 )}
               </td>

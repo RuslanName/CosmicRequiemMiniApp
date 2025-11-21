@@ -55,7 +55,7 @@ export class ClanController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @CacheTTL(60)
-  @CacheKey('clan:list')
+  @CacheKey('clan:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все кланы с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -98,7 +98,7 @@ export class ClanController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
-  @CacheKey('clan:public-list')
+  @CacheKey('clan:public-list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить список кланов (Для Mini App)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -390,169 +390,6 @@ export class ClanController {
     limit: number;
   }> {
     return this.clanService.getClanRating(paginationDto);
-  }
-
-  @Get(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @CacheTTL(300)
-  @CacheKey('clan::id')
-  @ApiOperation({ summary: 'Получить клан по ID' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        members: [],
-        leader: { id: 1, first_name: 'John' },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<
-    Clan & { referral_link?: string; money?: number; strength?: number }
-  > {
-    return this.clanService.findOne(+id);
-  }
-
-  @Get(':id/members')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить всех участников клана (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          first_name: 'Иван',
-          last_name: 'Иванов',
-          money: 10000,
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanMembers(@Param('id') id: string): Promise<User[]> {
-    return this.clanService.getClanMembers(+id);
-  }
-
-  @Get(':id/wars')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить все войны клана (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          clan_1: { id: 1, name: 'Elite Warriors' },
-          clan_2: { id: 2, name: 'Dark Knights' },
-          start_time: '2024-01-01T00:00:00.000Z',
-          end_time: '2024-01-01T06:00:00.000Z',
-          status: 'in_progress',
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanWars(@Param('id') id: string): Promise<ClanWar[]> {
-    return this.clanService.getAllWars(+id);
-  }
-
-  @Post()
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
-  @InvalidateCache('clan:list')
-  @ApiOperation({ summary: 'Создать новый клан' })
-  @ApiBody({ type: CreateClanDto })
-  @ApiResponse({
-    status: 201,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        image_path: 'data/clan-images/clan-1234567890.jpg',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async create(
-    @Body() createClanDto: CreateClanDto,
-    @UploadedFile() image: Express.Multer.File,
-  ): Promise<Clan & { referral_link?: string }> {
-    return this.clanService.create(createClanDto, image);
-  }
-
-  @Patch(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
-  @InvalidateCache('clan::id', 'clan:list')
-  @ApiOperation({ summary: 'Обновить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiBody({ type: UpdateClanDto })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateClanDto: UpdateClanDto,
-    @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Clan & { referral_link?: string }> {
-    return this.clanService.update(+id, updateClanDto, image);
-  }
-
-  @Delete(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @InvalidateCache('clan::id', 'clan:list')
-  @ApiOperation({ summary: 'Удалить клан' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-    schema: { example: { message: 'Clan deleted successfully' } },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.clanService.remove(+id);
   }
 
   @Get('wars/available')
@@ -956,7 +793,7 @@ export class ClanController {
   @Delete('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @InvalidateCache('clan:me', 'clan:list')
+  @InvalidateCache('clan:me', 'clan:list:*')
   @ApiOperation({ summary: 'Удалить клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
@@ -973,5 +810,168 @@ export class ClanController {
   })
   async deleteClan(@Request() req: AuthenticatedRequest): Promise<void> {
     return this.clanService.deleteClanByLeader(req.user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiCookieAuth()
+  @CacheTTL(300)
+  @CacheKey('clan::id')
+  @ApiOperation({ summary: 'Получить клан по ID' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        name: 'Elite Warriors',
+        max_members: 50,
+        status: 'active',
+        referral_link: 'https://vk.com/app123456?start=clan_abc123',
+        members: [],
+        leader: { id: 1, first_name: 'John' },
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<
+    Clan & { referral_link?: string; money?: number; strength?: number }
+  > {
+    return this.clanService.findOne(+id);
+  }
+
+  @Get(':id/members')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить всех участников клана (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          first_name: 'Иван',
+          last_name: 'Иванов',
+          money: 10000,
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async getClanMembers(@Param('id') id: string): Promise<User[]> {
+    return this.clanService.getClanMembers(+id);
+  }
+
+  @Get(':id/wars')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить все войны клана (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'array',
+      items: {
+        example: {
+          id: 1,
+          clan_1: { id: 1, name: 'Elite Warriors' },
+          clan_2: { id: 2, name: 'Dark Knights' },
+          start_time: '2024-01-01T00:00:00.000Z',
+          end_time: '2024-01-01T06:00:00.000Z',
+          status: 'in_progress',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async getClanWars(@Param('id') id: string): Promise<ClanWar[]> {
+    return this.clanService.getAllWars(+id);
+  }
+
+  @Post()
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @InvalidateCache('clan:list:*')
+  @ApiOperation({ summary: 'Создать новый клан' })
+  @ApiBody({ type: CreateClanDto })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        id: 1,
+        name: 'Elite Warriors',
+        max_members: 50,
+        status: 'active',
+        image_path: 'data/clan-images/clan-1234567890.jpg',
+        referral_link: 'https://vk.com/app123456?start=clan_abc123',
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async create(
+    @Body() createClanDto: CreateClanDto,
+    @UploadedFile() image: Express.Multer.File,
+  ): Promise<Clan & { referral_link?: string }> {
+    return this.clanService.create(createClanDto, image);
+  }
+
+  @Patch(':id')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @InvalidateCache('clan::id', 'clan:list:*')
+  @ApiOperation({ summary: 'Обновить клан' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiBody({ type: UpdateClanDto })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: 1,
+        name: 'Elite Warriors',
+        max_members: 50,
+        status: 'active',
+        referral_link: 'https://vk.com/app123456?start=clan_abc123',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateClanDto: UpdateClanDto,
+    @UploadedFile() image?: Express.Multer.File,
+  ): Promise<Clan & { referral_link?: string }> {
+    return this.clanService.update(+id, updateClanDto, image);
+  }
+
+  @Delete(':id')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiCookieAuth()
+  @InvalidateCache('clan::id', 'clan:list:*')
+  @ApiOperation({ summary: 'Удалить клан' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({
+    status: 200,
+    schema: { example: { message: 'Clan deleted successfully' } },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.clanService.remove(+id);
   }
 }

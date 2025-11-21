@@ -49,7 +49,7 @@ export class ShopItemController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @CacheTTL(180)
-  @CacheKey('shop-item:list')
+  @CacheKey('shop-item:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все аксессуары с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -85,39 +85,47 @@ export class ShopItemController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('shop-item:public-list')
-  @ApiOperation({ summary: 'Получить список доступных товаров (Для Mini App)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiOperation({ summary: 'Получить список доступных товаров по категориям (Для Mini App)' })
   @ApiResponse({
     status: 200,
     schema: {
       example: {
-        data: [
-          {
-            id: 1,
-            name: 'Red Nickname',
-            currency: 'virtual',
-            price: 1000,
-            status: 'in_stock',
-            image_path: 'data/shop-item-images/shop-item-1234567890.jpg',
-            item_template: {
+        categories: {
+          nickname_color: [
+            {
               id: 1,
-              type: 'nickname_color',
-              value: 'red',
+              name: 'Red Nickname',
+              currency: 'virtual',
+              price: 1000,
+              status: 'in_stock',
+              image_path: 'data/shop-item-images/shop-item-1234567890.jpg',
+              item_template_id: 1,
+              created_at: '2024-01-01T00:00:00.000Z',
+              updated_at: '2024-01-01T00:00:00.000Z',
             },
-          },
-        ],
-        total: 50,
-        page: 1,
-        limit: 10,
+          ],
+          nickname_icon: [
+            {
+              id: 2,
+              name: 'Star Icon',
+              currency: 'virtual',
+              price: 500,
+              status: 'in_stock',
+              image_path: 'data/shop-item-images/shop-item-1234567891.jpg',
+              item_template_id: 2,
+              created_at: '2024-01-01T00:00:00.000Z',
+              updated_at: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+        },
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getShopItemsList(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
-    return this.shopItemService.findAvailable(paginationDto);
+  async getShopItemsList(): Promise<{
+    categories: Record<string, Omit<ShopItem, 'item_template'>[]>;
+  }> {
+    return this.shopItemService.findAvailable();
   }
 
   @Get(':id')
@@ -158,7 +166,7 @@ export class ShopItemController {
   @ApiCookieAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('shop-item:list')
+  @InvalidateCache('shop-item:list:*')
   @ApiOperation({ summary: 'Создать новый товар магазина' })
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
@@ -177,7 +185,7 @@ export class ShopItemController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
     @Body() createShopItemDto: CreateShopItemDto,
-    @UploadedFile() image: Express.Multer.File,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<ShopItem> {
     return this.shopItemService.create(createShopItemDto, image);
   }
@@ -187,7 +195,7 @@ export class ShopItemController {
   @ApiCookieAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('shop-item::id', 'shop-item:list')
+  @InvalidateCache('shop-item::id', 'shop-item:list:*')
   @ApiOperation({ summary: 'Обновить товар магазина' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateShopItemDto })
@@ -216,7 +224,7 @@ export class ShopItemController {
   @Delete(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('shop-item::id', 'shop-item:list')
+  @InvalidateCache('shop-item::id', 'shop-item:list:*')
   @ApiOperation({ summary: 'Удалить аксессуар' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({

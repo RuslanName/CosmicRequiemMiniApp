@@ -61,26 +61,29 @@ export class ShopItemService {
     };
   }
 
-  async findAvailable(
-    paginationDto: PaginationDto,
-  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
-
-    const [data, total] = await this.shopItemRepository.findAndCount({
+  async findAvailable(): Promise<{
+    categories: Record<string, Omit<ShopItem, 'item_template'>[]>;
+  }> {
+    const shopItems = await this.shopItemRepository.find({
       where: { status: ShopItemStatus.IN_STOCK },
       relations: ['item_template'],
-      skip,
-      take: limit,
       order: { created_at: 'DESC' },
     });
 
-    return {
-      data,
-      total,
-      page,
-      limit,
-    };
+    const categories: Record<string, Omit<ShopItem, 'item_template'>[]> = {};
+
+    for (const item of shopItems) {
+      const category = item.item_template?.type || 'other';
+      
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+
+      const { item_template, ...itemWithoutTemplate } = item;
+      categories[category].push(itemWithoutTemplate);
+    }
+
+    return { categories };
   }
 
   async findOne(id: number): Promise<ShopItem> {
@@ -96,9 +99,9 @@ export class ShopItemService {
     return shopItem;
   }
 
-  private async saveShopItemImage(file: Express.Multer.File): Promise<string> {
+  private async saveShopItemImage(file?: Express.Multer.File): Promise<string | null> {
     if (!file) {
-      throw new BadRequestException('Image file is required');
+      return null;
     }
 
     const uploadDir = path.join(process.cwd(), 'data', 'shop-item-images');
@@ -126,7 +129,7 @@ export class ShopItemService {
 
   async create(
     createShopItemDto: CreateShopItemDto,
-    image: Express.Multer.File,
+    image?: Express.Multer.File,
   ): Promise<ShopItem> {
     const itemTemplate = await this.itemTemplateRepository.findOne({
       where: { id: createShopItemDto.item_template_id },

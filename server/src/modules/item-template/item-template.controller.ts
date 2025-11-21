@@ -39,7 +39,7 @@ export class ItemTemplateController {
 
   @Get()
   @CacheTTL(180)
-  @CacheKey('item-template:list')
+  @CacheKey('item-template:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все шаблоны предметов с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -98,7 +98,7 @@ export class ItemTemplateController {
   }
 
   @Post()
-  @InvalidateCache('item-template:list')
+  @InvalidateCache('item-template:list:*')
   @ApiOperation({ summary: 'Создать новый шаблон предмета' })
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
@@ -130,7 +130,7 @@ export class ItemTemplateController {
   }
 
   @Patch(':id')
-  @InvalidateCache('item-template::id', 'item-template:list')
+  @InvalidateCache('item-template::id', 'item-template:list:*')
   @ApiOperation({ summary: 'Обновить шаблон предмета' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateItemTemplateDto })
@@ -155,7 +155,7 @@ export class ItemTemplateController {
   }
 
   @Delete(':id')
-  @InvalidateCache('item-template::id', 'item-template:list')
+  @InvalidateCache('item-template::id', 'item-template:list:*')
   @ApiOperation({ summary: 'Удалить шаблон предмета' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({

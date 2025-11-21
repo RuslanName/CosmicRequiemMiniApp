@@ -100,9 +100,7 @@ export class UserService {
     };
   }
 
-  async findOne(
-    id: number,
-  ): Promise<
+  async findOne(id: number): Promise<
     User & {
       strength: number;
       guards_count: number;
@@ -131,14 +129,13 @@ export class UserService {
     };
   }
 
-  async findMe(
-    userId: number,
-  ): Promise<
+  async findMe(userId: number): Promise<
     User & {
       strength: number;
       guards_count: number;
       equipped_accessories: UserAccessory[];
       referral_link?: string;
+      contract_income: number;
     }
   > {
     const user = await this.userRepository.findOne({
@@ -154,11 +151,18 @@ export class UserService {
     const guardsCount = this.getGuardsCount(user.guards || []);
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(user.id);
+    const currentPower = this.calculateUserPower(user.guards || []);
+    
+    // Calculate contract income (same logic as in contract method)
+    const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
+    const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+    
     return {
       ...transformed,
-      strength: this.calculateUserPower(user.guards || []),
+      strength: currentPower,
       guards_count: guardsCount,
       equipped_accessories: equippedAccessories,
+      contract_income,
     };
   }
 

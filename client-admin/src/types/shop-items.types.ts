@@ -3,7 +3,7 @@ export interface ShopItem {
   name: string;
   currency: string;
   price: number;
-  image_path: string;
+  image_path: string | null;
   status: string;
   item_template_id: number;
   item_template?: any;

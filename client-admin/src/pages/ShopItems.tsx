@@ -185,7 +185,7 @@ const ShopItems = () => {
                   <img 
                     src={`http://localhost:5000/${accessory.image_path}`} 
                     alt={accessory.name}
-                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                    style={{ width: '50px', height: '50px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                   />
                 )}
               </td>
@@ -303,7 +303,7 @@ const ShopItems = () => {
                 <img 
                   src={`http://localhost:5000/${editingAccessory.image_path}`} 
                   alt={editingAccessory.name}
-                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                  style={{ width: '100px', height: '100px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
                 />
               </div>
             )}

@@ -47,7 +47,7 @@ export class UserController {
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
   @CacheTTL(60)
-  @CacheKey('user:list')
+  @CacheKey('user:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить всех пользователей с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
@@ -113,22 +113,124 @@ export class UserController {
         guards_count: 5,
         equipped_accessories: [],
         referral_link: 'https://vk.com/app123456?start=ref_abc123',
+        contract_income: 275,
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async findMe(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<
+  async findMe(@Request() req: AuthenticatedRequest): Promise<
     User & {
       strength: number;
       guards_count: number;
       equipped_accessories: UserAccessory[];
       referral_link?: string;
+      contract_income: number;
     }
   > {
     return this.userService.findMe(req.user.id);
+  }
+
+  @Get('rating')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('user:rating')
+  @ApiOperation({ summary: 'Получить рейтинг пользователей (Для Mini App)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            first_name: 'Иван',
+            last_name: 'Иванов',
+            strength: 500,
+          },
+        ],
+        total: 100,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getRating(@Query() paginationDto: PaginationDto): Promise<{
+    data: (User & { strength: number })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    return this.userService.getRating(paginationDto);
+  }
+
+  @Get('attackable')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('user:attackable')
+  @ApiOperation({
+    summary: 'Получить список пользователей для атаки (Для Mini App)',
+  })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    enum: ['top', 'suitable', 'friends'],
+    example: 'top',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        data: [
+          {
+            id: 2,
+            first_name: 'Петр',
+            last_name: 'Петров',
+            strength: 300,
+            referral_link: 'https://vk.com/app123456?start=ref_xyz789',
+          },
+        ],
+        total: 50,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Filter parameter must be one of: top, suitable, friends',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getAttackableUsers(
+    @Request() req: AuthenticatedRequest,
+    @Query('filter') filter?: 'top' | 'suitable' | 'friends',
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<{
+    data: (User & { strength: number; referral_link?: string })[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
+      throw new BadRequestException(
+        'Filter parameter must be one of: top, suitable, friends',
+      );
+    }
+    return this.userService.getAttackableUsers(
+      req.user.id,
+      filter,
+      paginationDto,
+    );
   }
 
   @Get(':id')
@@ -158,9 +260,7 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<
+  async findOne(@Param('id') id: string): Promise<
     User & {
       strength: number;
       guards_count: number;
@@ -174,7 +274,7 @@ export class UserController {
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('user::id', 'user:list')
+  @InvalidateCache('user::id', 'user:list:*')
   @ApiOperation({ summary: 'Обновить пользователя' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateUserDto })
@@ -271,42 +371,6 @@ export class UserController {
     contract_cooldown_end: Date;
   }> {
     return this.userService.contract(req.user.id);
-  }
-
-  @Get('rating')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(60)
-  @CacheKey('user:rating')
-  @ApiOperation({ summary: 'Получить рейтинг пользователей (Для Mini App)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            first_name: 'Иван',
-            last_name: 'Иванов',
-            strength: 500,
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getRating(@Query() paginationDto: PaginationDto): Promise<{
-    data: (User & { strength: number })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    return this.userService.getRating(paginationDto);
   }
 
   @Get('me/inventory')
@@ -502,72 +566,6 @@ export class UserController {
     @Request() req: AuthenticatedRequest,
   ): Promise<{ referral_link: string }> {
     return this.userService.getUserReferralLink(req.user.id);
-  }
-
-  @Get('attackable')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(60)
-  @CacheKey('user:attackable')
-  @ApiOperation({
-    summary: 'Получить список пользователей для атаки (Для Mini App)',
-  })
-  @ApiQuery({
-    name: 'filter',
-    required: false,
-    enum: ['top', 'suitable', 'friends'],
-    example: 'top',
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 2,
-            first_name: 'Петр',
-            last_name: 'Петров',
-            strength: 300,
-            referral_link: 'https://vk.com/app123456?start=ref_xyz789',
-          },
-        ],
-        total: 50,
-        page: 1,
-        limit: 10,
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    schema: {
-      example: {
-        message: 'Filter parameter must be one of: top, suitable, friends',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getAttackableUsers(
-    @Request() req: AuthenticatedRequest,
-    @Query('filter') filter?: 'top' | 'suitable' | 'friends',
-    @Query() paginationDto?: PaginationDto,
-  ): Promise<{
-    data: (User & { strength: number; referral_link?: string })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
-      throw new BadRequestException(
-        'Filter parameter must be one of: top, suitable, friends',
-      );
-    }
-    return this.userService.getAttackableUsers(
-      req.user.id,
-      filter,
-      paginationDto,
-    );
   }
 
   @Post('attack')
