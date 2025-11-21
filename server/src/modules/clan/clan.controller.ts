@@ -18,31 +18,18 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
-  ApiQuery,
   ApiBody,
   ApiBearerAuth,
   ApiConsumes,
-  ApiCookieAuth,
 } from '@nestjs/swagger';
-import { Express } from 'express';
 import { ClanService } from './clan.service';
-import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { UpdateClanDto } from './dtos/update-clan.dto';
-import { PaginationDto } from '../../common/dtos/pagination.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { DeclareWarDto } from './dtos/declare-war.dto';
 import { AttackEnemyDto } from './dtos/attack-enemy.dto';
-import { ClanWar } from '../clan-war/entities/clan-war.entity';
-import { User } from '../user/user.entity';
 import { CreateClanApplicationDto } from './dtos/create-clan-application.dto';
-import { ClanApplication } from './entities/clan-application.entity';
-import {
-  CacheTTL,
-  CacheKey,
-  InvalidateCache,
-} from '../../common/decorators/cache.decorator';
+import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Clan')
 @Controller('clans')
@@ -50,560 +37,178 @@ export class ClanController {
   constructor(private readonly clanService: ClanService) {}
 
   @Get()
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @CacheTTL(60)
-  @CacheKey('clan:list')
-  @ApiOperation({
-    summary: 'Получить все кланы с пагинацией (Админка)',
-    description:
-      'Возвращает список всех кланов с поддержкой пагинации. Можно указать параметры page и limit для управления количеством результатов.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить все кланы с пагинацией' })
   @ApiResponse({
     status: 200,
-    description: 'Успешно возвращен список кланов',
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Elite Warriors',
-            max_members: 50,
-            status: 'active',
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
+    description: 'Возвращает список кланов с пагинацией',
   })
-  async findAll(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{
-    data: (Clan & { referral_link?: string })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(@Query() paginationDto: PaginationDto) {
     return this.clanService.findAll(paginationDto);
-  }
-
-  @Get('list')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(60)
-  @CacheKey('clan:public-list')
-  @ApiOperation({
-    summary: 'Получить список кланов для Mini App',
-    description:
-      'Возвращает список всех кланов с поддержкой пагинации для Mini App.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Успешно возвращен список кланов',
-  })
-  async getClansList(
-    @Query() paginationDto: PaginationDto,
-  ): Promise<{
-    data: (Clan & { referral_link?: string })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    return this.clanService.findAll(paginationDto);
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(60)
-  @CacheKey('clan:me')
-  @ApiOperation({
-    summary: 'Получить клан текущего пользователя',
-    description:
-      'Возвращает полную информацию о клане текущего авторизованного пользователя, включая список участников и лидера.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Успешно возвращен клан',
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        members: [],
-        leader: { id: 1, first_name: 'John' },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getMyClan(@Request() req): Promise<Clan & { referral_link?: string }> {
-    return this.clanService.getUserClan(req.user.id);
-  }
-
-  @Get('me/wars')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(30)
-  @CacheKey('clan:me:wars')
-  @ApiOperation({
-    summary: 'Получить активные войны клана текущего пользователя',
-    description:
-      'Возвращает список всех активных войн клана текущего авторизованного пользователя.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Список активных войн',
-    schema: {
-      example: [
-        {
-          id: 1,
-          clan_1: { id: 1, name: 'Elite Warriors' },
-          clan_2: { id: 2, name: 'Dark Knights' },
-          start_time: '2024-01-01T00:00:00.000Z',
-          end_time: '2024-01-01T06:00:00.000Z',
-          status: 'in_progress',
-          created_at: '2024-01-01T00:00:00.000Z',
-          updated_at: '2024-01-01T00:00:00.000Z',
-        },
-      ],
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getMyClanWars(@Request() req): Promise<ClanWar[]> {
-    const clan = await this.clanService.getUserClan(req.user.id);
-    return this.clanService.getActiveWars(clan.id);
-  }
-
-  @Get('me/members')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить всех участников своего клана' })
-  @ApiResponse({
-    status: 200,
-    description: 'Список участников клана',
-  })
-  @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getMyClanMembers(@Request() req): Promise<User[]> {
-    const clan = await this.clanService.getUserClan(req.user.id);
-    return this.clanService.getClanMembers(clan.id);
   }
 
   @Get('rating')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @CacheTTL(60)
-  @CacheKey('clan:rating')
-  @ApiOperation({
-    summary: 'Получить рейтинг кланов',
-    description:
-      'Возвращает рейтинг всех кланов, отсортированный по количеству побед в войнах. Включает количество побед, поражений и общий рейтинг.',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Номер страницы (по умолчанию 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Количество элементов на странице (по умолчанию 10)',
-    example: 10,
-  })
+  @ApiOperation({ summary: 'Получить рейтинг кланов (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    description: 'Успешно возвращен рейтинг кланов',
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Elite Warriors',
-            max_members: 50,
-            status: 'active',
-            wins: 15,
-            losses: 5,
-            rating: 15,
-            leader: { id: 1, first_name: 'John' },
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
+    description: 'Возвращает рейтинг кланов с пагинацией',
   })
-  async getClanRating(@Query() paginationDto?: PaginationDto): Promise<{
-    data: (Omit<Clan, 'combineWars'> & {
-      wins: number;
-      losses: number;
-      rating: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async getRating(@Query() paginationDto?: PaginationDto) {
     return this.clanService.getClanRating(paginationDto);
   }
 
   @Get(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @CacheTTL(300)
-  @CacheKey('clan::id')
-  @ApiOperation({
-    summary: 'Получить клан по ID',
-    description:
-      'Возвращает полную информацию о клане по его идентификатору, включая список участников и лидера.',
-  })
-  @ApiParam({ name: 'id', type: Number, description: 'ID клана', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Успешно возвращен клан',
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        members: [],
-        leader: { id: 1, first_name: 'John' },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Получить клан по ID' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Возвращает клан' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<Clan & { referral_link?: string }> {
+  async findOne(@Param('id') id: string) {
     return this.clanService.findOne(+id);
   }
 
-  @Get(':id/members')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить всех участников клана' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID клана', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Список участников клана',
-  })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanMembers(@Param('id') id: string): Promise<User[]> {
-    return this.clanService.getClanMembers(+id);
-  }
-
-  @Get(':id/current-wars')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить активные войны клана' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID клана', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Список активных войн клана',
-  })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanCurrentWars(@Param('id') id: string): Promise<ClanWar[]> {
-    return this.clanService.getActiveWars(+id);
-  }
-
-  @Get(':id/wars')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить все войны клана' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID клана', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Список всех войн клана',
-  })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanWars(@Param('id') id: string): Promise<ClanWar[]> {
-    return this.clanService.getAllWars(+id);
-  }
-
   @Post()
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('clan:list')
-  @ApiOperation({
-    summary: 'Создать новый клан',
-    description:
-      'Создает новый клан с указанным лидером. Можно указать начальных участников, максимальное количество участников (по умолчанию 50) и статус. Изображение загружается через multipart/form-data.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', example: 'Elite Warriors' },
-        leader_id: { type: 'number', example: 1 },
-        max_members: { type: 'number', example: 50 },
-        status: { type: 'string', example: 'active' },
-        image: { type: 'string', format: 'binary' },
-      },
-      required: ['name', 'leader_id', 'image'],
-    },
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Клан успешно создан',
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        image_path: 'data/clan-images/clan-1234567890.jpg',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Создать клан' })
+  @ApiBody({ type: CreateClanDto })
+  @ApiResponse({ status: 201, description: 'Клан успешно создан' })
+  @ApiResponse({ status: 400, description: 'Неверные данные' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
+    @Request() req,
     @Body() createClanDto: CreateClanDto,
     @UploadedFile() image: Express.Multer.File,
-  ): Promise<Clan & { referral_link?: string }> {
+  ) {
     return this.clanService.create(createClanDto, image);
   }
 
   @Patch(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('clan::id', 'clan:list')
-  @ApiOperation({
-    summary: 'Обновить клан',
-    description:
-      'Обновляет информацию о клане. Изображение опционально, загружается через multipart/form-data.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', example: 'Elite Warriors' },
-        max_members: { type: 'number', example: 50 },
-        status: { type: 'string', example: 'active' },
-        image: { type: 'string', format: 'binary' },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Возвращает обновленный клан' })
+  @ApiOperation({ summary: 'Обновить клан' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateClanDto })
+  @ApiResponse({ status: 200, description: 'Клан успешно обновлен' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
   async update(
     @Param('id') id: string,
     @Body() updateClanDto: UpdateClanDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Clan & { referral_link?: string }> {
+  ) {
     return this.clanService.update(+id, updateClanDto, image);
   }
 
   @Delete(':id')
-  @UseGuards(AdminJwtAuthGuard)
-  @ApiCookieAuth()
-  @InvalidateCache('clan::id', 'clan:list')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Удалить клан' })
+  @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Клан успешно удален' })
-  async remove(@Param('id') id: string): Promise<void> {
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async remove(@Param('id') id: string) {
     return this.clanService.remove(+id);
   }
 
-  @Get('wars/available')
+  @Get('me/leader')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить доступные кланы для объявления войны',
-    description:
-      'Возвращает список кланов, на которые можно объявить войну. Проверяет кулдаун CLAN_WAR_COOLDOWN и что у целевого клана не превышен лимит активных войн MAX_CLAN_WARS_COUNT. Доступно только для лидера клана.',
+    summary: 'Получить клан текущего пользователя (Для Mini App)',
+  })
+  @ApiResponse({ status: 200, description: 'Возвращает клан лидера' })
+  @ApiResponse({
+    status: 404,
+    description: 'Клан не найден или пользователь не является лидером',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getLeaderClan(@Request() req) {
+    return this.clanService.getLeaderClan(req.user.id);
+  }
+
+  @Get('me/clan')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить клан текущего пользователя (Для Mini App)',
+  })
+  @ApiResponse({ status: 200, description: 'Возвращает клан пользователя' })
+  @ApiResponse({ status: 404, description: 'Пользователь не в клане' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getUserClan(@Request() req) {
+    return this.clanService.getUserClan(req.user.id);
+  }
+
+  @Get('me/available-for-war')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить доступные кланы для объявления войны (Для Mini App)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Список доступных кланов для войны',
-    schema: {
-      example: [
-        {
-          id: 2,
-          name: 'Dark Knights',
-          max_members: 50,
-          status: 'active',
-          leader: { id: 10, first_name: 'Jane' },
-        },
-      ],
-    },
+    description: 'Возвращает список доступных кланов',
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Кулдаун на объявление войны активен',
-  })
+  @ApiResponse({ status: 400, description: 'Кулдаун на войну еще активен' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
     status: 404,
     description: 'Пользователь не является лидером клана',
   })
-  async getAvailableClansForWar(@Request() req): Promise<Clan[]> {
+  async getAvailableClansForWar(@Request() req) {
     return this.clanService.getAvailableClansForWar(req.user.id);
   }
 
-  @Post('wars/declare')
+  @Post('declare-war')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Объявить войну целевому клану',
-    description:
-      'Объявляет войну целевому клану. Проверяет кулдаун CLAN_WAR_COOLDOWN и что у целевого клана не превышен лимит активных войн. Длительность войны определяется настройкой CLAN_WAR_DURATION. Доступно только для лидера клана.',
-  })
+  @ApiOperation({ summary: 'Объявить войну клану (Для Mini App)' })
   @ApiBody({ type: DeclareWarDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Война успешно объявлена',
-    schema: {
-      example: {
-        id: 1,
-        clan_1: { id: 1, name: 'Elite Warriors' },
-        clan_2: { id: 2, name: 'Dark Knights' },
-        start_time: '2024-01-01T00:00:00.000Z',
-        end_time: '2024-01-01T06:00:00.000Z',
-        status: 'in_progress',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
+  @ApiResponse({ status: 201, description: 'Война успешно объявлена' })
   @ApiResponse({
     status: 400,
-    description:
-      'Нельзя объявить войну своему клану, кулдаун активен, целевой клан достиг лимита войн',
+    description: 'Неверные данные или кулдаун активен',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({
-    status: 404,
-    description: 'Целевой клан не найден или пользователь не является лидером',
-  })
-  async declareWar(
-    @Request() req,
-    @Body() declareWarDto: DeclareWarDto,
-  ): Promise<ClanWar> {
+  @ApiResponse({ status: 404, description: 'Целевой клан не найден' })
+  async declareWar(@Request() req, @Body() declareWarDto: DeclareWarDto) {
     return this.clanService.declareWar(
       req.user.id,
       declareWarDto.target_clan_id,
     );
   }
 
-  @Get('wars/enemy-members')
+  @Get('me/enemy-members')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Получить участников вражеских кланов для атаки',
-    description:
-      'Возвращает список всех участников кланов, с которыми у вашего клана активна война. Включает информацию о стражах каждого пользователя для расчета силы.',
-  })
+  @ApiOperation({ summary: 'Получить членов вражеских кланов (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    description: 'Список участников вражеских кланов',
-    schema: {
-      example: [
-        {
-          id: 5,
-          first_name: 'John',
-          last_name: 'Doe',
-          money: 10000,
-          clan: { id: 2, name: 'Dark Knights' },
-          guards: [{ id: 1, name: 'Guard #1', strength: 50 }],
-        },
-      ],
-    },
+    description: 'Возвращает список вражеских членов',
   })
-  @ApiResponse({ status: 400, description: 'Пользователь не состоит в клане' })
+  @ApiResponse({ status: 400, description: 'Пользователь не в клане' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async getEnemyClanMembers(@Request() req): Promise<User[]> {
+  async getEnemyClanMembers(@Request() req) {
     return this.clanService.getEnemyClanMembers(req.user.id);
   }
 
-  @Post('wars/attack')
+  @Post('attack-enemy')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Атаковать противника',
-    description:
-      'Атакует участника вражеского клана во время активной войны. При атаке щит атакующего снимается. Если у защищающегося активен щит (shield_end_time > now), атака невозможна. Вероятность победы рассчитывается на основе силы и количества стражей. При победе можно украсть деньги и захватить стражей.',
-  })
+  @ApiOperation({ summary: 'Атаковать вражеского пользователя (Для Mini App)' })
   @ApiBody({ type: AttackEnemyDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Результаты атаки',
-    schema: {
-      example: {
-        win_chance: 65.5,
-        is_win: true,
-        stolen_money: 1500,
-        captured_guards: 2,
-        stolen_items: [
-          { type: 'money', value: '1500' },
-          { type: 'guard', value: '123' },
-        ],
-      },
-    },
-  })
+  @ApiResponse({ status: 200, description: 'Атака выполнена' })
   @ApiResponse({
     status: 400,
-    description:
-      'Ошибка: активен щит защищающегося, нет активной войны, недостаточно стражей, кулдаун атаки активен',
+    description: 'Неверные данные или кулдаун активен',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async attackEnemy(
-    @Request() req,
-    @Body() attackEnemyDto: AttackEnemyDto,
-  ): Promise<{
-    win_chance: number;
-    is_win: boolean;
-    stolen_money: number;
-    captured_guards: number;
-    stolen_items: any[];
-  }> {
+  @ApiResponse({ status: 404, description: 'Целевой пользователь не найден' })
+  async attackEnemy(@Request() req, @Body() attackEnemyDto: AttackEnemyDto) {
     return this.clanService.attackEnemy(
       req.user.id,
       attackEnemyDto.target_user_id,
@@ -613,184 +218,113 @@ export class ClanController {
   @Post('leave')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Покинуть текущий клан',
-    description:
-      'Позволяет пользователю покинуть текущий клан. Лидер клана не может покинуть клан. После выхода устанавливается время выхода для проверки кулдауна на вступление в новый клан (CLAN_JOIN_COOLDOWN).',
-  })
+  @ApiOperation({ summary: 'Покинуть клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
     description: 'Пользователь успешно покинул клан',
-    schema: {
-      example: {
-        id: 1,
-        first_name: 'John',
-        clan: null,
-        clan_leave_time: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    description:
-      'Пользователь не состоит в клане, пользователь является лидером клана',
+    description: 'Пользователь не в клане или является лидером',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async leaveClan(@Request() req): Promise<User> {
+  async leaveClan(@Request() req) {
     return this.clanService.leaveClan(req.user.id);
   }
 
-  @Post('application')
+  @Post('applications')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Создать заявку на вступление в клан',
-    description:
-      'Создает заявку на вступление в указанный клан. Проверяет, что пользователь не состоит в клане, клан не переполнен, нет активной заявки и прошел кулдаун на вступление (CLAN_JOIN_COOLDOWN).',
+    summary: 'Подать заявку на вступление в клан (Для Mini App)',
   })
   @ApiBody({ type: CreateClanApplicationDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Заявка успешно создана',
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John' },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'pending',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
+  @ApiResponse({ status: 201, description: 'Заявка успешно создана' })
   @ApiResponse({
     status: 400,
-    description:
-      'Пользователь уже в клане, клан переполнен, заявка уже существует, кулдаун на вступление активен',
+    description: 'Неверные данные или заявка уже существует',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан или пользователь не найден' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
   async createApplication(
     @Request() req,
     @Body() createClanApplicationDto: CreateClanApplicationDto,
-  ): Promise<ClanApplication> {
+  ) {
     return this.clanService.createApplication(
       req.user.id,
       createClanApplicationDto.clan_id,
     );
   }
 
-  @Get('application')
+  @Get('me/applications')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить список заявок на вступление в клан (для лидера)',
-    description:
-      'Возвращает список всех ожидающих (pending) заявок на вступление в клан пользователя. Доступно только для лидера клана. Заявки отсортированы по дате создания (новые первыми).',
+    summary: 'Получить заявки на вступление в клан (Для Mini App)',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Список заявок успешно возвращен',
-    schema: {
-      example: [
-        {
-          id: 1,
-          user: { id: 5, first_name: 'John', last_name: 'Doe' },
-          clan: { id: 1, name: 'Elite Warriors' },
-          status: 'pending',
-          created_at: '2024-01-01T00:00:00.000Z',
-          updated_at: '2024-01-01T00:00:00.000Z',
-        },
-      ],
-    },
-  })
+  @ApiResponse({ status: 200, description: 'Возвращает список заявок' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
     status: 404,
     description: 'Пользователь не является лидером клана',
   })
-  async getApplications(@Request() req): Promise<ClanApplication[]> {
+  async getApplications(@Request() req) {
     return this.clanService.getApplications(req.user.id);
   }
 
-  @Post('application/:id/accept')
+  @Post('applications/:id/accept')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Принять заявку на вступление в клан',
-    description:
-      'Принимает заявку на вступление в клан. Проверяет кулдаун на вступление (CLAN_JOIN_COOLDOWN) и что клан не переполнен. После принятия пользователь автоматически добавляется в клан.',
+    summary: 'Принять заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, description: 'ID заявки', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Заявка успешно принята, пользователь добавлен в клан',
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John', clan: { id: 1 } },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'accepted',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description:
-      'Заявка не принадлежит вашему клану, заявка не в статусе pending, пользователь уже в клане, клан переполнен, кулдаун на вступление активен',
-  })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Заявка успешно принята' })
+  @ApiResponse({ status: 400, description: 'Заявка не может быть принята' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({
-    status: 404,
-    description: 'Заявка не найдена или пользователь не является лидером',
-  })
-  async acceptApplication(
-    @Request() req,
-    @Param('id') id: string,
-  ): Promise<ClanApplication> {
+  @ApiResponse({ status: 404, description: 'Заявка не найдена' })
+  async acceptApplication(@Request() req, @Param('id') id: string) {
     return this.clanService.acceptApplication(req.user.id, +id);
   }
 
-  @Post('application/:id/reject')
+  @Post('applications/:id/reject')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Отклонить заявку на вступление в клан',
-    description:
-      'Отклоняет заявку на вступление в клан. Статус заявки меняется на rejected. Пользователь не добавляется в клан.',
+    summary: 'Отклонить заявку на вступление в клан (Для Mini App)',
   })
-  @ApiParam({ name: 'id', type: Number, description: 'ID заявки', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Заявка успешно отклонена',
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John' },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'rejected',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description:
-      'Заявка не принадлежит вашему клану, заявка не в статусе pending',
-  })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Заявка успешно отклонена' })
+  @ApiResponse({ status: 400, description: 'Заявка не может быть отклонена' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({
-    status: 404,
-    description: 'Заявка не найдена или пользователь не является лидером',
-  })
-  async rejectApplication(
-    @Request() req,
-    @Param('id') id: string,
-  ): Promise<ClanApplication> {
+  @ApiResponse({ status: 404, description: 'Заявка не найдена' })
+  async rejectApplication(@Request() req, @Param('id') id: string) {
     return this.clanService.rejectApplication(req.user.id, +id);
+  }
+
+  @Get(':id/wars/active')
+  @ApiOperation({ summary: 'Получить активные войны клана (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Возвращает список активных войн' })
+  async getActiveWars(@Param('id') id: string) {
+    return this.clanService.getActiveWars(+id);
+  }
+
+  @Get(':id/wars')
+  @ApiOperation({ summary: 'Получить все войны клана (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Возвращает список всех войн' })
+  async getAllWars(@Param('id') id: string) {
+    return this.clanService.getAllWars(+id);
+  }
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'Получить членов клана (Для Mini App)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Возвращает список членов клана' })
+  @ApiResponse({ status: 404, description: 'Клан не найден' })
+  async getClanMembers(@Param('id') id: string) {
+    return this.clanService.getClanMembers(+id);
   }
 }

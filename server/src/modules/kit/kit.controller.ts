@@ -93,6 +93,60 @@ export class KitController {
     return this.kitService.findAll(paginationDto);
   }
 
+  @Get('list')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @CacheTTL(60)
+  @CacheKey('kit:public-list')
+  @ApiOperation({
+    summary: 'Получить список доступных наборов (Для Mini App)',
+    description:
+      'Возвращает список наборов со статусом IN_STOCK с поддержкой пагинации.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Номер страницы (по умолчанию 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Количество элементов на странице (по умолчанию 10)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Список доступных наборов успешно возвращен',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            name: 'Premium Kit',
+            currency: 'virtual',
+            price: 5000,
+            status: 'in_stock',
+            item_templates: [
+              { id: 1, type: 'nickname_color', value: 'red' },
+              { id: 2, type: 'guard', value: '100' },
+            ],
+          },
+        ],
+        total: 20,
+        page: 1,
+        limit: 10,
+      },
+    },
+  })
+  async getKitsList(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+    return this.kitService.findAvailable(paginationDto);
+  }
+
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
@@ -183,7 +237,7 @@ export class KitController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Купить набор',
+    summary: 'Купить набор (Для Mini App)',
     description:
       'Покупает набор продуктов за виртуальную валюту. Обрабатывает все продукты в наборе: GUARD - создает стражей, SHIELD - создает UserBoost и продлевает щит (с проверкой кулдауна), NICKNAME_COLOR/NICKNAME_ICON/AVATAR_FRAME - сохраняет в профиль и создает UserAccessory.',
   })

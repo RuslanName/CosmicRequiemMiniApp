@@ -58,6 +58,28 @@ export class KitService {
     };
   }
 
+  async findAvailable(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.kitRepository.findAndCount({
+      where: { status: ShopItemStatus.IN_STOCK },
+      relations: ['item_templates'],
+      skip,
+      take: limit,
+      order: { created_at: 'DESC' },
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+
   async findOne(id: number): Promise<Kit> {
     const kit = await this.kitRepository.findOne({
       where: { id },

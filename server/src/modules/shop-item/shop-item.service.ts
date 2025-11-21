@@ -308,7 +308,11 @@ export class ShopItemService {
         now.getTime() + purchaseShieldCooldown,
       );
 
-      return { user, user_boost: createdBoost, shield_cooldown_end: shieldCooldownEnd };
+      return {
+        user,
+        user_boost: createdBoost,
+        shield_cooldown_end: shieldCooldownEnd,
+      };
     } else if (
       product.type === ProductType.NICKNAME_COLOR ||
       product.type === ProductType.NICKNAME_ICON ||

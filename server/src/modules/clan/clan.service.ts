@@ -64,9 +64,7 @@ export class ClanService {
     return transformed;
   }
 
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     data: (Clan & { referral_link?: string })[];
     total: number;
     page: number;
@@ -545,9 +543,7 @@ export class ClanService {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
 
-      const attackCooldownEnd = new Date(
-        new Date().getTime() + attackCooldown,
-      );
+      const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
       return {
         win_chance,
@@ -562,9 +558,7 @@ export class ClanService {
     attacker.last_attack_time = new Date();
     await this.userRepository.save(attacker);
 
-    const attackCooldownEnd = new Date(
-      new Date().getTime() + attackCooldown,
-    );
+    const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
     return {
       win_chance,

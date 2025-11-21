@@ -101,9 +101,9 @@ export class ShopItemController {
   @CacheTTL(60)
   @CacheKey('shop-item:public-list')
   @ApiOperation({
-    summary: 'Получить список доступных товаров для Mini App',
+    summary: 'Получить список доступных товаров (Для Mini App)',
     description:
-      'Возвращает список товаров со статусом IN_STOCK с поддержкой пагинации для Mini App.',
+      'Возвращает список товаров со статусом IN_STOCK с поддержкой пагинации.',
   })
   @ApiQuery({
     name: 'page',
@@ -279,7 +279,7 @@ export class ShopItemController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Купить аксессуар',
+    summary: 'Купить аксессуар (Для Mini App)',
     description:
       'Покупает аксессуар за виртуальную валюту. В зависимости от типа продукта аксессуара: GUARD - создает стража с указанной силой, SHIELD - создает UserBoost и продлевает время действия щита (с проверкой кулдауна PURCHASE_SHIELD_COOLDOWN), NICKNAME_COLOR/NICKNAME_ICON/AVATAR_FRAME - сохраняет значение в профиль пользователя и создает запись UserAccessory.',
   })

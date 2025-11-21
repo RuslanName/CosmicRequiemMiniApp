@@ -14,7 +14,6 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { ENV } from '../../config/constants';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
-import { UserBoostStatus } from '../user-boost/enums/user-boost-status.enum';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
@@ -50,9 +49,7 @@ export class UserService {
     return transformed;
   }
 
-  async findAll(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async findAll(paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number; referral_link?: string })[];
     total: number;
     page: number;
@@ -135,9 +132,7 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async training(
-    userId: number,
-  ): Promise<{
+  async training(userId: number): Promise<{
     user: User;
     training_cost: number;
     power_increase: number;
@@ -242,9 +237,11 @@ export class UserService {
     };
   }
 
-  async contract(
-    userId: number,
-  ): Promise<{ user: User; contract_income: number; contract_cooldown_end: Date }> {
+  async contract(userId: number): Promise<{
+    user: User;
+    contract_income: number;
+    contract_cooldown_end: Date;
+  }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -318,9 +315,7 @@ export class UserService {
     return await this.userRepository.save(user);
   }
 
-  async getRating(
-    paginationDto: PaginationDto,
-  ): Promise<{
+  async getRating(paginationDto: PaginationDto): Promise<{
     data: (User & { strength: number })[];
     total: number;
     page: number;
