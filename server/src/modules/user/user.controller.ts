@@ -237,7 +237,6 @@ export class UserController {
       strength: number;
       money: number;
       guards_count: number;
-      guards: UserGuard[];
     })[];
     total: number;
     page: number;
@@ -299,7 +298,6 @@ export class UserController {
       strength: number;
       money: number;
       guards_count: number;
-      guards: UserGuard[];
     })[];
     total: number;
     page: number;

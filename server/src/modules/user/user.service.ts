@@ -144,7 +144,6 @@ export class UserService {
       await this.userAccessoryService.findEquippedByUserId(user.id);
     const currentPower = this.calculateUserPower(user.guards || []);
 
-    // Calculate contract income (same logic as in contract method)
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
 
@@ -365,7 +364,6 @@ export class UserService {
       strength: number;
       money: number;
       guards_count: number;
-      guards: UserGuard[];
     })[];
     total: number;
     page: number;
@@ -381,13 +379,15 @@ export class UserService {
     });
 
     const dataWithStrength = data
-      .map((user) => ({
-        ...user,
-        strength: this.calculateUserPower(user.guards || []),
-        money: Number(user.money || 0),
-        guards_count: this.getGuardsCount(user.guards || []),
-        guards: user.guards || [],
-      }))
+      .map((user) => {
+        const { guards, ...userWithoutGuards } = user;
+        return {
+          ...userWithoutGuards,
+          strength: this.calculateUserPower(user.guards || []),
+          money: Number(user.money || 0),
+          guards_count: this.getGuardsCount(user.guards || []),
+        };
+      })
       .sort((a, b) => b.strength - a.strength);
 
     return {
@@ -482,7 +482,6 @@ export class UserService {
       strength: number;
       money: number;
       guards_count: number;
-      guards: UserGuard[];
     })[];
     total: number;
     page: number;
@@ -515,13 +514,15 @@ export class UserService {
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
-        .map((user) => ({
-          ...user,
-          strength: this.calculateUserPower(user.guards || []),
-          money: Number(user.money || 0),
-          guards_count: this.getGuardsCount(user.guards || []),
-          guards: user.guards || [],
-        }));
+        .map((user) => {
+          const { guards, ...userWithoutGuards } = user;
+          return {
+            ...userWithoutGuards,
+            strength: this.calculateUserPower(user.guards || []),
+            money: Number(user.money || 0),
+            guards_count: this.getGuardsCount(user.guards || []),
+          };
+        });
 
       dataWithStrength.sort((a, b) => b.strength - a.strength);
 
@@ -550,13 +551,15 @@ export class UserService {
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
-        .map((user) => ({
-          ...user,
-          strength: this.calculateUserPower(user.guards || []),
-          money: Number(user.money || 0),
-          guards_count: this.getGuardsCount(user.guards || []),
-          guards: user.guards || [],
-        }))
+        .map((user) => {
+          const { guards, ...userWithoutGuards } = user;
+          return {
+            ...userWithoutGuards,
+            strength: this.calculateUserPower(user.guards || []),
+            money: Number(user.money || 0),
+            guards_count: this.getGuardsCount(user.guards || []),
+          };
+        })
         .filter(
           (user) =>
             user.strength >= currentStrength - strengthRange &&

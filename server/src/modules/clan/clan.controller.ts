@@ -84,7 +84,7 @@ export class ClanController {
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: (Clan & {
       money?: number;
-      power?: number;
+      strength?: number;
       guards_count?: number;
       members_count?: number;
       leader?: User;
@@ -549,7 +549,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async getEnemyClanMembers(
     @Request() req: AuthenticatedRequest,
-  ): Promise<(User & { power: number; guards_count: number })[]> {
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     return this.clanService.getEnemyClanMembers(req.user.id);
   }
 

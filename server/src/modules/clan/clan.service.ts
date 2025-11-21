@@ -84,7 +84,6 @@ export class ClanService {
     referral_link?: string;
     money?: number;
     strength?: number;
-    power?: number;
     guards_count?: number;
     members_count?: number;
   } {
@@ -98,13 +97,10 @@ export class ClanService {
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
       transformed.strength = this.calculateClanStrength(clan.members);
-      transformed.power = transformed.strength;
       transformed.guards_count = this.calculateClanGuardsCount(clan.members);
       transformed.members_count = clan.members.length;
 
-      if (!options?.includeMembers) {
-        delete transformed.members;
-      }
+      delete transformed.members;
     }
 
     return transformed;
@@ -113,7 +109,7 @@ export class ClanService {
   async findAll(paginationDto: PaginationDto): Promise<{
     data: (Clan & {
       money?: number;
-      power?: number;
+      strength?: number;
       guards_count?: number;
       members_count?: number;
       leader?: User;
@@ -415,7 +411,7 @@ export class ClanService {
 
   async getEnemyClanMembers(
     userId: number,
-  ): Promise<(User & { power: number; guards_count: number })[]> {
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan'],
@@ -446,12 +442,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) => ({
-      ...member,
-      power: this.calculateUserPower(member.guards || []),
-      guards_count: this.getGuardsCount(member.guards || []),
-      guards: undefined, // Remove guards array
-    }));
+    return members.map((member) => {
+      const { guards, ...memberWithoutGuards } = member;
+      return {
+        ...memberWithoutGuards,
+        strength: this.calculateUserPower(member.guards || []),
+        guards_count: this.getGuardsCount(member.guards || []),
+      };
+    });
   }
 
   async attackEnemy(
@@ -1063,11 +1061,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) => ({
-      ...member,
-      strength: this.calculateUserPower(member.guards || []),
-      guards_count: this.getGuardsCount(member.guards || []),
-    }));
+    return members.map((member) => {
+      const { guards, ...memberWithoutGuards } = member;
+      return {
+        ...memberWithoutGuards,
+        strength: this.calculateUserPower(member.guards || []),
+        guards_count: this.getGuardsCount(member.guards || []),
+      };
+    });
   }
 
   async getAllWars(clanId: number): Promise<ClanWar[]> {
@@ -1094,11 +1095,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) => ({
-      ...member,
-      strength: this.calculateUserPower(member.guards || []),
-      guards_count: this.getGuardsCount(member.guards || []),
-    }));
+    return members.map((member) => {
+      const { guards, ...memberWithoutGuards } = member;
+      return {
+        ...memberWithoutGuards,
+        strength: this.calculateUserPower(member.guards || []),
+        guards_count: this.getGuardsCount(member.guards || []),
+      };
+    });
   }
 
   async getClanRating(paginationDto?: PaginationDto): Promise<{
