@@ -203,6 +203,7 @@ export class ShopItemService {
     created_guard?: UserGuard;
     user_accessory?: UserAccessory;
     user_boost?: UserBoost;
+    shield_cooldown_end?: Date;
   }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },

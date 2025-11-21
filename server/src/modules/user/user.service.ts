@@ -142,6 +142,7 @@ export class UserService {
     training_cost: number;
     power_increase: number;
     new_power: number;
+    training_cooldown_end: Date;
   }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
