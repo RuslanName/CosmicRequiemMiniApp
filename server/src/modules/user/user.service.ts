@@ -20,6 +20,7 @@ import { UserBoost } from '../user-boost/user-boost.entity';
 import { randomUUID } from 'crypto';
 import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/event-history-type.enum';
+import { EventHistory } from '../event-history/event-history.entity';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
 
@@ -61,7 +62,6 @@ export class UserService {
     data: (User & {
       strength: number;
       guards_count: number;
-      equipped_accessories: UserAccessory[];
       referral_link?: string;
     })[];
     total: number;
@@ -77,20 +77,15 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = await Promise.all(
-      data.map(async (user) => {
-        const transformed = this.transformUserForResponse(user);
-        const guardsCount = this.getGuardsCount(user.guards || []);
-        const equippedAccessories =
-          await this.userAccessoryService.findEquippedByUserId(user.id);
-        return {
-          ...transformed,
-          strength: this.calculateUserPower(user.guards || []),
-          guards_count: guardsCount,
-          equipped_accessories: equippedAccessories,
-        };
-      }),
-    );
+    const dataWithStrength = data.map((user) => {
+      const transformed = this.transformUserForResponse(user);
+      const guardsCount = this.getGuardsCount(user.guards || []);
+      return {
+        ...transformed,
+        strength: this.calculateUserPower(user.guards || []),
+        guards_count: guardsCount,
+      };
+    });
 
     return {
       data: dataWithStrength,
@@ -104,7 +99,6 @@ export class UserService {
     User & {
       strength: number;
       guards_count: number;
-      equipped_accessories: UserAccessory[];
       referral_link?: string;
     }
   > {
@@ -119,13 +113,10 @@ export class UserService {
 
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
-    const equippedAccessories =
-      await this.userAccessoryService.findEquippedByUserId(user.id);
     return {
       ...transformed,
       strength: this.calculateUserPower(user.guards || []),
       guards_count: guardsCount,
-      equipped_accessories: equippedAccessories,
     };
   }
 
@@ -152,11 +143,11 @@ export class UserService {
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(user.id);
     const currentPower = this.calculateUserPower(user.guards || []);
-    
+
     // Calculate contract income (same logic as in contract method)
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
-    
+
     return {
       ...transformed,
       strength: currentPower,
@@ -370,7 +361,12 @@ export class UserService {
   }
 
   async getRating(paginationDto: PaginationDto): Promise<{
-    data: (User & { strength: number })[];
+    data: (User & {
+      strength: number;
+      money: number;
+      guards_count: number;
+      guards: UserGuard[];
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -388,6 +384,9 @@ export class UserService {
       .map((user) => ({
         ...user,
         strength: this.calculateUserPower(user.guards || []),
+        money: Number(user.money || 0),
+        guards_count: this.getGuardsCount(user.guards || []),
+        guards: user.guards || [],
       }))
       .sort((a, b) => b.strength - a.strength);
 
@@ -479,7 +478,12 @@ export class UserService {
     filter?: 'top' | 'suitable' | 'friends',
     paginationDto?: PaginationDto,
   ): Promise<{
-    data: (User & { strength: number; referral_link?: string })[];
+    data: (User & {
+      strength: number;
+      money: number;
+      guards_count: number;
+      guards: UserGuard[];
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -512,8 +516,11 @@ export class UserService {
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
         .map((user) => ({
-          ...this.transformUserForResponse(user),
+          ...user,
           strength: this.calculateUserPower(user.guards || []),
+          money: Number(user.money || 0),
+          guards_count: this.getGuardsCount(user.guards || []),
+          guards: user.guards || [],
         }));
 
       dataWithStrength.sort((a, b) => b.strength - a.strength);
@@ -544,8 +551,11 @@ export class UserService {
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
         .map((user) => ({
-          ...this.transformUserForResponse(user),
+          ...user,
           strength: this.calculateUserPower(user.guards || []),
+          money: Number(user.money || 0),
+          guards_count: this.getGuardsCount(user.guards || []),
+          guards: user.guards || [],
         }))
         .filter(
           (user) =>
@@ -802,11 +812,44 @@ export class UserService {
     userId: number,
     paginationDto?: PaginationDto,
   ): Promise<{
-    data: any[];
+    data: (Omit<EventHistory, 'stolen_items'> & {
+      strength: number;
+      money: number;
+      guards_count: number;
+    })[];
     total: number;
     page: number;
     limit: number;
   }> {
-    return this.eventHistoryService.findByUserId(userId, paginationDto);
+    const result = await this.eventHistoryService.findByUserId(
+      userId,
+      paginationDto,
+    );
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['guards'],
+    });
+
+    const userStrength = user ? this.calculateUserPower(user.guards || []) : 0;
+    const userMoney = user ? Number(user.money || 0) : 0;
+    const userGuardsCount = user ? this.getGuardsCount(user.guards || []) : 0;
+
+    const transformedData = result.data.map((event) => {
+      const { stolen_items, ...eventWithoutStolenItems } = event;
+      return {
+        ...eventWithoutStolenItems,
+        strength: userStrength,
+        money: userMoney,
+        guards_count: userGuardsCount,
+      };
+    });
+
+    return {
+      data: transformedData,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 }

@@ -70,18 +70,41 @@ export class ClanService {
     }, 0);
   }
 
+  private calculateClanGuardsCount(members: User[]): number {
+    if (!members || members.length === 0) return 0;
+    return members.reduce((sum, member) => {
+      return sum + this.getGuardsCount(member.guards || []);
+    }, 0);
+  }
+
   private transformClanForResponse(
     clan: Clan,
-  ): Clan & { referral_link?: string; money?: number; strength?: number } {
+    options?: { includeReferralLink?: boolean; includeMembers?: boolean },
+  ): Clan & {
+    referral_link?: string;
+    money?: number;
+    strength?: number;
+    power?: number;
+    guards_count?: number;
+    members_count?: number;
+  } {
     const transformed: any = { ...clan };
-    if (clan.referral_link_id) {
+
+    if (options?.includeReferralLink && clan.referral_link_id) {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
-      delete transformed.referral_link_id;
     }
+    delete transformed.referral_link_id;
 
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
       transformed.strength = this.calculateClanStrength(clan.members);
+      transformed.power = transformed.strength;
+      transformed.guards_count = this.calculateClanGuardsCount(clan.members);
+      transformed.members_count = clan.members.length;
+
+      if (!options?.includeMembers) {
+        delete transformed.members;
+      }
     }
 
     return transformed;
@@ -89,9 +112,12 @@ export class ClanService {
 
   async findAll(paginationDto: PaginationDto): Promise<{
     data: (Clan & {
-      referral_link?: string;
       money?: number;
-      strength?: number;
+      power?: number;
+      guards_count?: number;
+      members_count?: number;
+      leader?: User;
+      image_path?: string;
     })[];
     total: number;
     page: number;
@@ -107,7 +133,10 @@ export class ClanService {
     });
 
     const transformedData = data.map((clan) =>
-      this.transformClanForResponse(clan),
+      this.transformClanForResponse(clan, {
+        includeReferralLink: false,
+        includeMembers: false,
+      }),
     );
 
     return {
@@ -118,10 +147,14 @@ export class ClanService {
     };
   }
 
-  async findOne(
-    id: number,
-  ): Promise<
-    Clan & { referral_link?: string; money?: number; strength?: number }
+  async findOne(id: number): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+    }
   > {
     const clan = await this.clanRepository.findOne({
       where: { id },
@@ -132,7 +165,11 @@ export class ClanService {
       throw new NotFoundException(`Clan with ID ${id} not found`);
     }
 
-    return this.transformClanForResponse(clan);
+    const transformed = this.transformClanForResponse(clan, {
+      includeReferralLink: false,
+      includeMembers: false,
+    });
+    return transformed;
   }
 
   private async saveClanImage(file: Express.Multer.File): Promise<string> {
@@ -244,7 +281,15 @@ export class ClanService {
     return clan;
   }
 
-  async getAvailableClansForWar(userId: number): Promise<Clan[]> {
+  async getAvailableClansForWar(userId: number): Promise<
+    (Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+    })[]
+  > {
     const myClan = await this.getLeaderClan(userId);
 
     const maxClanWarsCount = Settings[SettingKey.MAX_CLAN_WARS_COUNT];
@@ -266,7 +311,7 @@ export class ClanService {
 
     const allClans = await this.clanRepository.find({
       where: { id: MoreThan(0) },
-      relations: ['leader'],
+      relations: ['leader', 'members', 'members.guards'],
     });
 
     const availableClans: Clan[] = [];
@@ -294,7 +339,12 @@ export class ClanService {
       }
     }
 
-    return availableClans;
+    return availableClans.map((clan) =>
+      this.transformClanForResponse(clan, {
+        includeReferralLink: false,
+        includeMembers: false,
+      }),
+    );
   }
 
   async declareWar(userId: number, targetClanId: number): Promise<ClanWar> {
@@ -363,10 +413,12 @@ export class ClanService {
     return this.clanWarRepository.save(clanWar);
   }
 
-  async getEnemyClanMembers(userId: number): Promise<User[]> {
+  async getEnemyClanMembers(
+    userId: number,
+  ): Promise<(User & { power: number; guards_count: number })[]> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'clan.leader'],
+      relations: ['clan'],
     });
 
     if (!user || !user.clan) {
@@ -389,10 +441,17 @@ export class ClanService {
       war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
     );
 
-    return await this.userRepository.find({
+    const members = await this.userRepository.find({
       where: { clan_id: In(enemyClanIds) },
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
     });
+
+    return members.map((member) => ({
+      ...member,
+      power: this.calculateUserPower(member.guards || []),
+      guards_count: this.getGuardsCount(member.guards || []),
+      guards: undefined, // Remove guards array
+    }));
   }
 
   async attackEnemy(
@@ -822,12 +881,19 @@ export class ClanService {
     return this.clanApplicationRepository.save(application);
   }
 
-  async getUserClan(
-    userId: number,
-  ): Promise<Clan & { referral_link?: string }> {
+  async getUserClan(userId: number): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+      referral_link?: string;
+    }
+  > {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'clan.leader', 'clan.members'],
+      relations: ['clan', 'clan.leader', 'clan.members', 'clan.members.guards'],
     });
 
     if (!user) {
@@ -838,7 +904,13 @@ export class ClanService {
       throw new NotFoundException('User is not in a clan');
     }
 
-    return this.transformClanForResponse(user.clan);
+    const isLeader = user.clan.leader_id === userId;
+    const transformed = this.transformClanForResponse(user.clan, {
+      includeReferralLink: isLeader,
+      includeMembers: false,
+    });
+
+    return transformed;
   }
 
   async updateClanReferralLink(
@@ -877,9 +949,16 @@ export class ClanService {
     });
   }
 
-  async getEnemyClans(
-    userId: number,
-  ): Promise<(Clan & { referral_link?: string })[]> {
+  async getEnemyClans(userId: number): Promise<
+    (Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      leader?: User;
+      members_count?: number;
+      image_path?: string;
+    })[]
+  > {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan'],
@@ -907,16 +986,30 @@ export class ClanService {
 
     const enemyClans = await this.clanRepository.find({
       where: { id: In(enemyClanIds) },
-      relations: ['leader', 'members'],
+      relations: ['leader', 'members', 'members.guards'],
     });
 
-    return enemyClans.map((clan) => this.transformClanForResponse(clan));
+    return enemyClans.map((clan) =>
+      this.transformClanForResponse(clan, {
+        includeReferralLink: false,
+        includeMembers: false,
+      }),
+    );
   }
 
   async getEnemyClanById(
     userId: number,
     enemyClanId: number,
-  ): Promise<Clan & { referral_link?: string }> {
+  ): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      leader?: User;
+      members_count?: number;
+      image_path?: string;
+    }
+  > {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan'],
@@ -946,26 +1039,35 @@ export class ClanService {
 
     const enemyClan = await this.clanRepository.findOne({
       where: { id: enemyClanId },
-      relations: ['leader', 'members'],
+      relations: ['leader', 'members', 'members.guards'],
     });
 
     if (!enemyClan) {
       throw new NotFoundException('Enemy clan not found');
     }
 
-    return this.transformClanForResponse(enemyClan);
+    return this.transformClanForResponse(enemyClan, {
+      includeReferralLink: false,
+      includeMembers: false,
+    });
   }
 
   async getEnemyClanMembersById(
     userId: number,
     enemyClanId: number,
-  ): Promise<User[]> {
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     await this.getEnemyClanById(userId, enemyClanId);
 
-    return await this.userRepository.find({
+    const members = await this.userRepository.find({
       where: { clan_id: enemyClanId },
-      relations: ['clan', 'guards'],
+      relations: ['guards'],
     });
+
+    return members.map((member) => ({
+      ...member,
+      strength: this.calculateUserPower(member.guards || []),
+      guards_count: this.getGuardsCount(member.guards || []),
+    }));
   }
 
   async getAllWars(clanId: number): Promise<ClanWar[]> {
@@ -976,7 +1078,9 @@ export class ClanService {
     });
   }
 
-  async getClanMembers(clanId: number): Promise<User[]> {
+  async getClanMembers(
+    clanId: number,
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     const clan = await this.clanRepository.findOne({
       where: { id: clanId },
     });
@@ -985,10 +1089,16 @@ export class ClanService {
       throw new NotFoundException('Clan not found');
     }
 
-    return await this.userRepository.find({
+    const members = await this.userRepository.find({
       where: { clan_id: clanId },
       relations: ['guards'],
     });
+
+    return members.map((member) => ({
+      ...member,
+      strength: this.calculateUserPower(member.guards || []),
+      guards_count: this.getGuardsCount(member.guards || []),
+    }));
   }
 
   async getClanRating(paginationDto?: PaginationDto): Promise<{
@@ -996,6 +1106,11 @@ export class ClanService {
       wins: number;
       losses: number;
       rating: number;
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
     })[];
     total: number;
     page: number;
@@ -1005,7 +1120,7 @@ export class ClanService {
     const skip = (page - 1) * limit;
 
     const allClans = await this.clanRepository.find({
-      relations: ['leader', 'members'],
+      relations: ['leader', 'members', 'members.guards'],
     });
 
     const clansWithRating = await Promise.all(
@@ -1042,8 +1157,13 @@ export class ClanService {
         const losses = lossesAsClan1 + lossesAsClan2;
         const rating = wins;
 
+        const transformed = this.transformClanForResponse(clan, {
+          includeReferralLink: false,
+          includeMembers: false,
+        });
+
         return {
-          ...clan,
+          ...transformed,
           wins,
           losses,
           rating,
@@ -1051,6 +1171,11 @@ export class ClanService {
           wins: number;
           losses: number;
           rating: number;
+          money?: number;
+          strength?: number;
+          guards_count?: number;
+          members_count?: number;
+          image_path?: string;
         };
       }),
     );

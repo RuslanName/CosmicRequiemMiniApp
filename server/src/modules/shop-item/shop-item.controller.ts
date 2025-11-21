@@ -85,7 +85,9 @@ export class ShopItemController {
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('shop-item:public-list')
-  @ApiOperation({ summary: 'Получить список доступных товаров по категориям (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Получить список доступных товаров по категориям (Для Mini App)',
+  })
   @ApiResponse({
     status: 200,
     schema: {

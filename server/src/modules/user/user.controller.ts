@@ -35,6 +35,7 @@ import {
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
+import { EventHistory } from '../event-history/event-history.entity';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
 import { AttackPlayerDto } from './dtos/attack-player.dto';
 
@@ -81,7 +82,6 @@ export class UserController {
     data: (User & {
       strength: number;
       guards_count: number;
-      equipped_accessories: UserAccessory[];
       referral_link?: string;
     })[];
     total: number;
@@ -131,6 +131,80 @@ export class UserController {
     return this.userService.findMe(req.user.id);
   }
 
+  @Post('training')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Тренировка стражей пользователя (Для Mini App)' })
+  @ApiBody({ required: false })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        user: { id: 1, money: 4500 },
+        training_cost: 500,
+        power_increase: 25,
+        new_power: 275,
+        training_cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Training cooldown is still active',
+        cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async training(@Request() req: AuthenticatedRequest): Promise<{
+    user: User;
+    training_cost: number;
+    power_increase: number;
+    new_power: number;
+    training_cooldown_end: Date;
+  }> {
+    return this.userService.training(req.user.id);
+  }
+
+  @Post('contract')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Выполнить контракт для заработка денег (Для Mini App)',
+  })
+  @ApiBody({ required: false })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        user: { id: 1, money: 5500 },
+        contract_income: 275,
+        contract_cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    schema: {
+      example: {
+        message: 'Contract cooldown is still active',
+        cooldown_end: '2024-01-01T12:15:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async contract(@Request() req: AuthenticatedRequest): Promise<{
+    user: User;
+    contract_income: number;
+    contract_cooldown_end: Date;
+  }> {
+    return this.userService.contract(req.user.id);
+  }
+
   @Get('rating')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -159,7 +233,12 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(@Query() paginationDto: PaginationDto): Promise<{
-    data: (User & { strength: number })[];
+    data: (User & {
+      strength: number;
+      money: number;
+      guards_count: number;
+      guards: UserGuard[];
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -216,7 +295,12 @@ export class UserController {
     @Query('filter') filter?: 'top' | 'suitable' | 'friends',
     @Query() paginationDto?: PaginationDto,
   ): Promise<{
-    data: (User & { strength: number; referral_link?: string })[];
+    data: (User & {
+      strength: number;
+      money: number;
+      guards_count: number;
+      guards: UserGuard[];
+    })[];
     total: number;
     page: number;
     limit: number;
@@ -264,7 +348,6 @@ export class UserController {
     User & {
       strength: number;
       guards_count: number;
-      equipped_accessories: UserAccessory[];
       referral_link?: string;
     }
   > {
@@ -299,78 +382,6 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
     return this.userService.update(+id, updateUserDto);
-  }
-
-  @Post('training')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Тренировка стражей пользователя (Для Mini App)' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        user: { id: 1, money: 4500 },
-        training_cost: 500,
-        power_increase: 25,
-        new_power: 275,
-        training_cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    schema: {
-      example: {
-        message: 'Training cooldown is still active',
-        cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async training(@Request() req: AuthenticatedRequest): Promise<{
-    user: User;
-    training_cost: number;
-    power_increase: number;
-    new_power: number;
-    training_cooldown_end: Date;
-  }> {
-    return this.userService.training(req.user.id);
-  }
-
-  @Post('contract')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Выполнить контракт для заработка денег (Для Mini App)',
-  })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        user: { id: 1, money: 5500 },
-        contract_income: 275,
-        contract_cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    schema: {
-      example: {
-        message: 'Contract cooldown is still active',
-        cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async contract(@Request() req: AuthenticatedRequest): Promise<{
-    user: User;
-    contract_income: number;
-    contract_cooldown_end: Date;
-  }> {
-    return this.userService.contract(req.user.id);
   }
 
   @Get('me/inventory')
@@ -650,7 +661,11 @@ export class UserController {
     @Request() req: AuthenticatedRequest,
     @Query() paginationDto?: PaginationDto,
   ): Promise<{
-    data: any[];
+    data: (Omit<EventHistory, 'stolen_items'> & {
+      strength: number;
+      money: number;
+      guards_count: number;
+    })[];
     total: number;
     page: number;
     limit: number;

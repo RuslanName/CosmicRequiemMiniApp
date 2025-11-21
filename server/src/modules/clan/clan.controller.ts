@@ -83,9 +83,12 @@ export class ClanController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
     data: (Clan & {
-      referral_link?: string;
       money?: number;
-      strength?: number;
+      power?: number;
+      guards_count?: number;
+      members_count?: number;
+      leader?: User;
+      image_path?: string;
     })[];
     total: number;
     page: number;
@@ -124,9 +127,12 @@ export class ClanController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClansList(@Query() paginationDto: PaginationDto): Promise<{
     data: (Clan & {
-      referral_link?: string;
       money?: number;
-      strength?: number;
+      power?: number;
+      guards_count?: number;
+      leader?: User;
+      members_count?: number;
+      image_path?: string;
     })[];
     total: number;
     page: number;
@@ -161,9 +167,16 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getMyClan(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<Clan & { referral_link?: string }> {
+  async getMyClan(@Request() req: AuthenticatedRequest): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+      referral_link?: string;
+    }
+  > {
     return this.clanService.getUserClan(req.user.id);
   }
 
@@ -227,7 +240,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
   async getMyClanMembers(
     @Request() req: AuthenticatedRequest,
-  ): Promise<User[]> {
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     const clan = await this.clanService.getUserClan(req.user.id);
     return this.clanService.getClanMembers(clan.id);
   }
@@ -256,9 +269,16 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
-  async getEnemyClans(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<(Clan & { referral_link?: string })[]> {
+  async getEnemyClans(@Request() req: AuthenticatedRequest): Promise<
+    (Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      leader?: User;
+      members_count?: number;
+      image_path?: string;
+    })[]
+  > {
     return this.clanService.getEnemyClans(req.user.id);
   }
 
@@ -300,7 +320,16 @@ export class ClanController {
   async getEnemyClanById(
     @Request() req: AuthenticatedRequest,
     @Param('id') enemyClanId: string,
-  ): Promise<Clan & { referral_link?: string }> {
+  ): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      leader?: User;
+      members_count?: number;
+      image_path?: string;
+    }
+  > {
     return this.clanService.getEnemyClanById(req.user.id, +enemyClanId);
   }
 
@@ -342,7 +371,7 @@ export class ClanController {
   async getEnemyClanMembersById(
     @Request() req: AuthenticatedRequest,
     @Param('id') enemyClanId: string,
-  ): Promise<User[]> {
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     return this.clanService.getEnemyClanMembersById(req.user.id, +enemyClanId);
   }
 
@@ -384,6 +413,11 @@ export class ClanController {
       wins: number;
       losses: number;
       rating: number;
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
     })[];
     total: number;
     page: number;
@@ -426,9 +460,15 @@ export class ClanController {
     status: 404,
     description: 'Пользователь не является лидером клана',
   })
-  async getAvailableClansForWar(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<Clan[]> {
+  async getAvailableClansForWar(@Request() req: AuthenticatedRequest): Promise<
+    (Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+    })[]
+  > {
     return this.clanService.getAvailableClansForWar(req.user.id);
   }
 
@@ -509,7 +549,7 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async getEnemyClanMembers(
     @Request() req: AuthenticatedRequest,
-  ): Promise<User[]> {
+  ): Promise<(User & { power: number; guards_count: number })[]> {
     return this.clanService.getEnemyClanMembers(req.user.id);
   }
 
@@ -837,10 +877,14 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<
-    Clan & { referral_link?: string; money?: number; strength?: number }
+  async findOne(@Param('id') id: string): Promise<
+    Clan & {
+      money?: number;
+      strength?: number;
+      guards_count?: number;
+      members_count?: number;
+      image_path?: string;
+    }
   > {
     return this.clanService.findOne(+id);
   }
@@ -866,7 +910,9 @@ export class ClanController {
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanMembers(@Param('id') id: string): Promise<User[]> {
+  async getClanMembers(
+    @Param('id') id: string,
+  ): Promise<(User & { strength: number; guards_count: number })[]> {
     return this.clanService.getClanMembers(+id);
   }
 

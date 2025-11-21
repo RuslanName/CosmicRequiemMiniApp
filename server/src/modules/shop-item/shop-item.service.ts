@@ -74,7 +74,7 @@ export class ShopItemService {
 
     for (const item of shopItems) {
       const category = item.item_template?.type || 'other';
-      
+
       if (!categories[category]) {
         categories[category] = [];
       }
@@ -99,7 +99,9 @@ export class ShopItemService {
     return shopItem;
   }
 
-  private async saveShopItemImage(file?: Express.Multer.File): Promise<string | null> {
+  private async saveShopItemImage(
+    file?: Express.Multer.File,
+  ): Promise<string | null> {
     if (!file) {
       return null;
     }
