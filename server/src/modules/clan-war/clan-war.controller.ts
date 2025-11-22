@@ -22,6 +22,7 @@ import { ClanWar } from './entities/clan-war.entity';
 import { UpdateClanWarDto } from './dtos/update-clan-war.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
 @ApiTags('ClanWar')
 @Controller('wars')
@@ -36,11 +37,12 @@ export class ClanWarController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [ClanWar],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<ClanWar>> {
     return this.clanWarService.findAll(paginationDto);
   }
 

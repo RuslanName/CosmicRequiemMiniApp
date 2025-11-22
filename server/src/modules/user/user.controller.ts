@@ -27,45 +27,46 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import {
-  CacheTTL,
-  CacheKey,
-  InvalidateCache,
-} from '../../common/decorators/cache.decorator';
-import { UserBoost } from '../user-boost/user-boost.entity';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
-import { EventHistory } from '../event-history/event-history.entity';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
 import { AttackPlayerDto } from './dtos/attack-player.dto';
+import { ActivateShieldDto } from './dtos/activate-shield.dto';
+import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
+import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
+import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
+import { TrainingResponseDto } from './dtos/responses/training-response.dto';
+import { ContractResponseDto } from './dtos/responses/contract-response.dto';
+import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
+import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
+import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
+import { UserAccessoryService } from '../user-accessory/user-accessory.service';
+import { ActivateShieldResponseDto } from './dtos/responses/activate-shield-response.dto';
 
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly userAccessoryService: UserAccessoryService,
+  ) {}
 
   @Get()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(60)
-  @CacheKey('user:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить всех пользователей с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [UserWithBasicStatsResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{
-    data: (User & {
-      strength: number;
-      guards_count: number;
-      referral_link?: string;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserWithBasicStatsResponseDto>> {
     return this.userService.findAll(paginationDto);
   }
 
@@ -78,18 +79,13 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
+    type: UserMeResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async findMe(@Request() req: AuthenticatedRequest): Promise<
-    User & {
-      strength: number;
-      guards_count: number;
-      equipped_accessories: UserAccessory[];
-      referral_link?: string;
-      training_cost: number;
-    }
-  > {
+  async findMe(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserMeResponseDto> {
     return this.userService.findMe(req.user.id);
   }
 
@@ -100,19 +96,16 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
+    type: TrainingResponseDto,
   })
   @ApiResponse({
     status: 400,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async training(@Request() req: AuthenticatedRequest): Promise<{
-    user: User;
-    training_cost: number;
-    power_increase: number;
-    new_power: number;
-    training_cooldown_end: Date;
-  }> {
+  async training(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<TrainingResponseDto> {
     return this.userService.training(req.user.id);
   }
 
@@ -125,17 +118,16 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
+    type: ContractResponseDto,
   })
   @ApiResponse({
     status: 400,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async contract(@Request() req: AuthenticatedRequest): Promise<{
-    user: User;
-    contract_income: number;
-    contract_cooldown_end: Date;
-  }> {
+  async contract(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<ContractResponseDto> {
     return this.userService.contract(req.user.id);
   }
 
@@ -149,18 +141,12 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [UserRatingResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getRating(@Query() paginationDto: PaginationDto): Promise<{
-    data: (User & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async getRating(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     return this.userService.getRating(paginationDto);
   }
 
@@ -182,6 +168,7 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [UserRatingResponseDto],
   })
   @ApiResponse({
     status: 400,
@@ -191,16 +178,7 @@ export class UserController {
     @Request() req: AuthenticatedRequest,
     @Query('filter') filter?: 'top' | 'suitable' | 'friends',
     @Query() paginationDto?: PaginationDto,
-  ): Promise<{
-    data: (User & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
       throw new BadRequestException(
         'Filter parameter must be one of: top, suitable, friends',
@@ -216,29 +194,23 @@ export class UserController {
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(120)
-  @CacheKey('user::id')
   @ApiOperation({ summary: 'Получить пользователя по ID' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
+    type: UserWithBasicStatsResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async findOne(@Param('id') id: string): Promise<
-    User & {
-      strength: number;
-      guards_count: number;
-      referral_link?: string;
-    }
-  > {
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<UserWithBasicStatsResponseDto> {
     return this.userService.findOne(+id);
   }
 
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('user::id', 'user:list:*')
   @ApiOperation({ summary: 'Обновить пользователя' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateUserDto })
@@ -263,12 +235,12 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
+    type: InventoryResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getInventory(@Request() req: AuthenticatedRequest): Promise<{
-    boosts: UserBoost[];
-    accessories: UserAccessory[];
-  }> {
+  async getInventory(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<InventoryResponseDto> {
     return this.userService.getInventory(req.user.id);
   }
 
@@ -355,6 +327,7 @@ export class UserController {
   @ApiBody({ type: AttackPlayerDto })
   @ApiResponse({
     status: 200,
+    type: AttackPlayerResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -364,13 +337,7 @@ export class UserController {
   async attackPlayer(
     @Request() req: AuthenticatedRequest,
     @Body() attackPlayerDto: AttackPlayerDto,
-  ): Promise<{
-    win_chance: number;
-    is_win: boolean;
-    stolen_money: number;
-    captured_guards: number;
-    attack_cooldown_end: Date;
-  }> {
+  ): Promise<AttackPlayerResponseDto> {
     return this.userService.attackPlayer(
       req.user.id,
       attackPlayerDto.target_user_id,
@@ -388,21 +355,39 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [EventHistoryItemResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getEventHistory(
     @Request() req: AuthenticatedRequest,
     @Query() paginationDto?: PaginationDto,
-  ): Promise<{
-    data: (Omit<EventHistory, 'stolen_items'> & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  ): Promise<PaginatedResponseDto<EventHistoryItemResponseDto>> {
     return this.userService.getEventHistory(req.user.id, paginationDto);
+  }
+
+  @Post('activate-shield')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Активировать щит из инвентаря (Для Mini App)' })
+  @ApiBody({ type: ActivateShieldDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Щит успешно активирован',
+    type: ActivateShieldResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Ошибка активации щита',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
+  async activateShield(
+    @Request() req: AuthenticatedRequest,
+    @Body() activateShieldDto: ActivateShieldDto,
+  ): Promise<ActivateShieldResponseDto> {
+    return this.userAccessoryService.activateShield(
+      req.user.id,
+      activateShieldDto.accessory_id,
+    );
   }
 }

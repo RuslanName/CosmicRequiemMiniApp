@@ -11,6 +11,7 @@ import { AdminAuthService } from '../services/admin-auth.service';
 import { AdminLoginDto } from '../dtos/admin-login.dto';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 import { ENV } from '../../../config/constants';
+import { AdminLoginResponseDto } from '../dtos/responses/admin-login-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth/admin')
@@ -22,6 +23,7 @@ export class AdminAuthController {
   @ApiBody({ type: AdminLoginDto })
   @ApiResponse({
     status: 200,
+    type: AdminLoginResponseDto,
   })
   @ApiResponse({
     status: 401,
@@ -29,7 +31,7 @@ export class AdminAuthController {
   async login(
     @Body() loginDto: AdminLoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<AdminLoginResponseDto> {
     const { token } = await this.adminAuthService.validateAdmin(loginDto);
 
     res.cookie('admin_token', token, {
@@ -52,12 +54,10 @@ export class AdminAuthController {
   @ApiOperation({ summary: 'Выход из панели администрации' })
   @ApiResponse({
     status: 200,
+    type: AdminLoginResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  logout(@Res({ passthrough: true }) res: Response): {
-    success: boolean;
-    message: string;
-  } {
+  logout(@Res({ passthrough: true }) res: Response): AdminLoginResponseDto {
     res.clearCookie('admin_token', {
       httpOnly: true,
       secure: ENV.MODE === 'production',

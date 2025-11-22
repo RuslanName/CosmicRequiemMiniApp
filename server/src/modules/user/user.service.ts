@@ -17,12 +17,19 @@ import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
-import { randomUUID } from 'crypto';
 import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/event-history-type.enum';
-import { EventHistory } from '../event-history/event-history.entity';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
+import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { UserWithBasicStatsResponseDto } from './dtos/responses/user-with-basic-stats-response.dto';
+import { UserMeResponseDto } from './dtos/responses/user-me-response.dto';
+import { UserRatingResponseDto } from './dtos/responses/user-rating-response.dto';
+import { TrainingResponseDto } from './dtos/responses/training-response.dto';
+import { ContractResponseDto } from './dtos/responses/contract-response.dto';
+import { InventoryResponseDto } from './dtos/responses/inventory-response.dto';
+import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 
 @Injectable()
 export class UserService {
@@ -58,16 +65,107 @@ export class UserService {
     return transformed;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{
-    data: (User & {
-      strength: number;
-      guards_count: number;
-      referral_link?: string;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  private transformToUserMeResponseDto(
+    user: User,
+    equippedAccessories: UserAccessory[],
+    trainingCost: number,
+    contractIncome: number,
+  ): UserMeResponseDto {
+    const transformed = this.transformUserForResponse(user);
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const strength = this.calculateUserPower(user.guards || []);
+
+    return {
+      id: transformed.id,
+      vk_id: transformed.vk_id,
+      first_name: transformed.first_name,
+      last_name: transformed.last_name,
+      sex: transformed.sex,
+      avatar_url: transformed.avatar_url,
+      birthday_date: transformed.birthday_date,
+      money: transformed.money,
+      shield_end_time: transformed.shield_end_time,
+      last_shield_purchase_time: transformed.last_shield_purchase_time,
+      last_training_time: transformed.last_training_time,
+      last_contract_time: transformed.last_contract_time,
+      last_attack_time: transformed.last_attack_time,
+      clan_leave_time: transformed.clan_leave_time,
+      status: transformed.status,
+      registered_at: transformed.registered_at,
+      last_login_at: transformed.last_login_at,
+      clan_id: transformed.clan_id,
+      strength,
+      guards_count: guardsCount,
+      equipped_accessories: equippedAccessories,
+      referral_link: transformed.referral_link,
+      training_cost: trainingCost,
+      contract_income: contractIncome,
+    };
+  }
+
+  private transformToUserBasicStatsResponseDto(
+    user: User,
+  ): UserWithBasicStatsResponseDto {
+    const transformed = this.transformUserForResponse(user);
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const strength = this.calculateUserPower(user.guards || []);
+
+    return {
+      id: transformed.id,
+      vk_id: transformed.vk_id,
+      first_name: transformed.first_name,
+      last_name: transformed.last_name,
+      sex: transformed.sex,
+      avatar_url: transformed.avatar_url,
+      birthday_date: transformed.birthday_date,
+      money: transformed.money,
+      shield_end_time: transformed.shield_end_time,
+      last_shield_purchase_time: transformed.last_shield_purchase_time,
+      last_training_time: transformed.last_training_time,
+      last_contract_time: transformed.last_contract_time,
+      last_attack_time: transformed.last_attack_time,
+      clan_leave_time: transformed.clan_leave_time,
+      status: transformed.status,
+      registered_at: transformed.registered_at,
+      last_login_at: transformed.last_login_at,
+      clan_id: transformed.clan_id,
+      strength,
+      guards_count: guardsCount,
+      referral_link: transformed.referral_link,
+    };
+  }
+
+  private transformToUserRatingResponseDto(user: User): UserRatingResponseDto {
+    const guardsCount = this.getGuardsCount(user.guards || []);
+    const strength = this.calculateUserPower(user.guards || []);
+
+    return {
+      id: user.id,
+      vk_id: user.vk_id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      sex: user.sex,
+      avatar_url: user.avatar_url,
+      birthday_date: user.birthday_date,
+      money: user.money,
+      shield_end_time: user.shield_end_time,
+      last_shield_purchase_time: user.last_shield_purchase_time,
+      last_training_time: user.last_training_time,
+      last_contract_time: user.last_contract_time,
+      last_attack_time: user.last_attack_time,
+      clan_leave_time: user.clan_leave_time,
+      status: user.status,
+      registered_at: user.registered_at,
+      last_login_at: user.last_login_at,
+      clan_id: user.clan_id,
+      strength,
+      guards_count: guardsCount,
+    };
+  }
+
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserWithBasicStatsResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -77,15 +175,9 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = data.map((user) => {
-      const transformed = this.transformUserForResponse(user);
-      const guardsCount = this.getGuardsCount(user.guards || []);
-      return {
-        ...transformed,
-        strength: this.calculateUserPower(user.guards || []),
-        guards_count: guardsCount,
-      };
-    });
+    const dataWithStrength = data.map((user) =>
+      this.transformToUserBasicStatsResponseDto(user),
+    );
 
     return {
       data: dataWithStrength,
@@ -120,14 +212,7 @@ export class UserService {
     };
   }
 
-  async findMe(userId: number): Promise<
-    User & {
-      strength: number;
-      guards_count: number;
-      equipped_accessories: UserAccessory[];
-      training_cost: number;
-    }
-  > {
+  async findMe(userId: number): Promise<UserMeResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'guards'],
@@ -137,21 +222,19 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const transformed = this.transformUserForResponse(user);
-    const guardsCount = this.getGuardsCount(user.guards || []);
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(user.id);
     const currentPower = this.calculateUserPower(user.guards || []);
 
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
+    const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
 
-    return {
-      ...transformed,
-      strength: currentPower,
-      guards_count: guardsCount,
-      equipped_accessories: equippedAccessories,
+    return this.transformToUserMeResponseDto(
+      user,
+      equippedAccessories,
       training_cost,
-    };
+      contract_income,
+    );
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
@@ -168,13 +251,7 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async training(userId: number): Promise<{
-    user: User;
-    training_cost: number;
-    power_increase: number;
-    new_power: number;
-    training_cooldown_end: Date;
-  }> {
+  async training(userId: number): Promise<TrainingResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -267,8 +344,18 @@ export class UserService {
       new Date().getTime() + trainingCooldown,
     );
 
+    const equippedAccessories =
+      await this.userAccessoryService.findEquippedByUserId(userId);
+    const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
+    const userMe = this.transformToUserMeResponseDto(
+      updatedUser,
+      equippedAccessories,
+      training_cost,
+      contract_income,
+    );
+
     return {
-      user: updatedUser,
+      user: userMe,
       training_cost,
       power_increase: total_power_increase,
       new_power,
@@ -276,11 +363,7 @@ export class UserService {
     };
   }
 
-  async contract(userId: number): Promise<{
-    user: User;
-    contract_income: number;
-    contract_cooldown_end: Date;
-  }> {
+  async contract(userId: number): Promise<ContractResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['guards'],
@@ -336,8 +419,17 @@ export class UserService {
       new Date().getTime() + contractCooldown,
     );
 
-    return {
+    const equippedAccessories =
+      await this.userAccessoryService.findEquippedByUserId(userId);
+    const userMe = this.transformToUserMeResponseDto(
       user,
+      equippedAccessories,
+      training_cost,
+      contract_income,
+    );
+
+    return {
+      user: userMe,
       contract_income,
       contract_cooldown_end: contractCooldownEnd,
     };
@@ -357,16 +449,9 @@ export class UserService {
     return await this.userRepository.save(user);
   }
 
-  async getRating(paginationDto: PaginationDto): Promise<{
-    data: (User & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async getRating(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -421,10 +506,7 @@ export class UserService {
     return this.userAccessoryService.findEquippedByUserId(userId);
   }
 
-  async getInventory(userId: number): Promise<{
-    boosts: UserBoost[];
-    accessories: UserAccessory[];
-  }> {
+  async getInventory(userId: number): Promise<InventoryResponseDto> {
     const [boosts, accessories] = await Promise.all([
       this.getUserBoosts(userId),
       this.getUserAccessories(userId),
@@ -454,16 +536,7 @@ export class UserService {
     userId: number,
     filter?: 'top' | 'suitable' | 'friends',
     paginationDto?: PaginationDto,
-  ): Promise<{
-    data: (User & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
@@ -491,15 +564,7 @@ export class UserService {
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
-        .map((user) => {
-          const { guards, ...userWithoutGuards } = user;
-          return {
-            ...userWithoutGuards,
-            strength: this.calculateUserPower(user.guards || []),
-            money: Number(user.money || 0),
-            guards_count: this.getGuardsCount(user.guards || []),
-          };
-        });
+        .map((user) => this.transformToUserRatingResponseDto(user));
 
       dataWithStrength.sort((a, b) => b.strength - a.strength);
 
@@ -572,13 +637,7 @@ export class UserService {
   async attackPlayer(
     userId: number,
     targetUserId: number,
-  ): Promise<{
-    win_chance: number;
-    is_win: boolean;
-    stolen_money: number;
-    captured_guards: number;
-    attack_cooldown_end: Date;
-  }> {
+  ): Promise<AttackPlayerResponseDto> {
     const attacker = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['clan', 'guards'],
@@ -791,16 +850,7 @@ export class UserService {
   async getEventHistory(
     userId: number,
     paginationDto?: PaginationDto,
-  ): Promise<{
-    data: (Omit<EventHistory, 'stolen_items'> & {
-      strength: number;
-      money: number;
-      guards_count: number;
-    })[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  ): Promise<PaginatedResponseDto<EventHistoryItemResponseDto>> {
     const result = await this.eventHistoryService.findByUserId(
       userId,
       paginationDto,

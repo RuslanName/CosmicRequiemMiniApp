@@ -9,6 +9,7 @@ import { Admin } from './admin.entity';
 import { CreateAdminDto } from './dtos/create-admin.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -20,7 +21,7 @@ export class AdminService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: Admin[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Admin>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 

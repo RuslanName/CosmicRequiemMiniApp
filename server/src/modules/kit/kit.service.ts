@@ -4,11 +4,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, MoreThan, IsNull, Or } from 'typeorm';
 import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { KitPurchaseResponseDto } from './dtos/responses/kit-purchase-response.dto';
 import { ItemTemplate } from '../item-template/item-template.entity';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
@@ -40,7 +42,7 @@ export class KitService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Kit>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -60,7 +62,7 @@ export class KitService {
 
   async findAvailable(
     paginationDto: PaginationDto,
-  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Kit>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -158,12 +160,7 @@ export class KitService {
   async purchase(
     userId: number,
     kitId: number,
-  ): Promise<{
-    user: User;
-    created_guards: UserGuard[];
-    user_accessories: UserAccessory[];
-    user_boosts: UserBoost[];
-  }> {
+  ): Promise<KitPurchaseResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -210,59 +207,61 @@ export class KitService {
         const createdGuard = await this.userGuardRepository.save(guard);
         createdGuards.push(createdGuard);
       } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
-        const purchaseShieldCooldown =
-          Settings[SettingKey.PURCHASE_SHIELD_COOLDOWN];
-        if (user.last_shield_purchase_time) {
-          const cooldownEndTime = new Date(
-            user.last_shield_purchase_time.getTime() + purchaseShieldCooldown,
-          );
-          if (cooldownEndTime > new Date()) {
-            throw new BadRequestException({
-              message: 'Shield purchase cooldown is still active',
-              cooldown_end: cooldownEndTime,
-            });
-          }
-        }
-
-        const shieldHours = parseInt(itemTemplate.value, 10);
-        const now = new Date();
-        const shieldEndTime =
-          user.shield_end_time && user.shield_end_time > now
-            ? new Date(
-                user.shield_end_time.getTime() + shieldHours * 60 * 60 * 1000,
-              )
-            : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
-
-        user.shield_end_time = shieldEndTime;
-        user.last_shield_purchase_time = now;
-
-        const userBoost = this.userBoostRepository.create({
-          type: UserBoostType.SHIELD,
-          end_time: shieldEndTime,
+        const userAccessory = this.userAccessoryRepository.create({
+          name: `Shield ${itemTemplate.value}h`,
+          currency: kit.currency,
+          price: kit.price,
           user,
+          item_template: itemTemplate,
         });
-        const createdBoost = await this.userBoostRepository.save(userBoost);
-        userBoosts.push(createdBoost);
+        const createdAccessory =
+          await this.userAccessoryRepository.save(userAccessory);
+        userAccessories.push(createdAccessory);
       } else if (
         itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
         itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
       ) {
+        const boostType =
+          itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
+            ? UserBoostType.REWARD_DOUBLING
+            : UserBoostType.COOLDOWN_HALVING;
+
         const boostHours = parseInt(itemTemplate.value, 10);
         const now = new Date();
-        const boostEndTime = new Date(
-          now.getTime() + boostHours * 60 * 60 * 1000,
-        );
 
-        const userBoost = this.userBoostRepository.create({
-          type:
-            itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
-              ? UserBoostType.REWARD_DOUBLING
-              : UserBoostType.COOLDOWN_HALVING,
-          end_time: boostEndTime,
-          user,
+        const existingActiveBoost = await this.userBoostRepository.findOne({
+          where: {
+            user: { id: user.id },
+            type: boostType,
+            end_time: Or(MoreThan(now), IsNull()),
+          },
         });
-        const createdBoost = await this.userBoostRepository.save(userBoost);
-        userBoosts.push(createdBoost);
+
+        let boostEndTime: Date;
+        if (
+          existingActiveBoost &&
+          existingActiveBoost.end_time &&
+          existingActiveBoost.end_time > now
+        ) {
+          boostEndTime = new Date(
+            existingActiveBoost.end_time.getTime() +
+              boostHours * 60 * 60 * 1000,
+          );
+          existingActiveBoost.end_time = boostEndTime;
+          await this.userBoostRepository.save(existingActiveBoost);
+          userBoosts.push(existingActiveBoost);
+        } else {
+          boostEndTime = new Date(
+            now.getTime() + boostHours * 60 * 60 * 1000,
+          );
+          const userBoost = this.userBoostRepository.create({
+            type: boostType,
+            end_time: boostEndTime,
+            user,
+          });
+          const createdBoost = await this.userBoostRepository.save(userBoost);
+          userBoosts.push(createdBoost);
+        }
       } else if (
         itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
         itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||

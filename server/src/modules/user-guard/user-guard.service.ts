@@ -5,6 +5,7 @@ import { UserGuard } from './user-guard.entity';
 import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
 import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
 @Injectable()
 export class UserGuardService {
@@ -13,12 +14,9 @@ export class UserGuardService {
     private readonly userGuardRepository: Repository<UserGuard>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto): Promise<{
-    data: UserGuard[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserGuard>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 

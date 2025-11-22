@@ -4,11 +4,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan, IsNull, Or } from 'typeorm';
 import { ShopItem } from './shop-item.entity';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
 import { UpdateShopItemDto } from './dtos/update-shop-item.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import {
+  ShopItemsListResponseDto,
+  ShopItemWithoutTemplate,
+} from './dtos/responses/shop-items-list-response.dto';
+import { ShopItemPurchaseResponseDto } from './dtos/responses/shop-item-purchase-response.dto';
 import { ItemTemplate } from '../item-template/item-template.entity';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
@@ -43,7 +49,7 @@ export class ShopItemService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<ShopItem>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -61,16 +67,14 @@ export class ShopItemService {
     };
   }
 
-  async findAvailable(): Promise<{
-    categories: Record<string, Omit<ShopItem, 'item_template'>[]>;
-  }> {
+  async findAvailable(): Promise<ShopItemsListResponseDto> {
     const shopItems = await this.shopItemRepository.find({
       where: { status: ShopItemStatus.IN_STOCK },
       relations: ['item_template'],
       order: { created_at: 'DESC' },
     });
 
-    const categories: Record<string, Omit<ShopItem, 'item_template'>[]> = {};
+    const categories: Record<string, ShopItemWithoutTemplate[]> = {};
 
     for (const item of shopItems) {
       const category = item.item_template?.type || 'other';
@@ -79,8 +83,16 @@ export class ShopItemService {
         categories[category] = [];
       }
 
-      const { item_template, ...itemWithoutTemplate } = item;
-      categories[category].push(itemWithoutTemplate);
+      categories[category].push({
+        id: item.id,
+        name: item.name,
+        description: item.item_template?.name || '',
+        price: item.price,
+        image_path: item.image_path || '',
+        category: category,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      });
     }
 
     return { categories };
@@ -99,9 +111,7 @@ export class ShopItemService {
     return shopItem;
   }
 
-  private async saveShopItemImage(
-    file?: Express.Multer.File,
-  ): Promise<string | null> {
+  private saveShopItemImage(file?: Express.Multer.File): string | null {
     if (!file) {
       return null;
     }
@@ -120,7 +130,7 @@ export class ShopItemService {
     return path.join('data', 'shop-item-images', fileName).replace(/\\/g, '/');
   }
 
-  private async deleteShopItemImage(imagePath: string): Promise<void> {
+  private deleteShopItemImage(imagePath: string): void {
     if (imagePath && imagePath.startsWith('data/shop-item-images/')) {
       const fullPath = path.join(process.cwd(), imagePath);
       if (fs.existsSync(fullPath)) {
@@ -143,7 +153,7 @@ export class ShopItemService {
       );
     }
 
-    const imagePath = await this.saveShopItemImage(image);
+    const imagePath = this.saveShopItemImage(image);
     const shopItem = this.shopItemRepository.create({
       name: createShopItemDto.name,
       currency: createShopItemDto.currency,
@@ -173,9 +183,9 @@ export class ShopItemService {
 
     if (image) {
       if (shopItem.image_path) {
-        await this.deleteShopItemImage(shopItem.image_path);
+        this.deleteShopItemImage(shopItem.image_path);
       }
-      const imagePath = await this.saveShopItemImage(image);
+      const imagePath = this.saveShopItemImage(image);
       updateShopItemDto = {
         ...updateShopItemDto,
         image_path: imagePath,
@@ -216,7 +226,7 @@ export class ShopItemService {
     }
 
     if (shopItem.image_path) {
-      await this.deleteShopItemImage(shopItem.image_path);
+      this.deleteShopItemImage(shopItem.image_path);
     }
 
     await this.shopItemRepository.remove(shopItem);
@@ -225,13 +235,7 @@ export class ShopItemService {
   async purchase(
     userId: number,
     accessoryId: number,
-  ): Promise<{
-    user: User;
-    created_guard?: UserGuard;
-    user_accessory?: UserAccessory;
-    user_boost?: UserBoost;
-    shield_cooldown_end?: Date;
-  }> {
+  ): Promise<ShopItemPurchaseResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -276,71 +280,66 @@ export class ShopItemService {
       await this.userRepository.save(user);
       return { user, created_guard: createdGuard };
     } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
-      const purchaseShieldCooldown =
-        Settings[SettingKey.PURCHASE_SHIELD_COOLDOWN];
-      if (user.last_shield_purchase_time) {
-        const cooldownEndTime = new Date(
-          user.last_shield_purchase_time.getTime() + purchaseShieldCooldown,
-        );
-        if (cooldownEndTime > new Date()) {
-          throw new BadRequestException({
-            message: 'Shield purchase cooldown is still active',
-            cooldown_end: cooldownEndTime,
-          });
-        }
-      }
-
-      const shieldHours = parseInt(itemTemplate.value, 10);
-      const now = new Date();
-      const shieldEndTime =
-        user.shield_end_time && user.shield_end_time > now
-          ? new Date(
-              user.shield_end_time.getTime() + shieldHours * 60 * 60 * 1000,
-            )
-          : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
-
-      user.shield_end_time = shieldEndTime;
-      user.last_shield_purchase_time = now;
-
-      const userBoost = this.userBoostRepository.create({
-        type: UserBoostType.SHIELD,
-        end_time: shieldEndTime,
+      const userAccessory = this.userAccessoryRepository.create({
+        name: shopItem.name,
+        currency: shopItem.currency,
+        price: shopItem.price,
         user,
+        item_template: itemTemplate,
+        shop_item: shopItem,
       });
-      const createdBoost = await this.userBoostRepository.save(userBoost);
-
+      const createdUserAccessory =
+        await this.userAccessoryRepository.save(userAccessory);
       await this.userRepository.save(user);
-
-      const shieldCooldownEnd = new Date(
-        now.getTime() + purchaseShieldCooldown,
-      );
-
-      return {
-        user,
-        user_boost: createdBoost,
-        shield_cooldown_end: shieldCooldownEnd,
-      };
+      return { user, user_accessory: createdUserAccessory };
     } else if (
       itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
       itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
     ) {
+      const boostType =
+        itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
+          ? UserBoostType.REWARD_DOUBLING
+          : UserBoostType.COOLDOWN_HALVING;
+
       const boostHours = parseInt(itemTemplate.value, 10);
       const now = new Date();
-      const boostEndTime = new Date(
-        now.getTime() + boostHours * 60 * 60 * 1000,
-      );
 
-      const userBoost = this.userBoostRepository.create({
-        type:
-          itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
-            ? UserBoostType.REWARD_DOUBLING
-            : UserBoostType.COOLDOWN_HALVING,
-        end_time: boostEndTime,
-        user,
+      const existingActiveBoost = await this.userBoostRepository.findOne({
+        where: {
+          user: { id: user.id },
+          type: boostType,
+          end_time: Or(MoreThan(now), IsNull()),
+        },
       });
-      const createdBoost = await this.userBoostRepository.save(userBoost);
+
+      let boostEndTime: Date;
+      let userBoost: UserBoost;
+
+      if (
+        existingActiveBoost &&
+        existingActiveBoost.end_time &&
+        existingActiveBoost.end_time > now
+      ) {
+        boostEndTime = new Date(
+          existingActiveBoost.end_time.getTime() +
+            boostHours * 60 * 60 * 1000,
+        );
+        existingActiveBoost.end_time = boostEndTime;
+        userBoost = await this.userBoostRepository.save(existingActiveBoost);
+      } else {
+        boostEndTime = new Date(
+          now.getTime() + boostHours * 60 * 60 * 1000,
+        );
+        userBoost = this.userBoostRepository.create({
+          type: boostType,
+          end_time: boostEndTime,
+          user,
+        });
+        userBoost = await this.userBoostRepository.save(userBoost);
+      }
+
       await this.userRepository.save(user);
-      return { user, user_boost: createdBoost };
+      return { user, user_boost: userBoost };
     } else if (
       itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
       itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||

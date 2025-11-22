@@ -6,6 +6,7 @@ import { Admin } from '../../admin/admin.entity';
 import { AdminLoginDto } from '../dtos/admin-login.dto';
 import * as bcrypt from 'bcrypt';
 import { ENV } from '../../../config/constants';
+import { AdminAuthValidateResponseDto } from '../dtos/responses/admin-auth-validate-response.dto';
 
 @Injectable()
 export class AdminAuthService {
@@ -17,7 +18,7 @@ export class AdminAuthService {
 
   async validateAdmin(
     loginDto: AdminLoginDto,
-  ): Promise<{ token: string; admin: Admin }> {
+  ): Promise<AdminAuthValidateResponseDto> {
     const { username, password } = loginDto;
 
     const admin = await this.adminRepository.findOne({

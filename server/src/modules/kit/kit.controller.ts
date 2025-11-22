@@ -26,14 +26,12 @@ import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { KitPurchaseResponseDto } from './dtos/responses/kit-purchase-response.dto';
 import { PurchaseKitDto } from './dtos/purchase-kit.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
-import {
-  CacheTTL,
-  CacheKey,
-  InvalidateCache,
-} from '../../common/decorators/cache.decorator';
+import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
 @ApiTags('Kit')
 @Controller('kits')
@@ -43,18 +41,17 @@ export class KitController {
   @Get()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(180)
-  @CacheKey('kit:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все наборы с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [Kit],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Kit>> {
     return this.kitService.findAll(paginationDto);
   }
 
@@ -68,19 +65,18 @@ export class KitController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [Kit],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getKitsList(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: Kit[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Kit>> {
     return this.kitService.findAvailable(paginationDto);
   }
 
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(300)
-  @CacheKey('kit::id')
   @ApiOperation({ summary: 'Получить набор по ID' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
@@ -95,7 +91,6 @@ export class KitController {
   @Post()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('kit:list:*')
   @ApiOperation({ summary: 'Создать новый набор' })
   @ApiBody({ type: CreateKitDto })
   @ApiResponse({
@@ -109,7 +104,6 @@ export class KitController {
   @Patch(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('kit::id', 'kit:list:*')
   @ApiOperation({ summary: 'Обновить набор' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateKitDto })
@@ -128,7 +122,6 @@ export class KitController {
   @Delete(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('kit::id', 'kit:list:*')
   @ApiOperation({ summary: 'Удалить набор' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
@@ -147,6 +140,7 @@ export class KitController {
   @ApiBody({ type: PurchaseKitDto })
   @ApiResponse({
     status: 200,
+    type: KitPurchaseResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -156,7 +150,7 @@ export class KitController {
   async purchase(
     @Request() req: AuthenticatedRequest,
     @Body() purchaseKitDto: PurchaseKitDto,
-  ) {
+  ): Promise<KitPurchaseResponseDto> {
     return this.kitService.purchase(req.user.id, purchaseKitDto.kit_id);
   }
 }

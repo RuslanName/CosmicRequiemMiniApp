@@ -5,6 +5,7 @@ import { EventHistory } from './event-history.entity';
 import { EventHistoryType } from './event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
 @Injectable()
 export class EventHistoryService {
@@ -29,12 +30,7 @@ export class EventHistoryService {
   async findByUserId(
     userId: number,
     paginationDto?: PaginationDto,
-  ): Promise<{
-    data: EventHistory[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  ): Promise<PaginatedResponseDto<EventHistory>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 

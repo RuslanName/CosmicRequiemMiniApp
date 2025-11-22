@@ -23,12 +23,8 @@ import { ItemTemplate } from './item-template.entity';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
 import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
-import {
-  CacheTTL,
-  CacheKey,
-  InvalidateCache,
-} from '../../common/decorators/cache.decorator';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
 @ApiTags('ItemTemplate')
 @Controller('item-templates')
@@ -38,27 +34,21 @@ export class ItemTemplateController {
   constructor(private readonly itemTemplateService: ItemTemplateService) {}
 
   @Get()
-  @CacheTTL(180)
-  @CacheKey('item-template:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все шаблоны предметов с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [ItemTemplate],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{
-    data: ItemTemplate[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<ItemTemplate>> {
     return this.itemTemplateService.findAll(paginationDto);
   }
 
   @Get(':id')
-  @CacheTTL(300)
-  @CacheKey('item-template::id')
   @ApiOperation({ summary: 'Получить шаблон предмета по ID' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
@@ -71,7 +61,6 @@ export class ItemTemplateController {
   }
 
   @Post()
-  @InvalidateCache('item-template:list:*')
   @ApiOperation({ summary: 'Создать новый шаблон предмета' })
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
@@ -88,7 +77,6 @@ export class ItemTemplateController {
   }
 
   @Patch(':id')
-  @InvalidateCache('item-template::id', 'item-template:list:*')
   @ApiOperation({ summary: 'Обновить шаблон предмета' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateItemTemplateDto })
@@ -105,7 +93,6 @@ export class ItemTemplateController {
   }
 
   @Delete(':id')
-  @InvalidateCache('item-template::id', 'item-template:list:*')
   @ApiOperation({ summary: 'Удалить шаблон предмета' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({

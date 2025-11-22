@@ -24,6 +24,7 @@ import { CreateUserGuardDto } from './dtos/create-user-guard.dto';
 import { UpdateUserGuardDto } from './dtos/update-user-guard.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
 @ApiTags('UserGuard')
 @Controller('user-guards')
@@ -38,14 +39,12 @@ export class UserGuardController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [UserGuard],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async findAll(@Query() paginationDto: PaginationDto): Promise<{
-    data: UserGuard[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserGuard>> {
     return this.userGuardService.findAll(paginationDto);
   }
 

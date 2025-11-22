@@ -2,6 +2,7 @@ import { Controller, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { AuthDto } from '../dtos/auth.dto';
+import { AuthLoginResponseDto } from '../dtos/responses/auth-login-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -16,11 +17,12 @@ export class AuthController {
   @ApiBody({ type: AuthDto })
   @ApiResponse({
     status: 200,
+    type: AuthLoginResponseDto,
   })
   @ApiResponse({
     status: 401,
   })
-  async login(@Body() authDto: AuthDto): Promise<{ token: string }> {
+  async login(@Body() authDto: AuthDto): Promise<AuthLoginResponseDto> {
     const token = await this.authService.validateAuth(authDto);
     return { token };
   }

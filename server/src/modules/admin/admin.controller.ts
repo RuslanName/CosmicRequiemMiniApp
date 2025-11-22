@@ -27,6 +27,8 @@ import { CreateAdminDto } from './dtos/create-admin.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { AdminDeleteResponseDto } from './dtos/responses/admin-delete-response.dto';
 
 @ApiTags('Admins')
 @Controller('admins')
@@ -41,11 +43,12 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [Admin],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: Admin[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<Admin>> {
     return this.adminService.findAll(paginationDto);
   }
 
@@ -112,12 +115,11 @@ export class AdminController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
+    type: AdminDeleteResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
-  async remove(
-    @Param('id') id: string,
-  ): Promise<{ success: boolean; message: string }> {
+  async remove(@Param('id') id: string): Promise<AdminDeleteResponseDto> {
     await this.adminService.remove(+id);
     return {
       success: true,

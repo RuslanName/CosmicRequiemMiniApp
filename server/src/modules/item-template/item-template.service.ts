@@ -9,6 +9,7 @@ import { ItemTemplate } from './item-template.entity';
 import { CreateItemTemplateDto } from './dtos/create-item-template.dto';
 import { UpdateItemTemplateDto } from './dtos/update-item-template.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { ItemTemplateType } from './enums/item-template-type.enum';
 import { Color } from './enums/color.enum';
 import { NicknameIcon } from './enums/nickname-icon.enum';
@@ -21,12 +22,9 @@ export class ItemTemplateService {
     private readonly itemTemplateRepository: Repository<ItemTemplate>,
   ) {}
 
-  async findAll(paginationDto: PaginationDto): Promise<{
-    data: ItemTemplate[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponseDto<ItemTemplate>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 

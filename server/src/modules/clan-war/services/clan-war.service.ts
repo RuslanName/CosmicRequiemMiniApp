@@ -5,6 +5,7 @@ import { ClanWar } from '../entities/clan-war.entity';
 import { CreateClanWarDto } from '../dtos/create-clan-war.dto';
 import { UpdateClanWarDto } from '../dtos/update-clan-war.dto';
 import { PaginationDto } from '../../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../../common/dtos/paginated-response.dto';
 
 @Injectable()
 export class ClanWarService {
@@ -15,7 +16,7 @@ export class ClanWarService {
 
   async findAll(
     paginationDto: PaginationDto,
-  ): Promise<{ data: ClanWar[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<ClanWar>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 

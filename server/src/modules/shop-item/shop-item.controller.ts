@@ -31,14 +31,13 @@ import { ShopItem } from './shop-item.entity';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
 import { UpdateShopItemDto } from './dtos/update-shop-item.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
+import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { ShopItemsListResponseDto } from './dtos/responses/shop-items-list-response.dto';
+import { ShopItemPurchaseResponseDto } from './dtos/responses/shop-item-purchase-response.dto';
 import { PurchaseShopItemDto } from './dtos/purchase-shop-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
-import {
-  CacheTTL,
-  CacheKey,
-  InvalidateCache,
-} from '../../common/decorators/cache.decorator';
+import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
 @ApiTags('ShopItem')
 @Controller('shop-items')
@@ -48,18 +47,17 @@ export class ShopItemController {
   @Get()
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(180)
-  @CacheKey('shop-item:list:page::page:limit::limit')
   @ApiOperation({ summary: 'Получить все аксессуары с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
+    type: [ShopItem],
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
-  ): Promise<{ data: ShopItem[]; total: number; page: number; limit: number }> {
+  ): Promise<PaginatedResponseDto<ShopItem>> {
     return this.shopItemService.findAll(paginationDto);
   }
 
@@ -73,19 +71,16 @@ export class ShopItemController {
   })
   @ApiResponse({
     status: 200,
+    type: ShopItemsListResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getShopItemsList(): Promise<{
-    categories: Record<string, Omit<ShopItem, 'item_template'>[]>;
-  }> {
+  async getShopItemsList(): Promise<ShopItemsListResponseDto> {
     return this.shopItemService.findAvailable();
   }
 
   @Get(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @CacheTTL(300)
-  @CacheKey('shop-item::id')
   @ApiOperation({ summary: 'Получить аксессуар по ID' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
@@ -102,7 +97,6 @@ export class ShopItemController {
   @ApiCookieAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('shop-item:list:*')
   @ApiOperation({ summary: 'Создать новый товар магазина' })
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
@@ -121,7 +115,6 @@ export class ShopItemController {
   @ApiCookieAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
-  @InvalidateCache('shop-item::id', 'shop-item:list:*')
   @ApiOperation({ summary: 'Обновить товар магазина' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateShopItemDto })
@@ -141,7 +134,6 @@ export class ShopItemController {
   @Delete(':id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
-  @InvalidateCache('shop-item::id', 'shop-item:list:*')
   @ApiOperation({ summary: 'Удалить аксессуар' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
@@ -160,6 +152,7 @@ export class ShopItemController {
   @ApiBody({ type: PurchaseShopItemDto })
   @ApiResponse({
     status: 200,
+    type: ShopItemPurchaseResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -172,7 +165,7 @@ export class ShopItemController {
   async purchase(
     @Request() req: AuthenticatedRequest,
     @Body() purchaseShopItemDto: PurchaseShopItemDto,
-  ) {
+  ): Promise<ShopItemPurchaseResponseDto> {
     return this.shopItemService.purchase(
       req.user.id,
       purchaseShopItemDto.shop_item_id,

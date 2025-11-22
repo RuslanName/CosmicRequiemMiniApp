@@ -4,7 +4,6 @@ import { Repository, MoreThan, IsNull, Or } from 'typeorm';
 import { UserBoost } from './user-boost.entity';
 import { CreateUserBoostDto } from './dtos/create-user-boost.dto';
 import { UpdateUserBoostDto } from './dtos/update-user-boost.dto';
-import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { UserBoostType } from './enums/user-boost-type.enum';
 
 @Injectable()
@@ -13,43 +12,6 @@ export class UserBoostService {
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
   ) {}
-
-  async findAll(paginationDto: PaginationDto): Promise<{
-    data: UserBoost[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
-
-    const [data, total] = await this.userBoostRepository.findAndCount({
-      relations: ['user'],
-      skip,
-      take: limit,
-      order: { created_at: 'DESC' },
-    });
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-    };
-  }
-
-  async findOne(id: number): Promise<UserBoost> {
-    const userBoost = await this.userBoostRepository.findOne({
-      where: { id },
-      relations: ['user'],
-    });
-
-    if (!userBoost) {
-      throw new NotFoundException(`UserBoost with ID ${id} not found`);
-    }
-
-    return userBoost;
-  }
 
   async findByUserId(userId: number): Promise<UserBoost[]> {
     return this.userBoostRepository.find({
@@ -68,21 +30,6 @@ export class UserBoostService {
       },
       relations: ['user'],
       order: { created_at: 'DESC' },
-    });
-  }
-
-  async findActiveByUserIdAndType(
-    userId: number,
-    type: UserBoostType,
-  ): Promise<UserBoost | null> {
-    const now = new Date();
-    return this.userBoostRepository.findOne({
-      where: {
-        user: { id: userId },
-        type,
-        end_time: Or(MoreThan(now), IsNull()),
-      },
-      relations: ['user'],
     });
   }
 
@@ -145,15 +92,5 @@ export class UserBoostService {
 
     userBoost.end_time = new Date();
     return this.userBoostRepository.save(userBoost);
-  }
-
-  async remove(id: number): Promise<void> {
-    const userBoost = await this.userBoostRepository.findOne({ where: { id } });
-
-    if (!userBoost) {
-      throw new NotFoundException(`UserBoost with ID ${id} not found`);
-    }
-
-    await this.userBoostRepository.remove(userBoost);
   }
 }
