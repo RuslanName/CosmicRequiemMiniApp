@@ -22,20 +22,9 @@ export class AdminAuthController {
   @ApiBody({ type: AdminLoginDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        success: true,
-        message: 'Login successful',
-      },
-    },
   })
   @ApiResponse({
     status: 401,
-    schema: {
-      example: {
-        message: 'Invalid credentials',
-      },
-    },
   })
   async login(
     @Body() loginDto: AdminLoginDto,
@@ -63,12 +52,6 @@ export class AdminAuthController {
   @ApiOperation({ summary: 'Выход из панели администрации' })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        success: true,
-        message: 'Logout successful',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   logout(@Res({ passthrough: true }) res: Response): {

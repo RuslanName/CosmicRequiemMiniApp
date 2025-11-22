@@ -16,19 +16,9 @@ export class AuthController {
   @ApiBody({ type: AuthDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      },
-    },
   })
   @ApiResponse({
     status: 401,
-    schema: {
-      example: {
-        message: 'Invalid VK signature',
-      },
-    },
   })
   async login(@Body() authDto: AuthDto): Promise<{ token: string }> {
     const token = await this.authService.validateAuth(authDto);

@@ -45,23 +45,6 @@ export class ItemTemplateController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Red Nickname',
-            type: 'nickname_color',
-            value: 'red',
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
@@ -80,16 +63,6 @@ export class ItemTemplateController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        type: 'nickname_color',
-        value: 'red',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
@@ -103,24 +76,9 @@ export class ItemTemplateController {
   @ApiBody({ type: CreateItemTemplateDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        type: 'nickname_color',
-        value: 'red',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Invalid value for item template type',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -136,14 +94,6 @@ export class ItemTemplateController {
   @ApiBody({ type: UpdateItemTemplateDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        type: 'nickname_color',
-        value: 'red',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })
@@ -160,11 +110,6 @@ export class ItemTemplateController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        message: 'Item template deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Шаблон предмета не найден' })

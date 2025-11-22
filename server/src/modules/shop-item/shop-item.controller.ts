@@ -55,23 +55,6 @@ export class ShopItemController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Red Nickname',
-            currency: 'virtual',
-            price: 1000,
-            status: 'in_stock',
-            item_template: { id: 1, type: 'nickname_color', value: 'red' },
-          },
-        ],
-        total: 50,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -90,38 +73,6 @@ export class ShopItemController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        categories: {
-          nickname_color: [
-            {
-              id: 1,
-              name: 'Red Nickname',
-              currency: 'virtual',
-              price: 1000,
-              status: 'in_stock',
-              image_path: 'data/shop-item-images/shop-item-1234567890.jpg',
-              item_template_id: 1,
-              created_at: '2024-01-01T00:00:00.000Z',
-              updated_at: '2024-01-01T00:00:00.000Z',
-            },
-          ],
-          nickname_icon: [
-            {
-              id: 2,
-              name: 'Star Icon',
-              currency: 'virtual',
-              price: 500,
-              status: 'in_stock',
-              image_path: 'data/shop-item-images/shop-item-1234567891.jpg',
-              item_template_id: 2,
-              created_at: '2024-01-01T00:00:00.000Z',
-              updated_at: '2024-01-01T00:00:00.000Z',
-            },
-          ],
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getShopItemsList(): Promise<{
@@ -139,23 +90,6 @@ export class ShopItemController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        currency: 'virtual',
-        price: 1000,
-        status: 'in_stock',
-        item_template: {
-          id: 1,
-          name: 'Red Nickname',
-          type: 'nickname_color',
-          value: 'red',
-        },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -173,16 +107,6 @@ export class ShopItemController {
   @ApiBody({ type: CreateShopItemDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        currency: 'virtual',
-        price: 1000,
-        status: 'in_stock',
-        image_path: 'data/shop-item-images/shop-item-1234567890.jpg',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -203,15 +127,6 @@ export class ShopItemController {
   @ApiBody({ type: UpdateShopItemDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Red Nickname',
-        currency: 'virtual',
-        price: 1000,
-        status: 'in_stock',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Товар не найден' })
@@ -231,11 +146,6 @@ export class ShopItemController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        message: 'Shop item deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -250,30 +160,9 @@ export class ShopItemController {
   @ApiBody({ type: PurchaseShopItemDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        user: { id: 1, money: 5000, nickname_color: 'red' },
-        created_guard: {
-          id: 10,
-          name: 'Guard #1234567890',
-          strength: 50,
-          is_first: false,
-        },
-        user_accessory: {
-          id: 1,
-          name: 'Red Nickname',
-          item_template: { type: 'nickname_color' },
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Insufficient funds',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({

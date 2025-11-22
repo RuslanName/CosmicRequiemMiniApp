@@ -41,22 +41,6 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            username: 'admin',
-            is_system_admin: false,
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 10,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -71,15 +55,6 @@ export class AdminController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        username: 'admin',
-        is_system_admin: false,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -95,15 +70,6 @@ export class AdminController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        username: 'admin',
-        is_system_admin: false,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -116,23 +82,9 @@ export class AdminController {
   @ApiBody({ type: CreateAdminDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        username: 'admin',
-        is_system_admin: false,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Invalid data',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(@Body() createAdminDto: CreateAdminDto): Promise<Admin> {
@@ -145,13 +97,6 @@ export class AdminController {
   @ApiBody({ type: UpdateAdminDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        username: 'admin',
-        is_system_admin: false,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
@@ -167,12 +112,6 @@ export class AdminController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        success: true,
-        message: 'Admin deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Администратор не найден' })

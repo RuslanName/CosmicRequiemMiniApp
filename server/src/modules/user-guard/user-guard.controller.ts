@@ -38,24 +38,6 @@ export class UserGuardController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Страж Альфа',
-            strength: 150,
-            is_first: false,
-            user_id: 5,
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
@@ -72,17 +54,6 @@ export class UserGuardController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Страж Альфа',
-        strength: 150,
-        is_first: false,
-        user_id: 5,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })
@@ -95,17 +66,6 @@ export class UserGuardController {
   @ApiBody({ type: CreateUserGuardDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Страж Альфа',
-        strength: 100,
-        is_first: false,
-        user_id: 5,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -120,15 +80,6 @@ export class UserGuardController {
   @ApiBody({ type: UpdateUserGuardDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Страж Альфа',
-        strength: 150,
-        is_first: false,
-        user_id: 5,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })
@@ -144,11 +95,6 @@ export class UserGuardController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        message: 'User guard deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Страж не найден' })

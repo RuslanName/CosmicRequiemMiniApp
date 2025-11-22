@@ -54,28 +54,6 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            vk_id: 123456789,
-            first_name: 'Иван',
-            last_name: 'Иванов',
-            sex: 2,
-            avatar_url: 'https://example.com/avatar.jpg',
-            money: 10000,
-            strength: 250,
-            guards_count: 5,
-            equipped_accessories: [],
-            referral_link: 'https://vk.com/app123456?start=ref_abc123',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
@@ -100,22 +78,6 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        vk_id: 123456789,
-        first_name: 'Иван',
-        last_name: 'Иванов',
-        sex: 2,
-        avatar_url: 'https://example.com/avatar.jpg',
-        money: 10000,
-        strength: 250,
-        guards_count: 5,
-        equipped_accessories: [],
-        referral_link: 'https://vk.com/app123456?start=ref_abc123',
-        contract_income: 275,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -125,7 +87,7 @@ export class UserController {
       guards_count: number;
       equipped_accessories: UserAccessory[];
       referral_link?: string;
-      contract_income: number;
+      training_cost: number;
     }
   > {
     return this.userService.findMe(req.user.id);
@@ -138,24 +100,9 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        user: { id: 1, money: 4500 },
-        training_cost: 500,
-        power_increase: 25,
-        new_power: 275,
-        training_cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Training cooldown is still active',
-        cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -178,22 +125,9 @@ export class UserController {
   @ApiBody({ required: false })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        user: { id: 1, money: 5500 },
-        contract_income: 275,
-        contract_cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Contract cooldown is still active',
-        cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -215,21 +149,6 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            first_name: 'Иван',
-            last_name: 'Иванов',
-            strength: 500,
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(@Query() paginationDto: PaginationDto): Promise<{
@@ -263,30 +182,9 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 2,
-            first_name: 'Петр',
-            last_name: 'Петров',
-            strength: 300,
-            referral_link: 'https://vk.com/app123456?start=ref_xyz789',
-          },
-        ],
-        total: 50,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Filter parameter must be one of: top, suitable, friends',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getAttackableUsers(
@@ -324,21 +222,6 @@ export class UserController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        vk_id: 123456789,
-        first_name: 'Иван',
-        last_name: 'Иванов',
-        sex: 2,
-        avatar_url: 'https://example.com/avatar.jpg',
-        money: 10000,
-        strength: 250,
-        guards_count: 5,
-        equipped_accessories: [],
-        referral_link: 'https://vk.com/app123456?start=ref_abc123',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -361,17 +244,6 @@ export class UserController {
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        vk_id: 123456789,
-        first_name: 'Иван',
-        last_name: 'Иванов',
-        sex: 2,
-        avatar_url: 'https://example.com/avatar.jpg',
-        money: 10000,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -391,28 +263,6 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        boosts: [
-          {
-            id: 1,
-            type: 'cooldown_halving',
-            end_time: '2024-01-01T12:00:00.000Z',
-            created_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        accessories: [
-          {
-            id: 1,
-            name: 'Меч силы',
-            currency: 'money',
-            price: 1000,
-            status: 'unequipped',
-            created_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getInventory(@Request() req: AuthenticatedRequest): Promise<{
@@ -430,20 +280,6 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          name: 'Страж Альфа',
-          strength: 150,
-          is_first: false,
-          user_id: 5,
-          created_at: '2024-01-01T00:00:00.000Z',
-          updated_at: '2024-01-01T00:00:00.000Z',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -461,19 +297,6 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          name: 'Меч силы',
-          currency: 'money',
-          price: 1000,
-          status: 'equipped',
-          created_at: '2024-01-01T00:00:00.000Z',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getEquippedAccessories(
@@ -489,24 +312,9 @@ export class UserController {
   @ApiBody({ type: EquipAccessoryDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Меч силы',
-        currency: 'money',
-        price: 1000,
-        status: 'equipped',
-        created_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Аксессуар не принадлежит пользователю',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -527,24 +335,9 @@ export class UserController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Меч силы',
-        currency: 'money',
-        price: 1000,
-        status: 'unequipped',
-        created_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Аксессуар не принадлежит пользователю или уже снят',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Аксессуар не найден' })
@@ -555,28 +348,6 @@ export class UserController {
     return this.userService.unequipAccessory(req.user.id, +id);
   }
 
-  @Get('me/referral-link')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Получить реферальную ссылку пользователя (Для Mini App)',
-  })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        referral_link: 'https://vk.com/app123456?start=ref_abc123...',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async getReferralLink(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<{ referral_link: string }> {
-    return this.userService.getUserReferralLink(req.user.id);
-  }
-
   @Post('attack')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -584,23 +355,9 @@ export class UserController {
   @ApiBody({ type: AttackPlayerDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        win_chance: 65.5,
-        is_win: true,
-        stolen_money: 1500,
-        captured_guards: 2,
-        attack_cooldown_end: '2024-01-01T12:15:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Active shield on defender, cannot attack',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -631,28 +388,6 @@ export class UserController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            type: 'attack',
-            user_id: 5,
-            stolen_items: [
-              {
-                id: 1,
-                type: 'money',
-                amount: 1500,
-              },
-            ],
-            created_at: '2024-01-01T12:00:00.000Z',
-          },
-        ],
-        total: 50,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getEventHistory(

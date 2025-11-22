@@ -11,7 +11,6 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
-  Put,
 } from '@nestjs/common';
 import { AuthenticatedRequest } from '../../common/types/request.types';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -61,24 +60,6 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Elite Warriors',
-            max_members: 50,
-            status: 'active',
-            referral_link: 'https://vk.com/app123456?start=clan_abc123',
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(@Query() paginationDto: PaginationDto): Promise<{
@@ -107,22 +88,6 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Elite Warriors',
-            max_members: 50,
-            status: 'active',
-            referral_link: 'https://vk.com/app123456?start=clan_abc123',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClansList(@Query() paginationDto: PaginationDto): Promise<{
@@ -151,19 +116,6 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        members: [],
-        leader: { id: 1, first_name: 'John' },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -191,21 +143,6 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          clan_1: { id: 1, name: 'Elite Warriors' },
-          clan_2: { id: 2, name: 'Dark Knights' },
-          start_time: '2024-01-01T00:00:00.000Z',
-          end_time: '2024-01-01T06:00:00.000Z',
-          status: 'in_progress',
-          created_at: '2024-01-01T00:00:00.000Z',
-          updated_at: '2024-01-01T00:00:00.000Z',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -224,17 +161,6 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          first_name: 'Иван',
-          last_name: 'Иванов',
-          money: 10000,
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -253,19 +179,6 @@ export class ClanController {
   @ApiOperation({ summary: 'Получить кланы, с которыми война (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 2,
-          name: 'Dark Knights',
-          max_members: 50,
-          status: 'active',
-          leader: { id: 5, first_name: 'John' },
-          referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не состоит в клане' })
@@ -293,24 +206,9 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 2 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 2,
-        name: 'Dark Knights',
-        max_members: 50,
-        status: 'active',
-        leader: { id: 5, first_name: 'John' },
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Clan is not an enemy or war is not active',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -343,25 +241,9 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 2 })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 5,
-          first_name: 'Иван',
-          last_name: 'Иванов',
-          money: 10000,
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Clan is not an enemy or war is not active',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -385,27 +267,6 @@ export class ClanController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            name: 'Elite Warriors',
-            max_members: 50,
-            status: 'active',
-            wins: 15,
-            losses: 5,
-            rating: 15,
-            leader: { id: 1, first_name: 'John' },
-            created_at: '2024-01-01T00:00:00.000Z',
-            updated_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getClanRating(@Query() paginationDto?: PaginationDto): Promise<{
@@ -434,26 +295,9 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 2,
-          name: 'Dark Knights',
-          max_members: 50,
-          status: 'active',
-          leader: { id: 10, first_name: 'Jane' },
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'War cooldown is still active',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -479,26 +323,9 @@ export class ClanController {
   @ApiBody({ type: DeclareWarDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        clan_1: { id: 1, name: 'Elite Warriors' },
-        clan_2: { id: 2, name: 'Dark Knights' },
-        start_time: '2024-01-01T00:00:00.000Z',
-        end_time: '2024-01-01T06:00:00.000Z',
-        status: 'in_progress',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Cannot declare war on your own clan',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -523,27 +350,9 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 5,
-          first_name: 'John',
-          last_name: 'Doe',
-          money: 10000,
-          clan: { id: 2, name: 'Dark Knights' },
-          guards: [{ id: 1, name: 'Guard #1', strength: 50 }],
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'User is not in a clan',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -560,26 +369,9 @@ export class ClanController {
   @ApiBody({ type: AttackEnemyDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        win_chance: 65.5,
-        is_win: true,
-        stolen_money: 1500,
-        captured_guards: 2,
-        stolen_items: [
-          { type: 'money', value: '1500' },
-          { type: 'guard', value: '123' },
-        ],
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Active shield on defender, cannot attack',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -605,22 +397,9 @@ export class ClanController {
   @ApiOperation({ summary: 'Покинуть текущий клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        first_name: 'John',
-        clan: null,
-        clan_leave_time: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'User is not in a clan or is a leader',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
@@ -637,24 +416,9 @@ export class ClanController {
   @ApiBody({ type: CreateClanApplicationDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John' },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'pending',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'User is already in a clan',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан или пользователь не найден' })
@@ -676,19 +440,6 @@ export class ClanController {
   })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          user: { id: 5, first_name: 'John', last_name: 'Doe' },
-          clan: { id: 1, name: 'Elite Warriors' },
-          status: 'pending',
-          created_at: '2024-01-01T00:00:00.000Z',
-          updated_at: '2024-01-01T00:00:00.000Z',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -710,24 +461,9 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John', clan: { id: 1 } },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'accepted',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Application does not belong to your clan',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -750,24 +486,9 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        user: { id: 5, first_name: 'John' },
-        clan: { id: 1, name: 'Elite Warriors' },
-        status: 'rejected',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({
     status: 400,
-    schema: {
-      example: {
-        message: 'Application does not belong to your clan',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -781,55 +502,6 @@ export class ClanController {
     return this.clanService.rejectApplication(req.user.id, +id);
   }
 
-  @Get('me/referral-link')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить реферальную ссылку клана (Для Mini App)' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({
-    status: 404,
-    description: 'Клан не найден или пользователь не является лидером',
-  })
-  async getClanReferralLink(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<{ referral_link: string }> {
-    return this.clanService.getClanReferralLink(req.user.id);
-  }
-
-  @Put('me/referral-link')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @InvalidateCache('clan:me')
-  @ApiOperation({ summary: 'Обновить реферальную ссылку клана (Для Mini App)' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({
-    status: 404,
-    description: 'Клан не найден или пользователь не является лидером',
-  })
-  async updateClanReferralLink(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<Clan & { referral_link?: string }> {
-    return this.clanService.updateClanReferralLink(req.user.id);
-  }
-
   @Delete('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -837,11 +509,6 @@ export class ClanController {
   @ApiOperation({ summary: 'Удалить клан (Для Mini App)' })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        message: 'Clan deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
@@ -861,19 +528,6 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        members: [],
-        leader: { id: 1, first_name: 'John' },
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -896,17 +550,6 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          first_name: 'Иван',
-          last_name: 'Иванов',
-          money: 10000,
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -923,19 +566,6 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      type: 'array',
-      items: {
-        example: {
-          id: 1,
-          clan_1: { id: 1, name: 'Elite Warriors' },
-          clan_2: { id: 2, name: 'Dark Knights' },
-          start_time: '2024-01-01T00:00:00.000Z',
-          end_time: '2024-01-01T06:00:00.000Z',
-          status: 'in_progress',
-        },
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -953,18 +583,6 @@ export class ClanController {
   @ApiBody({ type: CreateClanDto })
   @ApiResponse({
     status: 201,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        image_path: 'data/clan-images/clan-1234567890.jpg',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async create(
@@ -985,15 +603,6 @@ export class ClanController {
   @ApiBody({ type: UpdateClanDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        name: 'Elite Warriors',
-        max_members: 50,
-        status: 'active',
-        referral_link: 'https://vk.com/app123456?start=clan_abc123',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })
@@ -1013,7 +622,6 @@ export class ClanController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: { example: { message: 'Clan deleted successfully' } },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Клан не найден' })

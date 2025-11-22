@@ -36,23 +36,6 @@ export class ClanWarController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            clan_1: { id: 1, name: 'Elite Warriors' },
-            clan_2: { id: 2, name: 'Dark Knights' },
-            start_time: '2024-01-01T00:00:00.000Z',
-            end_time: '2024-01-01T06:00:00.000Z',
-            status: 'in_progress',
-          },
-        ],
-        total: 100,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
@@ -66,16 +49,6 @@ export class ClanWarController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        clan_1: { id: 1, name: 'Elite Warriors' },
-        clan_2: { id: 2, name: 'Dark Knights' },
-        start_time: '2024-01-01T00:00:00.000Z',
-        end_time: '2024-01-01T06:00:00.000Z',
-        status: 'in_progress',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })
@@ -89,14 +62,6 @@ export class ClanWarController {
   @ApiBody({ type: UpdateClanWarDto })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        id: 1,
-        clan_1: { id: 1, name: 'Elite Warriors' },
-        clan_2: { id: 2, name: 'Dark Knights' },
-        status: 'completed',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })
@@ -112,11 +77,6 @@ export class ClanWarController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({
     status: 200,
-    schema: {
-      example: {
-        message: 'Clan war deleted successfully',
-      },
-    },
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 404, description: 'Война не найдена' })

@@ -125,8 +125,7 @@ export class UserService {
       strength: number;
       guards_count: number;
       equipped_accessories: UserAccessory[];
-      referral_link?: string;
-      contract_income: number;
+      training_cost: number;
     }
   > {
     const user = await this.userRepository.findOne({
@@ -145,14 +144,13 @@ export class UserService {
     const currentPower = this.calculateUserPower(user.guards || []);
 
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
-    const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
 
     return {
       ...transformed,
       strength: currentPower,
       guards_count: guardsCount,
       equipped_accessories: equippedAccessories,
-      contract_income,
+      training_cost,
     };
   }
 
@@ -450,27 +448,6 @@ export class UserService {
     accessoryId: number,
   ): Promise<UserAccessory> {
     return this.userAccessoryService.unequip(userId, accessoryId);
-  }
-
-  async getUserReferralLink(
-    userId: number,
-  ): Promise<{ referral_link: string }> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.referral_link_id) {
-      user.referral_link_id = randomUUID();
-      await this.userRepository.save(user);
-    }
-
-    return {
-      referral_link: `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`,
-    };
   }
 
   async getAttackableUsers(
