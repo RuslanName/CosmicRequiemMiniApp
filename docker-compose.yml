@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: frontend-builder
+      target: client-admin-builder
       args:
         - VITE_API_URL=${VITE_API_URL}
     container_name: cosmic-requiem-admin-init
@@ -17,13 +17,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: pvp-app-builder
+      target: client-mini-app-builder
       args:
         - VITE_API_URL=${VITE_API_URL}
-    container_name: cosmic-requiem-pvp-app-init
-    command: sh -c "mkdir -p /pvp-app-dist && cp -r /app/dist/* /pvp-app-dist/ && ls -la /pvp-app-dist"
+    container_name: cosmic-requiem-client-mini-app-init
+    command: sh -c "mkdir -p /client-mini-app-dist && cp -r /app/dist/* /client-mini-app-dist/ && ls -la /client-mini-app-dist"
     volumes:
-      - pvp-app-dist:/pvp-app-dist
+      - client-mini-app-dist:/client-mini-app-dist
     networks:
       - app-network
 
@@ -112,7 +112,7 @@ services:
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
       - admin-dist:/app/admin-dist:ro
-      - pvp-app-dist:/app/pvp-app-dist:ro
+      - client-mini-app-dist:/app/client-mini-app-dist:ro
     entrypoint: ["/bin/sh", "/custom-entrypoint.sh"]
     depends_on:
       - admin-init
