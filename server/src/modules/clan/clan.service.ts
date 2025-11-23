@@ -679,12 +679,14 @@ export class ClanService {
         attacker.id,
         EventHistoryType.ATTACK,
         stolen_items,
+        defender.id,
       );
 
       await this.eventHistoryService.create(
         defender.id,
         EventHistoryType.DEFENSE,
         stolen_items,
+        attacker.id,
       );
 
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
@@ -706,12 +708,14 @@ export class ClanService {
       attacker.id,
       EventHistoryType.ATTACK,
       [],
+      defender.id,
     );
 
     await this.eventHistoryService.create(
       defender.id,
       EventHistoryType.DEFENSE,
       [],
+      attacker.id,
     );
 
     const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);

@@ -285,11 +285,8 @@ export class ShopItemService {
     } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
       const userAccessory = this.userAccessoryRepository.create({
         name: shopItem.name,
-        currency: shopItem.currency,
-        price: shopItem.price,
         user,
         item_template: itemTemplate,
-        shop_item: shopItem,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
@@ -347,11 +344,8 @@ export class ShopItemService {
     ) {
       const userAccessory = this.userAccessoryRepository.create({
         name: shopItem.name,
-        currency: shopItem.currency,
-        price: shopItem.price,
         user,
         item_template: itemTemplate,
-        shop_item: shopItem,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);
@@ -360,11 +354,8 @@ export class ShopItemService {
     } else {
       const userAccessory = this.userAccessoryRepository.create({
         name: shopItem.name,
-        currency: shopItem.currency,
-        price: shopItem.price,
         user,
         item_template: itemTemplate,
-        shop_item: shopItem,
       });
       const createdUserAccessory =
         await this.userAccessoryRepository.save(userAccessory);

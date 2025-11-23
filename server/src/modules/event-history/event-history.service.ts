@@ -18,11 +18,13 @@ export class EventHistoryService {
     userId: number,
     type: EventHistoryType,
     stolenItems: StolenItem[],
+    opponentId?: number | null,
   ): Promise<EventHistory> {
     const eventHistory = this.eventHistoryRepository.create({
       user_id: userId,
       type,
       stolen_items: stolenItems,
+      opponent_id: opponentId || null,
     });
     return this.eventHistoryRepository.save(eventHistory);
   }
@@ -38,6 +40,7 @@ export class EventHistoryService {
       where: { user_id: userId },
       relations: [
         'user',
+        'opponent',
         'stolen_items',
         'stolen_items.thief',
         'stolen_items.victim',

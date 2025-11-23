@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EventHistoryType } from '../../../event-history/enums/event-history-type.enum';
+import { UserAccessory } from '../../../user-accessory/user-accessory.entity';
 
 export class EventHistoryItemResponseDto {
   @ApiProperty()
@@ -10,6 +11,9 @@ export class EventHistoryItemResponseDto {
 
   @ApiProperty()
   user_id: number;
+
+  @ApiProperty({ required: false, nullable: true })
+  opponent_id: number | null;
 
   @ApiProperty()
   created_at: Date;
@@ -22,4 +26,7 @@ export class EventHistoryItemResponseDto {
 
   @ApiProperty()
   guards_count: number;
+
+  @ApiProperty({ type: [UserAccessory], required: false, nullable: true })
+  opponent_equipped_accessories?: UserAccessory[] | null;
 }

@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { createHmac } from 'crypto';
 import { User } from '../user/user.entity';
 import { ShopItem } from '../shop-item/shop-item.entity';
+import { Kit } from '../kit/kit.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
@@ -19,6 +20,7 @@ import { Currency } from '../../common/enums/currency.enum';
 import { Or, MoreThan, IsNull } from 'typeorm';
 import { VKNotificationDto } from './dtos/vk-notification.dto';
 import { ENV } from '../../config/constants';
+import { KitService } from '../kit/kit.service';
 
 @Injectable()
 export class VKPaymentsService {
@@ -27,12 +29,15 @@ export class VKPaymentsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(ShopItem)
     private readonly shopItemRepository: Repository<ShopItem>,
+    @InjectRepository(Kit)
+    private readonly kitRepository: Repository<Kit>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
     @InjectRepository(UserAccessory)
     private readonly userAccessoryRepository: Repository<UserAccessory>,
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
+    private readonly kitService: KitService,
   ) {}
 
   async handleNotification(notification: VKNotificationDto): Promise<any> {
@@ -58,44 +63,74 @@ export class VKPaymentsService {
     }
 
     const shopItemId = this.extractShopItemId(notification.item_id);
-    if (!shopItemId) {
-      throw new BadRequestException('Invalid item_id format');
+    const kitId = this.extractKitId(notification.item_id);
+
+    if (shopItemId) {
+      const shopItem = await this.shopItemRepository.findOne({
+        where: { id: shopItemId },
+        relations: ['item_template'],
+      });
+
+      if (!shopItem) {
+        throw new NotFoundException('ShopItem not found');
+      }
+
+      if (shopItem.currency !== Currency.VOICES) {
+        throw new BadRequestException(
+          'Item is not available for voices purchase',
+        );
+      }
+
+      if (shopItem.status !== ShopItemStatus.IN_STOCK) {
+        throw new BadRequestException('ShopItem is not available');
+      }
+
+      const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
+      const imageUrl = shopItem.image_path
+        ? shopItem.image_path.startsWith('http')
+          ? shopItem.image_path
+          : `${baseUrl}/${shopItem.image_path.replace(/^\//, '')}`
+        : undefined;
+
+      return {
+        response: {
+          title: shopItem.name,
+          photo_url: imageUrl,
+          price: shopItem.price,
+          item_id: notification.item_id,
+        },
+      };
+    } else if (kitId) {
+      const kit = await this.kitRepository.findOne({
+        where: { id: kitId },
+        relations: ['item_templates'],
+      });
+
+      if (!kit) {
+        throw new NotFoundException('Kit not found');
+      }
+
+      if (kit.currency !== Currency.VOICES) {
+        throw new BadRequestException(
+          'Kit is not available for voices purchase',
+        );
+      }
+
+      if (kit.status !== ShopItemStatus.IN_STOCK) {
+        throw new BadRequestException('Kit is not available');
+      }
+
+      return {
+        response: {
+          title: kit.name,
+          photo_url: undefined,
+          price: kit.price,
+          item_id: notification.item_id,
+        },
+      };
     }
 
-    const shopItem = await this.shopItemRepository.findOne({
-      where: { id: shopItemId },
-      relations: ['item_template'],
-    });
-
-    if (!shopItem) {
-      throw new NotFoundException('ShopItem not found');
-    }
-
-    if (shopItem.currency !== Currency.VOICES) {
-      throw new BadRequestException(
-        'Item is not available for voices purchase',
-      );
-    }
-
-    if (shopItem.status !== ShopItemStatus.IN_STOCK) {
-      throw new BadRequestException('ShopItem is not available');
-    }
-
-    const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
-    const imageUrl = shopItem.image_path
-      ? shopItem.image_path.startsWith('http')
-        ? shopItem.image_path
-        : `${baseUrl}/${shopItem.image_path.replace(/^\//, '')}`
-      : undefined;
-
-    return {
-      response: {
-        title: shopItem.name,
-        photo_url: imageUrl,
-        price: shopItem.price,
-        item_id: notification.item_id,
-      },
-    };
+    throw new BadRequestException('Invalid item_id format');
   }
 
   private async handleOrderStatusChange(
@@ -122,9 +157,7 @@ export class VKPaymentsService {
 
   private async processPurchase(notification: VKNotificationDto): Promise<any> {
     const shopItemId = this.extractShopItemId(notification.item_id!);
-    if (!shopItemId) {
-      throw new BadRequestException('Invalid item_id format');
-    }
+    const kitId = this.extractKitId(notification.item_id!);
 
     const user = await this.userRepository.findOne({
       where: { vk_id: notification.user_id! },
@@ -133,6 +166,39 @@ export class VKPaymentsService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (kitId) {
+      const kit = await this.kitRepository.findOne({
+        where: { id: kitId },
+        relations: ['item_templates'],
+      });
+
+      if (!kit) {
+        throw new NotFoundException('Kit not found');
+      }
+
+      if (kit.currency !== Currency.VOICES) {
+        throw new BadRequestException(
+          'Kit is not available for voices purchase',
+        );
+      }
+
+      if (kit.status !== ShopItemStatus.IN_STOCK) {
+        throw new BadRequestException('Kit is not available');
+      }
+
+      await this.kitService.purchase(user.id, kitId);
+
+      return {
+        response: {
+          order_id: notification.order_id,
+        },
+      };
+    }
+
+    if (!shopItemId) {
+      throw new BadRequestException('Invalid item_id format');
     }
 
     const shopItem = await this.shopItemRepository.findOne({
@@ -173,11 +239,8 @@ export class VKPaymentsService {
     } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
       const userAccessory = this.userAccessoryRepository.create({
         name: shopItem.name,
-        currency: shopItem.currency,
-        price: shopItem.price,
         user,
         item_template: itemTemplate,
-        shop_item: shopItem,
       });
       await this.userAccessoryRepository.save(userAccessory);
       return {
@@ -192,11 +255,8 @@ export class VKPaymentsService {
     ) {
       const userAccessory = this.userAccessoryRepository.create({
         name: shopItem.name,
-        currency: shopItem.currency,
-        price: shopItem.price,
         user,
         item_template: itemTemplate,
-        shop_item: shopItem,
       });
       await this.userAccessoryRepository.save(userAccessory);
       return {
@@ -266,6 +326,14 @@ export class VKPaymentsService {
   private extractShopItemId(itemId: string): number | null {
     if (itemId.startsWith('shop_item_')) {
       const id = parseInt(itemId.replace('shop_item_', ''), 10);
+      return isNaN(id) ? null : id;
+    }
+    return null;
+  }
+
+  private extractKitId(itemId: string): number | null {
+    if (itemId.startsWith('kit_')) {
+      const id = parseInt(itemId.replace('kit_', ''), 10);
       return isNaN(id) ? null : id;
     }
     return null;

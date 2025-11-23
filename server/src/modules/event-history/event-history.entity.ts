@@ -30,6 +30,13 @@ export class EventHistory {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ type: 'int', nullable: true })
+  opponent_id: number | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'opponent_id' })
+  opponent: User | null;
+
   @ManyToMany(() => StolenItem)
   @JoinTable({
     name: 'event_history_stolen_items',

@@ -40,6 +40,23 @@ export class KitService {
     private readonly userBoostRepository: Repository<UserBoost>,
   ) {}
 
+  private generateAccessoryName(
+    itemTemplate: ItemTemplate,
+  ): string {
+    switch (itemTemplate.type) {
+      case ItemTemplateType.SHIELD:
+        return `Щит ${itemTemplate.value}h`;
+      case ItemTemplateType.NICKNAME_COLOR:
+        return `Цвет ника: ${itemTemplate.value}`;
+      case ItemTemplateType.NICKNAME_ICON:
+        return `Иконка ника: ${itemTemplate.value}`;
+      case ItemTemplateType.AVATAR_FRAME:
+        return `Рамка аватара: ${itemTemplate.value}`;
+      default:
+        return itemTemplate.value || itemTemplate.name;
+    }
+  }
+
   async findAll(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<Kit>> {
@@ -208,9 +225,7 @@ export class KitService {
         createdGuards.push(createdGuard);
       } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
         const userAccessory = this.userAccessoryRepository.create({
-          name: `Shield ${itemTemplate.value}h`,
-          currency: kit.currency,
-          price: kit.price,
+          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });
@@ -266,9 +281,7 @@ export class KitService {
         itemTemplate.type === ItemTemplateType.AVATAR_FRAME
       ) {
         const userAccessory = this.userAccessoryRepository.create({
-          name: kit.name,
-          currency: kit.currency,
-          price: kit.price,
+          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });
@@ -277,9 +290,7 @@ export class KitService {
         userAccessories.push(createdUserAccessory);
       } else {
         const userAccessory = this.userAccessoryRepository.create({
-          name: kit.name,
-          currency: kit.currency,
-          price: kit.price,
+          name: this.generateAccessoryName(itemTemplate),
           user,
           item_template: itemTemplate,
         });

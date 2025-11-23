@@ -795,12 +795,14 @@ export class UserService {
         attacker.id,
         EventHistoryType.ATTACK,
         stolen_items,
+        defender.id,
       );
 
       await this.eventHistoryService.create(
         defender.id,
         EventHistoryType.DEFENSE,
         stolen_items,
+        attacker.id,
       );
 
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
@@ -821,12 +823,14 @@ export class UserService {
       attacker.id,
       EventHistoryType.ATTACK,
       [],
+      defender.id,
     );
 
     await this.eventHistoryService.create(
       defender.id,
       EventHistoryType.DEFENSE,
       [],
+      attacker.id,
     );
 
     const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
@@ -849,24 +853,55 @@ export class UserService {
       paginationDto,
     );
 
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['guards'],
-    });
+    const transformedData = await Promise.all(
+      result.data.map(async (event) => {
+        const { stolen_items, ...eventWithoutStolenItems } = event;
 
-    const userStrength = user ? this.calculateUserPower(user.guards || []) : 0;
-    const userMoney = user ? Number(user.money || 0) : 0;
-    const userGuardsCount = user ? this.getGuardsCount(user.guards || []) : 0;
+        let stolenMoney = 0;
+        let stolenGuardsCount = 0;
+        let stolenStrength = 0;
 
-    const transformedData = result.data.map((event) => {
-      const { stolen_items, ...eventWithoutStolenItems } = event;
-      return {
-        ...eventWithoutStolenItems,
-        strength: userStrength,
-        money: userMoney,
-        guards_count: userGuardsCount,
-      };
-    });
+        if (stolen_items && stolen_items.length > 0) {
+          const relevantItems =
+            event.type === EventHistoryType.ATTACK
+              ? stolen_items.filter((item) => item.thief.id === userId)
+              : stolen_items.filter((item) => item.victim.id === userId);
+
+          for (const item of relevantItems) {
+            if (item.type === StolenItemType.MONEY) {
+              stolenMoney += parseInt(item.value, 10) || 0;
+            } else if (item.type === StolenItemType.GUARD) {
+              stolenGuardsCount++;
+              const guardId = parseInt(item.value, 10);
+              if (guardId) {
+                const guard = await this.userGuardRepository.findOne({
+                  where: { id: guardId },
+                });
+                if (guard) {
+                  stolenStrength += Number(guard.strength) || 0;
+                }
+              }
+            }
+          }
+        }
+
+        let opponentEquippedAccessories: UserAccessory[] | null = null;
+        if (event.opponent?.id) {
+          opponentEquippedAccessories =
+            await this.userAccessoryService.findEquippedByUserId(
+              event.opponent.id,
+            );
+        }
+
+        return {
+          ...eventWithoutStolenItems,
+          strength: stolenStrength,
+          money: stolenMoney,
+          guards_count: stolenGuardsCount,
+          opponent_equipped_accessories: opponentEquippedAccessories,
+        };
+      }),
+    );
 
     return {
       data: transformedData,
