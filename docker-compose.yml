@@ -1,19 +1,19 @@
 services:
-  admin-init:
+  client-admin-init:
     build:
       context: .
       dockerfile: Dockerfile
       target: client-admin-builder
       args:
         - VITE_API_URL=${VITE_API_URL}
-    container_name: cosmic-requiem-admin-init
-    command: sh -c "mkdir -p /admin-dist && cp -r /app/dist/* /admin-dist/ && ls -la /admin-dist"
+    container_name: cosmic-requiem-client-admin-init
+    command: sh -c "mkdir -p /client-admin-dist && cp -r /app/dist/* /client-admin-dist/ && ls -la /client-admin-dist"
     volumes:
-      - admin-dist:/admin-dist
+      - client-admin-dist:/client-admin-dist
     networks:
       - app-network
 
-  pvp-app-init:
+  client-mini-app-init:
     build:
       context: .
       dockerfile: Dockerfile
@@ -31,7 +31,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cosmic-requiem-backend
+    container_name: cosmic-requiem-server
     restart: unless-stopped
     env_file:
       - ./server/.env
@@ -62,7 +62,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     networks:
@@ -83,7 +83,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis-data:/data
     networks:
       - app-network
     healthcheck:
@@ -111,12 +111,12 @@ services:
       - ./nginx/entrypoint.sh:/custom-entrypoint.sh
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
-      - admin-dist:/app/admin-dist:ro
+      - client-admin-dist:/app/client-admin-dist:ro
       - client-mini-app-dist:/app/client-mini-app-dist:ro
     entrypoint: ["/bin/sh", "/custom-entrypoint.sh"]
     depends_on:
-      - admin-init
-      - pvp-app-init
+      - client-admin-init
+      - client-mini-app-init
       - server
     networks:
       - app-network
@@ -130,9 +130,9 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
-  postgres_data:
-  redis_data:
-  admin-dist:
+  postgres-data:
+  redis-data:
+  client-admin-dist:
   client-mini-app-dist:
 
 networks:

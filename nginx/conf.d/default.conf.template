@@ -60,7 +60,7 @@ server {
 
     location / {
         # ADMIN_HTTP_REDIRECT_PLACEHOLDER
-        alias /app/admin-dist/;
+        alias /app/client-admin-dist/;
         try_files $uri $uri/ /index.html;
         index index.html;
         

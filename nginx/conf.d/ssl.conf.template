@@ -71,7 +71,7 @@ server {
     }
 
     location / {
-        alias /app/admin-dist/;
+        alias /app/client-admin-dist/;
         try_files $uri $uri/ /index.html;
         index index.html;
         

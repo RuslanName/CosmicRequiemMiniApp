@@ -1,4 +1,3 @@
-# Server builder
 FROM node:20-alpine AS server-builder
 
 WORKDIR /app
@@ -44,9 +43,9 @@ RUN npm ci --only=production
 
 COPY --from=server-builder /app/dist ./dist
 
-COPY --from=client-admin-builder /app/dist ./admin-dist
+COPY --from=client-admin-builder /app/dist ./client-admin-dist
 
-COPY --from=client-mini-app-builder /app/dist ./pvp-app-dist
+COPY --from=client-mini-app-builder /app/dist ./client-mini-app-dist
 
 EXPOSE 5000
 
