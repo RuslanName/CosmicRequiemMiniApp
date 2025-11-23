@@ -29,9 +29,6 @@ export class UserRatingResponseDto {
   shield_end_time?: Date;
 
   @ApiProperty({ required: false, nullable: true })
-  last_shield_purchase_time?: Date;
-
-  @ApiProperty({ required: false, nullable: true })
   last_training_time?: Date;
 
   @ApiProperty({ required: false, nullable: true })

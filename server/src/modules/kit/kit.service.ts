@@ -19,7 +19,7 @@ import { ItemTemplateType } from '../item-template/enums/item-template-type.enum
 import { Currency } from '../../common/enums/currency.enum';
 import { ShopItemStatus } from '../shop-item/enums/shop-item-status.enum';
 import { Settings } from '../../config/setting.config';
-import { SettingKey } from '../setting/setting-key.enum';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 
@@ -251,9 +251,7 @@ export class KitService {
           await this.userBoostRepository.save(existingActiveBoost);
           userBoosts.push(existingActiveBoost);
         } else {
-          boostEndTime = new Date(
-            now.getTime() + boostHours * 60 * 60 * 1000,
-          );
+          boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
           const userBoost = this.userBoostRepository.create({
             type: boostType,
             end_time: boostEndTime,

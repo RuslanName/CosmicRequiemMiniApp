@@ -73,7 +73,6 @@ const Users = () => {
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
-      last_shield_purchase_time: user.last_shield_purchase_time,
       last_contract_time: user.last_contract_time,
       clan_leave_time: user.clan_leave_time,
       status: user.status,
@@ -142,6 +141,8 @@ const Users = () => {
             <th>Фамилия</th>
             <th>Деньги</th>
             <th>Сила</th>
+            <th>Количество стражей</th>
+            <th>ID клана</th>
             <th>Статус</th>
             <th>Действия</th>
           </tr>
@@ -155,6 +156,8 @@ const Users = () => {
               <td>{user.last_name || '-'}</td>
               <td>{user.money}</td>
               <td>{user.strength || 0}</td>
+              <td>{user.guards_count ?? '-'}</td>
+              <td>{user.clan_id ?? '-'}</td>
               <td>{UserStatusLabels[user.status as UserStatus] || user.status}</td>
               <td>
                 <div className="actions">

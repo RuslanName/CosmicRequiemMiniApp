@@ -43,9 +43,6 @@ export class User {
   shield_end_time?: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  last_shield_purchase_time?: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
   last_training_time?: Date;
 
   @Column({ type: 'timestamp', nullable: true })

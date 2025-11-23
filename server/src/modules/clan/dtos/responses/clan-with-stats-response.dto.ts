@@ -43,4 +43,7 @@ export class ClanWithStatsResponseDto {
 
   @ApiProperty({ required: false })
   members_count?: number;
+
+  @ApiProperty({ required: false })
+  wars_count?: number;
 }

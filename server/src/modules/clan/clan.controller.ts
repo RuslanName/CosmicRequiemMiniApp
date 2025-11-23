@@ -27,7 +27,6 @@ import {
 } from '@nestjs/swagger';
 import { Express } from 'express';
 import { ClanService } from './clan.service';
-import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { UpdateClanDto } from './dtos/update-clan.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -51,7 +50,7 @@ import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto
 import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 
-@ApiTags('Clan')
+@ApiTags('Clans')
 @Controller('clans')
 export class ClanController {
   constructor(private readonly clanService: ClanService) {}

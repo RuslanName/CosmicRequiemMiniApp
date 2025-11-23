@@ -171,6 +171,9 @@ const Clans = () => {
             <th>ID лидера</th>
             <th>Деньги</th>
             <th>Сила</th>
+            <th>Количество стражей</th>
+            <th>Количество участников</th>
+            <th>Количество войн</th>
             <th>Статус</th>
             <th>Действия</th>
           </tr>
@@ -193,6 +196,9 @@ const Clans = () => {
               <td>{clan.leader_id || '-'}</td>
               <td>{clan.money ?? '-'}</td>
               <td>{clan.strength ?? '-'}</td>
+              <td>{clan.guards_count ?? '-'}</td>
+              <td>{clan.members_count ?? '-'}</td>
+              <td>{clan.wars_count ?? '-'}</td>
               <td>{ClanStatusLabels[clan.status as ClanStatus] || clan.status}</td>
               <td>
                 <div className="actions">

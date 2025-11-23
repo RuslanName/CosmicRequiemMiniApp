@@ -9,7 +9,7 @@ import { User } from './user.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { Settings } from '../../config/setting.config';
-import { SettingKey } from '../setting/setting-key.enum';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { ENV } from '../../config/constants';
 import { UserBoostService } from '../user-boost/user-boost.service';
@@ -18,7 +18,7 @@ import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { EventHistoryService } from '../event-history/event-history.service';
-import { EventHistoryType } from '../event-history/event-history-type.enum';
+import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { StolenItemType } from '../clan-war/enums/stolen-item-type.enum';
 import { EventHistoryItemResponseDto } from './dtos/responses/event-history-item-response.dto';
@@ -85,7 +85,6 @@ export class UserService {
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
-      last_shield_purchase_time: transformed.last_shield_purchase_time,
       last_training_time: transformed.last_training_time,
       last_contract_time: transformed.last_contract_time,
       last_attack_time: transformed.last_attack_time,
@@ -120,7 +119,6 @@ export class UserService {
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
-      last_shield_purchase_time: transformed.last_shield_purchase_time,
       last_training_time: transformed.last_training_time,
       last_contract_time: transformed.last_contract_time,
       last_attack_time: transformed.last_attack_time,
@@ -149,7 +147,6 @@ export class UserService {
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
-      last_shield_purchase_time: user.last_shield_purchase_time,
       last_training_time: user.last_training_time,
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,

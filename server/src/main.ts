@@ -12,6 +12,7 @@ import * as cookieParser from 'cookie-parser';
 import { initAdmin } from './config/admin.config';
 import { AdminService } from './modules/admin/admin.service';
 import { UserService } from './modules/user/user.service';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -19,6 +20,7 @@ async function bootstrap() {
   const adminService = app.get(AdminService);
   const userService = app.get(UserService);
 
+  app.useGlobalFilters(new HttpExceptionFilter());
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), 'data'), {
     prefix: '/data/',

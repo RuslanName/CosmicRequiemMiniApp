@@ -11,7 +11,7 @@ import { UpdateClanDto } from './dtos/update-clan.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { ClanWar } from '../clan-war/entities/clan-war.entity';
 import { Settings } from '../../config/setting.config';
-import { SettingKey } from '../setting/setting-key.enum';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 import { ClanWarStatus } from '../clan-war/enums/clan-war-status.enum';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
@@ -34,7 +34,7 @@ import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { ENV } from '../../config/constants';
 import { randomUUID } from 'crypto';
 import { EventHistoryService } from '../event-history/event-history.service';
-import { EventHistoryType } from '../event-history/event-history-type.enum';
+import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
 
 @Injectable()
 export class ClanService {
@@ -104,6 +104,13 @@ export class ClanService {
       delete transformed.members;
     }
 
+    if (clan.wars) {
+      transformed.wars_count = clan.wars.length;
+      delete transformed.wars;
+    } else {
+      transformed.wars_count = 0;
+    }
+
     if (options?.includeReferralLink) {
       return transformed as ClanWithReferralResponseDto;
     }
@@ -145,7 +152,6 @@ export class ClanService {
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
-      last_shield_purchase_time: user.last_shield_purchase_time,
       last_training_time: user.last_training_time,
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,
@@ -166,7 +172,7 @@ export class ClanService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.clanRepository.findAndCount({
-      relations: ['members', 'members.guards', 'leader'],
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
       skip,
       take: limit,
     });
@@ -189,7 +195,7 @@ export class ClanService {
   async findOne(id: number): Promise<ClanWithStatsResponseDto> {
     const clan = await this.clanRepository.findOne({
       where: { id },
-      relations: ['members', 'members.guards', 'leader'],
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
     });
 
     if (!clan) {
@@ -231,6 +237,18 @@ export class ClanService {
     createClanDto: CreateClanDto,
     image: Express.Multer.File,
   ): Promise<ClanWithReferralResponseDto> {
+    const leader = await this.userRepository.findOne({
+      where: { id: createClanDto.leader_id },
+    });
+
+    if (!leader) {
+      throw new NotFoundException('Leader not found');
+    }
+
+    if (leader.clan_id) {
+      throw new BadRequestException('Leader is already in a clan');
+    }
+
     const imagePath = this.saveClanImage(image);
     const clan = this.clanRepository.create({
       ...createClanDto,
@@ -238,7 +256,16 @@ export class ClanService {
       referral_link_id: randomUUID(),
     });
     const savedClan = await this.clanRepository.save(clan);
-    return this.transformToClanWithReferralResponseDto(savedClan);
+
+    leader.clan_id = savedClan.id;
+    await this.userRepository.save(leader);
+
+    const clanWithRelations = await this.clanRepository.findOne({
+      where: { id: savedClan.id },
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
+    });
+
+    return this.transformToClanWithReferralResponseDto(clanWithRelations!);
   }
 
   async update(
@@ -332,7 +359,7 @@ export class ClanService {
 
     const allClans = await this.clanRepository.find({
       where: { id: MoreThan(0) },
-      relations: ['leader', 'members', 'members.guards'],
+      relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
     });
 
     const availableClans: Clan[] = [];
@@ -892,7 +919,14 @@ export class ClanService {
   async getUserClan(userId: number): Promise<ClanWithReferralResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['clan', 'clan.leader', 'clan.members', 'clan.members.guards'],
+      relations: [
+        'clan',
+        'clan.leader',
+        'clan.members',
+        'clan.members.guards',
+        'clan._wars_1',
+        'clan._wars_2',
+      ],
     });
 
     if (!user) {
@@ -908,31 +942,6 @@ export class ClanService {
       return this.transformToClanWithReferralResponseDto(user.clan);
     }
     return this.transformToClanWithStatsResponseDto(user.clan);
-  }
-
-  async updateClanReferralLink(
-    userId: number,
-  ): Promise<ClanWithReferralResponseDto> {
-    const clan = await this.getLeaderClan(userId);
-
-    clan.referral_link_id = randomUUID();
-    const savedClan = await this.clanRepository.save(clan);
-
-    return this.transformClanForResponse(savedClan);
-  }
-
-  async getClanReferralLink(
-    userId: number,
-  ): Promise<ClanReferralLinkResponseDto> {
-    const clan = await this.getLeaderClan(userId);
-
-    if (!clan.referral_link_id) {
-      throw new NotFoundException('Clan referral link not found');
-    }
-
-    return {
-      referral_link: `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`,
-    };
   }
 
   async getActiveWars(clanId: number): Promise<ClanWar[]> {
@@ -974,7 +983,7 @@ export class ClanService {
 
     const enemyClans = await this.clanRepository.find({
       where: { id: In(enemyClanIds) },
-      relations: ['leader', 'members', 'members.guards'],
+      relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
     });
 
     return enemyClans.map((clan) =>
@@ -1015,7 +1024,7 @@ export class ClanService {
 
     const enemyClan = await this.clanRepository.findOne({
       where: { id: enemyClanId },
-      relations: ['leader', 'members', 'members.guards'],
+      relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
     });
 
     if (!enemyClan) {
@@ -1075,7 +1084,7 @@ export class ClanService {
     const skip = (page - 1) * limit;
 
     const allClans = await this.clanRepository.find({
-      relations: ['leader', 'members', 'members.guards'],
+      relations: ['leader', 'members', 'members.guards', '_wars_1', '_wars_2'],
     });
 
     const clansWithRating = await Promise.all(

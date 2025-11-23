@@ -5,7 +5,7 @@ export enum SettingKey {
   CLAN_WAR_DURATION = 'clan_war_duration',
   CLAN_WAR_COOLDOWN = 'clan_war_cooldown',
   ATTACK_COOLDOWN = 'attack_cooldown',
-  PURCHASE_SHIELD_COOLDOWN = 'purchase_shield_cooldown',
+  ACTIVATE_SHIELD_COOLDOWN = 'activate_shield_cooldown',
   MAX_STRENGTH_FIRST_USER_GUARD = 'max_strength_first_user_guard',
   INITIAL_STRENGTH_FIRST_USER_GUARD = 'initial_strength_first_user_guard',
   MAX_CLAN_WARS_COUNT = 'max_clan_wars_count',

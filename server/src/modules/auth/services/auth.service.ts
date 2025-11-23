@@ -11,7 +11,7 @@ import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
 import { Settings } from '../../../config/setting.config';
-import { SettingKey } from '../../setting/setting-key.enum';
+import { SettingKey } from '../../setting/enums/setting-key.enum';
 
 @Injectable()
 export class AuthService {

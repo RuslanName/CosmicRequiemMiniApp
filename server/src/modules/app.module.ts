@@ -17,6 +17,7 @@ import { KitModule } from './kit/kit.module';
 import { ItemTemplateModule } from './item-template/item-template.module';
 import { AdminModule } from './admin/admin.module';
 import { UserBoostModule } from './user-boost/user-boost.module';
+import { VKPaymentsModule } from './vk-payments/vk-payments.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -52,6 +53,7 @@ import { AppController } from './app.controller';
     UserModule,
     UserGuardModule,
     UserBoostModule,
+    VKPaymentsModule,
   ],
   controllers: [AppController],
 })

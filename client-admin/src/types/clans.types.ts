@@ -13,6 +13,9 @@ export interface Clan {
   referral_link_id?: string;
   money?: number;
   strength?: number;
+  guards_count?: number;
+  members_count?: number;
+  wars_count?: number;
 }
 
 export interface CreateClanDto {

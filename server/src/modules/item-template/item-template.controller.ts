@@ -26,7 +26,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
-@ApiTags('ItemTemplate')
+@ApiTags('Item Templates')
 @Controller('item-templates')
 @UseGuards(AdminJwtAuthGuard)
 @ApiCookieAuth()

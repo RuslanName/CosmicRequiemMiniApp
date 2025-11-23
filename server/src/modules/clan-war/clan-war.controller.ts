@@ -24,7 +24,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
-@ApiTags('ClanWar')
+@ApiTags('Clan wars')
 @Controller('wars')
 @UseGuards(AdminJwtAuthGuard)
 @ApiCookieAuth()

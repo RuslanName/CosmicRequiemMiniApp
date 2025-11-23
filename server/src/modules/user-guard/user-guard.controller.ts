@@ -26,7 +26,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
-@ApiTags('UserGuard')
+@ApiTags('User guards')
 @Controller('user-guards')
 @UseGuards(AdminJwtAuthGuard)
 @ApiCookieAuth()

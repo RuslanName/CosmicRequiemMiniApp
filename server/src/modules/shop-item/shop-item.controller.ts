@@ -39,7 +39,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
-@ApiTags('ShopItem')
+@ApiTags('Shop items')
 @Controller('shop-items')
 export class ShopItemController {
   constructor(private readonly shopItemService: ShopItemService) {}
@@ -148,7 +148,11 @@ export class ShopItemController {
   @Post('purchase')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Купить аксессуар (Для Mini App)' })
+  @ApiOperation({
+    summary: 'Купить товар за виртуальную валюту (Для Mini App)',
+    description:
+      'Покупка товара за виртуальную валюту. Для покупки за голоса VK используйте VK payments.',
+  })
   @ApiBody({ type: PurchaseShopItemDto })
   @ApiResponse({
     status: 200,
@@ -156,11 +160,12 @@ export class ShopItemController {
   })
   @ApiResponse({
     status: 400,
+    description: 'Недостаточно средств, товар недоступен или неверная валюта',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({
     status: 404,
-    description: 'Аксессуар или пользователь не найден',
+    description: 'Товар или пользователь не найден',
   })
   async purchase(
     @Request() req: AuthenticatedRequest,

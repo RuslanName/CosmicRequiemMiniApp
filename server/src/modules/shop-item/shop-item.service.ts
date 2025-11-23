@@ -23,7 +23,7 @@ import { ItemTemplateType } from '../item-template/enums/item-template-type.enum
 import { Currency } from '../../common/enums/currency.enum';
 import { ShopItemStatus } from './enums/shop-item-status.enum';
 import { Settings } from '../../config/setting.config';
-import { SettingKey } from '../setting/setting-key.enum';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { Express } from 'express';
@@ -253,18 +253,21 @@ export class ShopItemService {
       throw new NotFoundException('ShopItem not found');
     }
 
+    if (shopItem.currency !== Currency.VIRTUAL) {
+      throw new BadRequestException(
+        'This endpoint only supports virtual currency purchases. Use VK payments for voices purchases.',
+      );
+    }
+
     if (shopItem.status !== ShopItemStatus.IN_STOCK) {
       throw new BadRequestException('ShopItem is not available');
     }
 
-    if (shopItem.currency === Currency.VIRTUAL) {
-      if (Number(user.money) < shopItem.price) {
-        throw new BadRequestException('Insufficient funds');
-      }
-      user.money = Number(user.money) - shopItem.price;
-    } else {
-      throw new BadRequestException('VOICES currency not implemented yet');
+    if (Number(user.money) < shopItem.price) {
+      throw new BadRequestException('Insufficient funds');
     }
+
+    user.money = Number(user.money) - shopItem.price;
 
     const itemTemplate = shopItem.item_template;
 
@@ -321,15 +324,12 @@ export class ShopItemService {
         existingActiveBoost.end_time > now
       ) {
         boostEndTime = new Date(
-          existingActiveBoost.end_time.getTime() +
-            boostHours * 60 * 60 * 1000,
+          existingActiveBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
         );
         existingActiveBoost.end_time = boostEndTime;
         userBoost = await this.userBoostRepository.save(existingActiveBoost);
       } else {
-        boostEndTime = new Date(
-          now.getTime() + boostHours * 60 * 60 * 1000,
-        );
+        boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
         userBoost = this.userBoostRepository.create({
           type: boostType,
           end_time: boostEndTime,

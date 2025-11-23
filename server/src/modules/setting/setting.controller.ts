@@ -20,7 +20,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 
-@ApiTags('Setting')
+@ApiTags('Settings')
 @Controller('settings')
 export class SettingController {
   constructor(private readonly settingService: SettingService) {}

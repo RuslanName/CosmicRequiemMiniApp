@@ -47,11 +47,6 @@ export class UpdateUserDto {
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z', required: false })
   @IsOptional()
   @IsDateString()
-  last_shield_purchase_time?: Date;
-
-  @ApiProperty({ example: '2024-01-01T00:00:00.000Z', required: false })
-  @IsOptional()
-  @IsDateString()
   last_contract_time?: Date;
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z', required: false })

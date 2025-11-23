@@ -9,4 +9,3 @@ export class ActivateShieldResponseDto {
   @ApiProperty({ type: () => UserBoost })
   user_boost: UserBoost;
 }
-

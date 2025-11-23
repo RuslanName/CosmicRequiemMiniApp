@@ -9,7 +9,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../user/user.entity';
-import { EventHistoryType } from './event-history-type.enum';
+import { EventHistoryType } from './enums/event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 
 @Entity()

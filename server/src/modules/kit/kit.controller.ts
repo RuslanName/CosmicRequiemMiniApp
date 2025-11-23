@@ -33,7 +33,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
-@ApiTags('Kit')
+@ApiTags('Kits')
 @Controller('kits')
 export class KitController {
   constructor(private readonly kitService: KitService) {}

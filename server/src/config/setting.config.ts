@@ -2,7 +2,7 @@ import {
   DEFAULT_SETTINGS,
   TIME_UNIT_MULTIPLIERS,
 } from '../modules/setting/setting-constants';
-import { SettingKey } from '../modules/setting/setting-key.enum';
+import { SettingKey } from '../modules/setting/enums/setting-key.enum';
 import { SettingService } from '../modules/setting/services/setting.service';
 
 type SettingsType = typeof DEFAULT_SETTINGS;

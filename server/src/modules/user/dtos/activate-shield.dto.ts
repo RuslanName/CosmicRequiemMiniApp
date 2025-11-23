@@ -6,4 +6,3 @@ export class ActivateShieldDto {
   @IsNumber()
   accessory_id: number;
 }
-

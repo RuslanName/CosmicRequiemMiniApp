@@ -8,7 +8,6 @@ export interface User {
   birthday_date?: string;
   money: number;
   shield_end_time?: string;
-  last_shield_purchase_time?: string;
   last_training_time?: string;
   last_contract_time?: string;
   last_attack_time?: string;
@@ -18,6 +17,7 @@ export interface User {
   last_login_at: string;
   clan_id?: number;
   strength?: number;
+  guards_count?: number;
   referral_link?: string;
 }
 
@@ -29,7 +29,6 @@ export interface UpdateUserDto {
   birthday_date?: string;
   money?: number;
   shield_end_time?: string;
-  last_shield_purchase_time?: string;
   last_contract_time?: string;
   clan_leave_time?: string;
   status?: string;

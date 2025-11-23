@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventHistory } from './event-history.entity';
-import { EventHistoryType } from './event-history-type.enum';
+import { EventHistoryType } from './enums/event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';

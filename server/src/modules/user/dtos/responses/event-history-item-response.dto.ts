@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { EventHistoryType } from '../../../event-history/event-history-type.enum';
+import { EventHistoryType } from '../../../event-history/enums/event-history-type.enum';
 
 export class EventHistoryItemResponseDto {
   @ApiProperty()
