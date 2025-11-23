@@ -499,10 +499,6 @@ export class UserService {
     return user.guards || [];
   }
 
-  async getEquippedAccessories(userId: number): Promise<UserAccessory[]> {
-    return this.userAccessoryService.findEquippedByUserId(userId);
-  }
-
   async getInventory(userId: number): Promise<InventoryResponseDto> {
     const [boosts, accessories] = await Promise.all([
       this.getUserBoosts(userId),

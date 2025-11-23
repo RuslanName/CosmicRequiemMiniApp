@@ -261,22 +261,6 @@ export class UserController {
     return this.userService.getUserGuards(req.user.id);
   }
 
-  @Get('me/equipped-accessories')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Получить надетые аксессуары пользователя (Для Mini App)',
-  })
-  @ApiResponse({
-    status: 200,
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  async getEquippedAccessories(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<UserAccessory[]> {
-    return this.userService.getEquippedAccessories(req.user.id);
-  }
-
   @Post('equip-accessory')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
