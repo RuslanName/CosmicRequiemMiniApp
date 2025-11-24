@@ -41,6 +41,7 @@ export class EventHistoryService {
       relations: [
         'user',
         'opponent',
+        'opponent.guards',
         'stolen_items',
         'stolen_items.thief',
         'stolen_items.victim',

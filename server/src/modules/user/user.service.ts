@@ -901,11 +901,14 @@ export class UserService {
         }
 
         let opponentEquippedAccessories: any[] | null = null;
+        let opponentDto: UserWithBasicStatsResponseDto | null = null;
+        
         if (event.opponent?.id) {
           opponentEquippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(
               event.opponent.id,
             );
+          opponentDto = this.transformToUserBasicStatsResponseDto(event.opponent);
         }
 
         const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =
@@ -918,6 +921,7 @@ export class UserService {
           stolen_money: stolenMoney,
           stolen_strength: stolenStrength,
           stolen_guards_count: stolenGuardsCount,
+          opponent: opponentDto,
           opponent_equipped_accessories: opponentEquippedAccessories,
         };
       }),
