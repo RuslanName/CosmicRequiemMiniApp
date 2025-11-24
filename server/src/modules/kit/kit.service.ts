@@ -41,18 +41,37 @@ export class KitService {
   ) {}
 
   private generateAccessoryName(itemTemplate: ItemTemplate): string {
+    const randomCode = Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, '0');
+
     switch (itemTemplate.type) {
       case ItemTemplateType.SHIELD:
-        return `Щит ${itemTemplate.value}h`;
+        return itemTemplate.value
+          ? `Щит ${itemTemplate.value}h`
+          : `Щит #${randomCode}`;
       case ItemTemplateType.NICKNAME_COLOR:
-        return `Цвет ника: ${itemTemplate.value}`;
+        return itemTemplate.value
+          ? `Цвет ника: ${itemTemplate.value}`
+          : `Цвет ника: #${randomCode}`;
       case ItemTemplateType.NICKNAME_ICON:
-        return `Иконка ника: ${itemTemplate.value}`;
+        return itemTemplate.value
+          ? `Иконка ника: ${itemTemplate.value}`
+          : `Иконка ника: #${randomCode}`;
       case ItemTemplateType.AVATAR_FRAME:
-        return `Рамка аватара: ${itemTemplate.value}`;
+        return itemTemplate.value
+          ? `Рамка аватара: ${itemTemplate.value}`
+          : `Рамка аватара: #${randomCode}`;
       default:
-        return itemTemplate.value || itemTemplate.name;
+        return itemTemplate.value || itemTemplate.name || `#${randomCode}`;
     }
+  }
+
+  private generateGuardName(): string {
+    const randomCode = Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, '0');
+    return `Страж #${randomCode}`;
   }
 
   async findAll(
@@ -219,7 +238,7 @@ export class KitService {
         }
         const guardStrength = parseInt(itemTemplate.value, 10);
         const guard = this.userGuardRepository.create({
-          name: `Guard #${Date.now()}`,
+          name: this.generateGuardName(),
           strength: guardStrength,
           is_first: false,
           user,

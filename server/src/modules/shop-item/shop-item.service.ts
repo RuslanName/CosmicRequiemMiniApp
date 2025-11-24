@@ -224,8 +224,11 @@ export class ShopItemService {
         );
       }
       const guardStrength = parseInt(itemTemplate.value, 10);
+      const randomCode = Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, '0');
       const guard = this.userGuardRepository.create({
-        name: `Страж #${Date.now()}`,
+        name: `Страж #${randomCode}`,
         strength: guardStrength,
         is_first: false,
         user,

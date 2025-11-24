@@ -31,4 +31,3 @@ export class ClanWarResponseDto {
   @ApiProperty({ type: [StolenItem], required: false })
   stolen_items?: StolenItem[];
 }
-

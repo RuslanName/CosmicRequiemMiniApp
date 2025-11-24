@@ -908,11 +908,16 @@ export class UserService {
             );
         }
 
+        const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =
+          eventWithoutStolenItems;
+
         return {
-          ...eventWithoutStolenItems,
-          strength: stolenStrength,
-          money: stolenMoney,
-          guards_count: stolenGuardsCount,
+          id: event.id,
+          type: event.type,
+          created_at: event.created_at,
+          stolen_money: stolenMoney,
+          stolen_strength: stolenStrength,
+          stolen_guards_count: stolenGuardsCount,
           opponent_equipped_accessories: opponentEquippedAccessories,
         };
       }),

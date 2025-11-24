@@ -19,4 +19,3 @@ export class UserGuardResponseDto {
   @ApiProperty()
   updated_at: Date;
 }
-

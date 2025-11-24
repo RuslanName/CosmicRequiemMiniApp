@@ -42,7 +42,9 @@ export class UserAccessoryService {
     }));
   }
 
-  async findEquippedByUserId(userId: number): Promise<UserAccessoryResponseDto[]> {
+  async findEquippedByUserId(
+    userId: number,
+  ): Promise<UserAccessoryResponseDto[]> {
     const accessories = await this.userAccessoryRepository.find({
       where: {
         user: { id: userId },
