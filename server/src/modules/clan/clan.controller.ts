@@ -49,6 +49,7 @@ import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto
 import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
+import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
 
 @ApiTags('Clans')
 @Controller('clans')
@@ -449,6 +450,35 @@ export class ClanController {
     return this.clanService.rejectApplication(req.user.id, +id);
   }
 
+  @Post('me/create')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Создать клан (Для Mini App)' })
+  @ApiBody({ type: CreateClanByUserDto })
+  @ApiResponse({
+    status: 201,
+    type: ClanWithReferralResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Пользователь уже состоит в клане или уже имеет клан',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async createClan(
+    @Request() req: AuthenticatedRequest,
+    @Body() createClanByUserDto: CreateClanByUserDto,
+    @UploadedFile() image?: Express.Multer.File,
+  ): Promise<ClanWithReferralResponseDto> {
+    return this.clanService.createClanByUser(
+      req.user.id,
+      createClanByUserDto,
+      image,
+    );
+  }
+
   @Delete('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -479,37 +509,6 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Клан не найден' })
   async findOne(@Param('id') id: string): Promise<ClanWithStatsResponseDto> {
     return this.clanService.findOne(+id);
-  }
-
-  @Get(':id/members')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить всех участников клана (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-    type: [UserWithStatsResponseDto],
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanMembers(
-    @Param('id') id: string,
-  ): Promise<UserWithStatsResponseDto[]> {
-    return this.clanService.getClanMembers(+id);
-  }
-
-  @Get(':id/wars')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Получить все войны клана (Для Mini App)' })
-  @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({
-    status: 200,
-  })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
-  @ApiResponse({ status: 404, description: 'Клан не найден' })
-  async getClanWars(@Param('id') id: string): Promise<ClanWarResponseDto[]> {
-    return this.clanService.getAllWars(+id);
   }
 
   @Post()

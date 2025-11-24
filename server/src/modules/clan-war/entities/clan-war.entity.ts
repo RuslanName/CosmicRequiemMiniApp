@@ -39,14 +39,14 @@ export class ClanWar {
   @Column({ type: 'int' })
   clan_1_id: number;
 
-  @ManyToOne(() => Clan, (clan) => clan.wars)
+  @ManyToOne(() => Clan, (clan) => clan.wars, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clan_1_id' })
   clan_1: Clan;
 
   @Column({ type: 'int' })
   clan_2_id: number;
 
-  @ManyToOne(() => Clan, (clan) => clan.wars)
+  @ManyToOne(() => Clan, (clan) => clan.wars, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clan_2_id' })
   clan_2: Clan;
 

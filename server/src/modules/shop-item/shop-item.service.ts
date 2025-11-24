@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, IsNull, Or } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ShopItem } from './shop-item.entity';
 import { CreateShopItemDto } from './dtos/create-shop-item.dto';
 import { UpdateShopItemDto } from './dtos/update-shop-item.dto';
@@ -26,6 +26,7 @@ import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
+import { UserBoostService } from '../user-boost/user-boost.service';
 
 @Injectable()
 export class ShopItemService {
@@ -42,6 +43,7 @@ export class ShopItemService {
     private readonly userAccessoryRepository: Repository<UserAccessory>,
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
+    private readonly userBoostService: UserBoostService,
   ) {}
 
   async findAll(
@@ -263,27 +265,20 @@ export class ShopItemService {
       const boostHours = parseInt(itemTemplate.value, 10);
       const now = new Date();
 
-      const existingActiveBoost = await this.userBoostRepository.findOne({
-        where: {
-          user: { id: user.id },
-          type: boostType,
-          end_time: Or(MoreThan(now), IsNull()),
-        },
-      });
+      const lastBoost = await this.userBoostService.findLastByUserIdAndType(
+        user.id,
+        boostType,
+      );
 
       let boostEndTime: Date;
       let userBoost: UserBoost;
 
-      if (
-        existingActiveBoost &&
-        existingActiveBoost.end_time &&
-        existingActiveBoost.end_time > now
-      ) {
+      if (lastBoost && lastBoost.end_time && lastBoost.end_time > now) {
         boostEndTime = new Date(
-          existingActiveBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
+          lastBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
         );
-        existingActiveBoost.end_time = boostEndTime;
-        userBoost = await this.userBoostRepository.save(existingActiveBoost);
+        lastBoost.end_time = boostEndTime;
+        userBoost = await this.userBoostRepository.save(lastBoost);
       } else {
         boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
         userBoost = this.userBoostRepository.create({

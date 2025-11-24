@@ -111,24 +111,16 @@ export class AuthService {
       });
 
       if (userWithClan && !userWithClan.clan) {
-        const existingApplication =
-          await this.clanApplicationRepository.findOne({
-            where: {
-              user_id: userWithClan.id,
-              clan_id: targetClan.id,
-              status: ClanApplicationStatus.PENDING,
-            },
-          });
+        const clanWithMembers = await this.clanRepository.findOne({
+          where: { id: targetClan.id },
+          relations: ['members'],
+        });
 
-        if (!existingApplication) {
-          const clanMembersCount = targetClan.members?.length || 0;
-          if (clanMembersCount < targetClan.max_members) {
-            const application = this.clanApplicationRepository.create({
-              user: userWithClan,
-              clan: targetClan,
-              status: ClanApplicationStatus.PENDING,
-            });
-            await this.clanApplicationRepository.save(application);
+        if (clanWithMembers) {
+          const clanMembersCount = clanWithMembers.members?.length || 0;
+          if (clanMembersCount < clanWithMembers.max_members) {
+            userWithClan.clan = clanWithMembers;
+            await this.userRepository.save(userWithClan);
           }
         }
       }

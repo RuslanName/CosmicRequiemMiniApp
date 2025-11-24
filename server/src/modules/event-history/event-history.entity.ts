@@ -26,14 +26,14 @@ export class EventHistory {
   @Column({ type: 'int' })
   user_id: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column({ type: 'int', nullable: true })
   opponent_id: number | null;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'opponent_id' })
   opponent: User | null;
 

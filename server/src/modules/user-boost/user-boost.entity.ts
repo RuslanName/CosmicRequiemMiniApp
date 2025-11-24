@@ -22,7 +22,7 @@ export class UserBoost {
   @Column({ type: 'timestamp', nullable: true })
   end_time?: Date;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   user: User;
 
   @CreateDateColumn()

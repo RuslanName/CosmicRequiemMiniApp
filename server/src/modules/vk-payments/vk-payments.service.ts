@@ -17,10 +17,10 @@ import { ItemTemplateType } from '../item-template/enums/item-template-type.enum
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { ShopItemStatus } from '../shop-item/enums/shop-item-status.enum';
 import { Currency } from '../../common/enums/currency.enum';
-import { Or, MoreThan, IsNull } from 'typeorm';
 import { VKNotificationDto } from './dtos/vk-notification.dto';
 import { ENV } from '../../config/constants';
 import { KitService } from '../kit/kit.service';
+import { UserBoostService } from '../user-boost/user-boost.service';
 
 @Injectable()
 export class VKPaymentsService {
@@ -38,6 +38,7 @@ export class VKPaymentsService {
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
     private readonly kitService: KitService,
+    private readonly userBoostService: UserBoostService,
   ) {}
 
   async handleNotification(notification: VKNotificationDto): Promise<any> {
@@ -287,25 +288,18 @@ export class VKPaymentsService {
       const boostHours = parseInt(itemTemplate.value, 10);
       const now = new Date();
 
-      const existingActiveBoost = await this.userBoostRepository.findOne({
-        where: {
-          user: { id: user.id },
-          type: boostType,
-          end_time: Or(MoreThan(now), IsNull()),
-        },
-      });
+      const lastBoost = await this.userBoostService.findLastByUserIdAndType(
+        user.id,
+        boostType,
+      );
 
       let boostEndTime: Date;
-      if (
-        existingActiveBoost &&
-        existingActiveBoost.end_time &&
-        existingActiveBoost.end_time > now
-      ) {
+      if (lastBoost && lastBoost.end_time && lastBoost.end_time > now) {
         boostEndTime = new Date(
-          existingActiveBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
+          lastBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
         );
-        existingActiveBoost.end_time = boostEndTime;
-        await this.userBoostRepository.save(existingActiveBoost);
+        lastBoost.end_time = boostEndTime;
+        await this.userBoostRepository.save(lastBoost);
       } else {
         boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
         const userBoost = this.userBoostRepository.create({

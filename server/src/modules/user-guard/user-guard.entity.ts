@@ -26,7 +26,7 @@ export class UserGuard {
   @Column({ type: 'int' })
   user_id: number;
 
-  @ManyToOne(() => User, (user) => user.guards)
+  @ManyToOne(() => User, (user) => user.guards, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 

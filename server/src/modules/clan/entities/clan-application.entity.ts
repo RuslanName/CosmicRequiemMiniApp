@@ -19,14 +19,14 @@ export class ClanApplication {
   @Column({ type: 'int' })
   user_id: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column({ type: 'int' })
   clan_id: number;
 
-  @ManyToOne(() => Clan)
+  @ManyToOne(() => Clan, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clan_id' })
   clan: Clan;
 

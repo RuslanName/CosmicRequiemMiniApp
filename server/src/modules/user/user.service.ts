@@ -266,9 +266,12 @@ export class UserService {
     );
 
     let trainingCooldown = Settings[SettingKey.TRAINING_COOLDOWN];
-    if (cooldownHalvingBoost) {
+    if (
+      cooldownHalvingBoost &&
+      cooldownHalvingBoost.end_time &&
+      cooldownHalvingBoost.end_time > new Date()
+    ) {
       trainingCooldown = trainingCooldown / 2;
-      await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
     if (user.last_training_time) {
@@ -381,9 +384,12 @@ export class UserService {
     );
 
     let contractCooldown = Settings[SettingKey.CONTRACT_COOLDOWN];
-    if (cooldownHalvingBoost) {
+    if (
+      cooldownHalvingBoost &&
+      cooldownHalvingBoost.end_time &&
+      cooldownHalvingBoost.end_time > new Date()
+    ) {
       contractCooldown = contractCooldown / 2;
-      await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
     if (user.last_contract_time) {
@@ -404,9 +410,12 @@ export class UserService {
 
     let contract_income = Math.max(Math.round(training_cost * 0.55), 6);
 
-    if (rewardDoublingBoost) {
+    if (
+      rewardDoublingBoost &&
+      rewardDoublingBoost.end_time &&
+      rewardDoublingBoost.end_time > new Date()
+    ) {
       contract_income = contract_income * 2;
-      await this.userBoostService.complete(rewardDoublingBoost.id);
     }
 
     user.money = Number(user.money) + contract_income;
@@ -694,18 +703,29 @@ export class UserService {
       await this.userBoostService.complete(defenderShieldBoost.id);
     }
 
-    attacker.shield_end_time = undefined;
-
     const attackerActiveBoosts =
       await this.userBoostService.findActiveByUserId(userId);
+    const attackerShieldBoost = attackerActiveBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+
+    if (attackerShieldBoost) {
+      await this.userBoostService.complete(attackerShieldBoost.id);
+    }
+
+    attacker.shield_end_time = undefined;
+
     const cooldownHalvingBoost = attackerActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
 
     let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
-    if (cooldownHalvingBoost) {
+    if (
+      cooldownHalvingBoost &&
+      cooldownHalvingBoost.end_time &&
+      cooldownHalvingBoost.end_time > new Date()
+    ) {
       attackCooldown = attackCooldown / 2;
-      await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
     if (attacker.last_attack_time) {
@@ -902,13 +922,15 @@ export class UserService {
 
         let opponentEquippedAccessories: any[] | null = null;
         let opponentDto: UserWithBasicStatsResponseDto | null = null;
-        
+
         if (event.opponent?.id) {
           opponentEquippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(
               event.opponent.id,
             );
-          opponentDto = this.transformToUserBasicStatsResponseDto(event.opponent);
+          opponentDto = this.transformToUserBasicStatsResponseDto(
+            event.opponent,
+          );
         }
 
         const { user_id, opponent_id, user, opponent, ...eventWithoutIds } =

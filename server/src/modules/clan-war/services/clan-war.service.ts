@@ -6,12 +6,15 @@ import { CreateClanWarDto } from '../dtos/create-clan-war.dto';
 import { UpdateClanWarDto } from '../dtos/update-clan-war.dto';
 import { PaginationDto } from '../../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../../common/dtos/paginated-response.dto';
+import { StolenItem } from '../entities/stolen-item.entity';
 
 @Injectable()
 export class ClanWarService {
   constructor(
     @InjectRepository(ClanWar)
     private readonly clanWarRepository: Repository<ClanWar>,
+    @InjectRepository(StolenItem)
+    private readonly stolenItemRepository: Repository<StolenItem>,
   ) {}
 
   async findAll(
@@ -74,6 +77,15 @@ export class ClanWarService {
 
     if (!clanWar) {
       throw new NotFoundException(`ClanWar with ID ${id} not found`);
+    }
+
+    const stolenItems = await this.stolenItemRepository.find({
+      where: { clan_war_id: id },
+    });
+
+    for (const stolenItem of stolenItems) {
+      stolenItem.clan_war_id = null;
+      await this.stolenItemRepository.save(stolenItem);
     }
 
     await this.clanWarRepository.remove(clanWar);

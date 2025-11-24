@@ -12,6 +12,8 @@ import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { User } from '../user/user.entity';
 import { UserAccessoryResponseDto } from './dtos/user-accessory-response.dto';
+import { Settings } from '../../config/setting.config';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 
 @Injectable()
 export class UserAccessoryService {
@@ -153,10 +155,34 @@ export class UserAccessoryService {
         'ItemTemplate value is required for SHIELD type',
       );
     }
-    const shieldHours = parseInt(accessory.item_template.value, 10);
-    const now = new Date();
 
     const user = accessory.user;
+    const now = new Date();
+
+    const activateShieldCooldown =
+      Settings[SettingKey.ACTIVATE_SHIELD_COOLDOWN];
+
+    const lastShieldBoost = await this.userBoostRepository.findOne({
+      where: {
+        user: { id: userId },
+        type: UserBoostType.SHIELD,
+      },
+      order: { created_at: 'DESC' },
+    });
+
+    if (lastShieldBoost && lastShieldBoost.created_at) {
+      const cooldownEndTime = new Date(
+        lastShieldBoost.created_at.getTime() + activateShieldCooldown,
+      );
+      if (cooldownEndTime > now) {
+        throw new BadRequestException({
+          message: 'Shield activation cooldown is still active',
+          cooldown_end: cooldownEndTime,
+        });
+      }
+    }
+
+    const shieldHours = parseInt(accessory.item_template.value, 10);
 
     const shieldEndTime =
       user.shield_end_time && user.shield_end_time > now

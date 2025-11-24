@@ -25,10 +25,10 @@ export class StolenItem {
   @Column({ type: 'varchar' })
   value: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
   thief: User;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
   victim: User;
 
   @Column({ type: 'int', nullable: true })
@@ -36,6 +36,7 @@ export class StolenItem {
 
   @ManyToOne(() => ClanWar, (clanWar) => clanWar.stolen_items, {
     nullable: true,
+    onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'clan_war_id' })
   clan_war?: ClanWar | null;

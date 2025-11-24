@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, IsNull, Or } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { UserBoost } from './user-boost.entity';
 import { CreateUserBoostDto } from './dtos/create-user-boost.dto';
 import { UpdateUserBoostDto } from './dtos/update-user-boost.dto';
@@ -26,9 +26,22 @@ export class UserBoostService {
     return this.userBoostRepository.find({
       where: {
         user: { id: userId },
-        end_time: Or(MoreThan(now), IsNull()),
+        end_time: MoreThan(now),
       },
       relations: ['user'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async findLastByUserIdAndType(
+    userId: number,
+    type: UserBoostType,
+  ): Promise<UserBoost | null> {
+    return this.userBoostRepository.findOne({
+      where: {
+        user: { id: userId },
+        type,
+      },
       order: { created_at: 'DESC' },
     });
   }
@@ -45,7 +58,7 @@ export class UserBoostService {
       where: {
         user: { id: userId },
         type: UserBoostType.SHIELD,
-        end_time: Or(MoreThan(now), IsNull()),
+        end_time: MoreThan(now),
       },
     });
 

@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Repository } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
+import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
 import { UpdateClanDto } from './dtos/update-clan.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { ClanWar } from '../clan-war/entities/clan-war.entity';
@@ -27,6 +28,7 @@ import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.d
 import { ClanReferralLinkResponseDto } from './dtos/responses/clan-referral-link-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { ClanApplicationStatus } from './enums/clan-application.enum';
+import { ClanStatus } from './enums/clan-status.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
@@ -274,6 +276,53 @@ export class ClanService {
     return this.transformToClanWithReferralResponseDto(clanWithRelations!);
   }
 
+  async createClanByUser(
+    userId: number,
+    createClanByUserDto: CreateClanByUserDto,
+    image?: Express.Multer.File,
+  ): Promise<ClanWithReferralResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.clan_id) {
+      throw new BadRequestException('User is already in a clan');
+    }
+
+    const existingClan = await this.clanRepository.findOne({
+      where: { leader_id: userId },
+    });
+
+    if (existingClan) {
+      throw new BadRequestException('User already has a clan');
+    }
+
+    const imagePath = image ? this.saveClanImage(image) : '';
+    const clan = this.clanRepository.create({
+      name: createClanByUserDto.name,
+      max_members: createClanByUserDto.max_members || 50,
+      leader_id: userId,
+      image_path: imagePath,
+      referral_link_id: randomUUID(),
+      status: ClanStatus.ACTIVE,
+    });
+    const savedClan = await this.clanRepository.save(clan);
+
+    user.clan_id = savedClan.id;
+    await this.userRepository.save(user);
+
+    const clanWithRelations = await this.clanRepository.findOne({
+      where: { id: savedClan.id },
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
+    });
+
+    return this.transformToClanWithReferralResponseDto(clanWithRelations!);
+  }
+
   async update(
     id: number,
     updateClanDto: UpdateClanDto,
@@ -305,10 +354,36 @@ export class ClanService {
   }
 
   async remove(id: number): Promise<void> {
-    const clan = await this.clanRepository.findOne({ where: { id } });
+    const clan = await this.clanRepository.findOne({
+      where: { id },
+      relations: ['members'],
+    });
 
     if (!clan) {
       throw new NotFoundException(`Clan with ID ${id} not found`);
+    }
+
+    if (clan.members && clan.members.length > 0) {
+      for (const member of clan.members) {
+        member.clan_id = null;
+        await this.userRepository.save(member);
+      }
+    }
+
+    const clanWars = await this.clanWarRepository.find({
+      where: [{ clan_1_id: id }, { clan_2_id: id }],
+    });
+
+    for (const war of clanWars) {
+      await this.clanWarRepository.remove(war);
+    }
+
+    const applications = await this.clanApplicationRepository.find({
+      where: { clan_id: id },
+    });
+
+    for (const application of applications) {
+      await this.clanApplicationRepository.remove(application);
     }
 
     if (clan.image_path) {
@@ -319,7 +394,37 @@ export class ClanService {
   }
 
   async deleteClanByLeader(userId: number): Promise<void> {
-    const clan = await this.getLeaderClan(userId);
+    const clan = await this.clanRepository.findOne({
+      where: { leader_id: userId },
+      relations: ['members'],
+    });
+
+    if (!clan) {
+      throw new NotFoundException('Clan not found or user is not a leader');
+    }
+
+    if (clan.members && clan.members.length > 0) {
+      for (const member of clan.members) {
+        member.clan_id = null;
+        await this.userRepository.save(member);
+      }
+    }
+
+    const clanWars = await this.clanWarRepository.find({
+      where: [{ clan_1_id: clan.id }, { clan_2_id: clan.id }],
+    });
+
+    for (const war of clanWars) {
+      await this.clanWarRepository.remove(war);
+    }
+
+    const applications = await this.clanApplicationRepository.find({
+      where: { clan_id: clan.id },
+    });
+
+    for (const application of applications) {
+      await this.clanApplicationRepository.remove(application);
+    }
 
     if (clan.image_path) {
       this.deleteClanImage(clan.image_path);
@@ -557,18 +662,29 @@ export class ClanService {
       await this.userBoostService.complete(defenderShieldBoost.id);
     }
 
-    attacker.shield_end_time = undefined;
-
     const attackerActiveBoosts =
       await this.userBoostService.findActiveByUserId(userId);
+    const attackerShieldBoost = attackerActiveBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+
+    if (attackerShieldBoost) {
+      await this.userBoostService.complete(attackerShieldBoost.id);
+    }
+
+    attacker.shield_end_time = undefined;
+
     const cooldownHalvingBoost = attackerActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
 
     let attackCooldown = Settings[SettingKey.ATTACK_COOLDOWN];
-    if (cooldownHalvingBoost) {
+    if (
+      cooldownHalvingBoost &&
+      cooldownHalvingBoost.end_time &&
+      cooldownHalvingBoost.end_time > new Date()
+    ) {
       attackCooldown = attackCooldown / 2;
-      await this.userBoostService.complete(cooldownHalvingBoost.id);
     }
 
     if (attacker.last_attack_time) {
@@ -1097,22 +1213,6 @@ export class ClanService {
     return members.map((member) =>
       this.transformToUserWithStatsResponseDto(member),
     );
-  }
-
-  async getAllWars(clanId: number): Promise<ClanWarResponseDto[]> {
-    const wars = await this.clanWarRepository.find({
-      where: [{ clan_1_id: clanId }, { clan_2_id: clanId }],
-      relations: [
-        'clan_1',
-        'clan_2',
-        'clan_1.leader',
-        'clan_2.leader',
-        'stolen_items',
-      ],
-      order: { created_at: 'DESC' },
-    });
-
-    return wars.map((war) => this.transformClanWarToResponseDto(war));
   }
 
   async getClanMembers(clanId: number): Promise<UserWithStatsResponseDto[]> {

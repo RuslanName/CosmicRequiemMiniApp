@@ -10,6 +10,7 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { KitModule } from '../kit/kit.module';
+import { UserBoostModule } from '../user-boost/user-boost.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { KitModule } from '../kit/kit.module';
       UserBoost,
     ]),
     KitModule,
+    UserBoostModule,
   ],
   controllers: [VKPaymentsController],
   providers: [VKPaymentsService],

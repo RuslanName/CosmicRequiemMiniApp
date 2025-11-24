@@ -24,10 +24,10 @@ export class UserAccessory {
   })
   status: UserAccessoryStatus;
 
-  @ManyToOne(() => User, (user) => user.accessories)
+  @ManyToOne(() => User, (user) => user.accessories, { onDelete: 'CASCADE' })
   user: User;
 
-  @ManyToOne(() => ItemTemplate)
+  @ManyToOne(() => ItemTemplate, { onDelete: 'RESTRICT' })
   item_template: ItemTemplate;
 
   @CreateDateColumn()

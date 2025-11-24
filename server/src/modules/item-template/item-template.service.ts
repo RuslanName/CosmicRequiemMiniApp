@@ -14,12 +14,21 @@ import { ItemTemplateType } from './enums/item-template-type.enum';
 import { Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ShopItem } from '../shop-item/shop-item.entity';
+import { Kit } from '../kit/kit.entity';
+import { UserAccessory } from '../user-accessory/user-accessory.entity';
 
 @Injectable()
 export class ItemTemplateService {
   constructor(
     @InjectRepository(ItemTemplate)
     private readonly itemTemplateRepository: Repository<ItemTemplate>,
+    @InjectRepository(ShopItem)
+    private readonly shopItemRepository: Repository<ShopItem>,
+    @InjectRepository(Kit)
+    private readonly kitRepository: Repository<Kit>,
+    @InjectRepository(UserAccessory)
+    private readonly userAccessoryRepository: Repository<UserAccessory>,
   ) {}
 
   async findAll(
@@ -191,6 +200,38 @@ export class ItemTemplateService {
 
     if (!itemTemplate) {
       throw new NotFoundException(`ItemTemplate with ID ${id} not found`);
+    }
+
+    const shopItems = await this.shopItemRepository.find({
+      where: { item_template: { id } },
+    });
+
+    if (shopItems.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete ItemTemplate: ${shopItems.length} shop items are using it`,
+      );
+    }
+
+    const kits = await this.kitRepository
+      .createQueryBuilder('kit')
+      .innerJoin('kit.item_templates', 'itemTemplate')
+      .where('itemTemplate.id = :id', { id })
+      .getMany();
+
+    if (kits.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete ItemTemplate: ${kits.length} kits are using it`,
+      );
+    }
+
+    const userAccessories = await this.userAccessoryRepository.find({
+      where: { item_template: { id } },
+    });
+
+    if (userAccessories.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete ItemTemplate: ${userAccessories.length} user accessories are using it`,
+      );
     }
 
     if (itemTemplate.image_path) {

@@ -70,7 +70,7 @@ export class User {
   @Column({ type: 'int', nullable: true })
   clan_id: number | null;
 
-  @ManyToOne(() => Clan, (clan) => clan.members)
+  @ManyToOne(() => Clan, (clan) => clan.members, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'clan_id' })
   clan?: Clan;
 
@@ -83,7 +83,10 @@ export class User {
   @OneToMany(() => UserAccessory, (userAccessory) => userAccessory.user)
   accessories?: UserAccessory[];
 
-  @ManyToOne(() => User, (user) => user.referrals, { nullable: true })
+  @ManyToOne(() => User, (user) => user.referrals, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   referrer?: User;
 
   @OneToMany(() => User, (user) => user.referrer)

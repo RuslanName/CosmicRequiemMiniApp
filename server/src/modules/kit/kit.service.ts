@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan, IsNull, Or } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Kit } from './kit.entity';
 import { CreateKitDto } from './dtos/create-kit.dto';
 import { UpdateKitDto } from './dtos/update-kit.dto';
@@ -22,6 +22,7 @@ import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
+import { UserBoostService } from '../user-boost/user-boost.service';
 
 @Injectable()
 export class KitService {
@@ -38,6 +39,7 @@ export class KitService {
     private readonly userAccessoryRepository: Repository<UserAccessory>,
     @InjectRepository(UserBoost)
     private readonly userBoostRepository: Repository<UserBoost>,
+    private readonly userBoostService: UserBoostService,
   ) {}
 
   private generateAccessoryName(itemTemplate: ItemTemplate): string {
@@ -271,27 +273,20 @@ export class KitService {
         const boostHours = parseInt(itemTemplate.value, 10);
         const now = new Date();
 
-        const existingActiveBoost = await this.userBoostRepository.findOne({
-          where: {
-            user: { id: user.id },
-            type: boostType,
-            end_time: Or(MoreThan(now), IsNull()),
-          },
-        });
+        const lastBoost = await this.userBoostService.findLastByUserIdAndType(
+          user.id,
+          boostType,
+        );
 
         let boostEndTime: Date;
-        if (
-          existingActiveBoost &&
-          existingActiveBoost.end_time &&
-          existingActiveBoost.end_time > now
-        ) {
+        let boostToAdd: UserBoost;
+
+        if (lastBoost && lastBoost.end_time && lastBoost.end_time > now) {
           boostEndTime = new Date(
-            existingActiveBoost.end_time.getTime() +
-              boostHours * 60 * 60 * 1000,
+            lastBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
           );
-          existingActiveBoost.end_time = boostEndTime;
-          await this.userBoostRepository.save(existingActiveBoost);
-          userBoosts.push(existingActiveBoost);
+          lastBoost.end_time = boostEndTime;
+          boostToAdd = await this.userBoostRepository.save(lastBoost);
         } else {
           boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
           const userBoost = this.userBoostRepository.create({
@@ -299,8 +294,11 @@ export class KitService {
             end_time: boostEndTime,
             user,
           });
-          const createdBoost = await this.userBoostRepository.save(userBoost);
-          userBoosts.push(createdBoost);
+          boostToAdd = await this.userBoostRepository.save(userBoost);
+        }
+
+        if (!userBoosts.find((b) => b.id === boostToAdd.id)) {
+          userBoosts.push(boostToAdd);
         }
       } else if (
         itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||

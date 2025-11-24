@@ -37,7 +37,7 @@ export class ShopItem {
   @Column({ type: 'int' })
   item_template_id: number;
 
-  @ManyToOne(() => ItemTemplate)
+  @ManyToOne(() => ItemTemplate, { onDelete: 'RESTRICT' })
   item_template: ItemTemplate;
 
   @CreateDateColumn()
