@@ -9,7 +9,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ClanStatus } from '../enums/clan-status.enum';
 import { User } from '../../user/user.entity';
 import { ClanWar } from '../../clan-war/entities/clan-war.entity';
 
@@ -26,13 +25,6 @@ export class Clan {
 
   @Column({ type: 'varchar' })
   image_path: string;
-
-  @Column({
-    type: 'enum',
-    enum: ClanStatus,
-    default: ClanStatus.ACTIVE,
-  })
-  status: ClanStatus;
 
   @CreateDateColumn()
   created_at: Date;

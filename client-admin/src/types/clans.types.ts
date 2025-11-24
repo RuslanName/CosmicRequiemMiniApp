@@ -3,7 +3,6 @@ export interface Clan {
   name: string;
   max_members: number;
   image_path: string;
-  status: string;
   created_at: string;
   updated_at: string;
   leader_id?: number;
@@ -24,7 +23,6 @@ export interface CreateClanDto {
   leader_id: number;
   member_ids?: number[];
   war_ids?: number[];
-  status?: string;
 }
 
 export interface UpdateClanDto {
@@ -34,6 +32,5 @@ export interface UpdateClanDto {
   member_ids?: number[];
   war_ids?: number[];
   image_path?: string;
-  status?: string;
 }
 

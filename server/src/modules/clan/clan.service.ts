@@ -28,7 +28,6 @@ import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.d
 import { ClanReferralLinkResponseDto } from './dtos/responses/clan-referral-link-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { ClanApplicationStatus } from './enums/clan-application.enum';
-import { ClanStatus } from './enums/clan-status.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
@@ -308,7 +307,6 @@ export class ClanService {
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),
-      status: ClanStatus.ACTIVE,
     });
     const savedClan = await this.clanRepository.save(clan);
 

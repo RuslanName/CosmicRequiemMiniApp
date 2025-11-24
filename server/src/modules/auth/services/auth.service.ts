@@ -81,6 +81,12 @@ export class AuthService {
         user: dbUser,
       });
       await this.userGuardRepository.save(firstGuard);
+
+      if (referrerUser) {
+        const referrerReward = Settings[SettingKey.REFERRER_REWARD] as number;
+        referrerUser.money = Number(referrerUser.money) + referrerReward;
+        await this.userRepository.save(referrerUser);
+      }
     } else {
       dbUser.first_name = user.first_name;
       dbUser.last_name = user.last_name || null;

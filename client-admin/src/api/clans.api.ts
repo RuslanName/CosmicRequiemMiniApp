@@ -19,7 +19,6 @@ export const clansApi = {
     if (data.name) formData.append('name', data.name);
     if (data.max_members !== undefined) formData.append('max_members', data.max_members.toString());
     if (data.leader_id) formData.append('leader_id', data.leader_id.toString());
-    if (data.status) formData.append('status', data.status);
     if (data.member_ids && data.member_ids.length > 0) {
       data.member_ids.forEach(id => formData.append('member_ids[]', id.toString()));
     }
@@ -40,7 +39,6 @@ export const clansApi = {
     if (data.name) formData.append('name', data.name);
     if (data.max_members !== undefined) formData.append('max_members', data.max_members.toString());
     if (data.leader_id !== undefined) formData.append('leader_id', data.leader_id.toString());
-    if (data.status) formData.append('status', data.status);
     if (data.image_path) formData.append('image_path', data.image_path);
     if (data.member_ids && data.member_ids.length > 0) {
       data.member_ids.forEach(id => formData.append('member_ids[]', id.toString()));

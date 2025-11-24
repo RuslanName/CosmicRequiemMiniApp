@@ -1,12 +1,5 @@
-import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsEnum,
-  IsArray,
-} from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { ClanStatus } from '../enums/clan-status.enum';
 
 export class CreateClanDto {
   @ApiProperty({ example: 'Elite Warriors' })
@@ -33,9 +26,4 @@ export class CreateClanDto {
   @IsArray()
   @IsNumber({}, { each: true })
   war_ids?: number[];
-
-  @ApiProperty({ example: 'active', enum: ClanStatus, required: false })
-  @IsOptional()
-  @IsEnum(ClanStatus)
-  status?: ClanStatus;
 }

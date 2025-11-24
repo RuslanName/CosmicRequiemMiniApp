@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { clansApi, type Clan, type CreateClanDto, type UpdateClanDto } from '../api/clans.api';
-import { ClanStatus, ClanStatusLabels } from '../enums';
 import { ENV } from '../config/constants';
 import Modal from '../components/Modal';
 import UserSelect from '../components/UserSelect';
@@ -82,7 +81,6 @@ const Clans = () => {
       name: clan.name,
       max_members: clan.max_members,
       leader_id: clan.leader_id,
-      status: clan.status,
     });
     setImageFile(null);
     setIsModalOpen(true);
@@ -175,7 +173,6 @@ const Clans = () => {
             <th>Количество стражей</th>
             <th>Количество участников</th>
             <th>Количество войн</th>
-            <th>Статус</th>
             <th>Действия</th>
           </tr>
         </thead>
@@ -202,7 +199,6 @@ const Clans = () => {
               <td>{clan.guards_count ?? '-'}</td>
               <td>{clan.members_count ?? '-'}</td>
               <td>{clan.wars_count ?? '-'}</td>
-              <td>{ClanStatusLabels[clan.status as ClanStatus] || clan.status}</td>
               <td>
                 <div className="actions">
                   <button className="btn btn-primary" onClick={() => handleEdit(clan)}>
@@ -272,20 +268,6 @@ const Clans = () => {
             label="Лидер клана"
             required={true}
           />
-          <div className="form-group">
-            <label className="form-label">Статус</label>
-            <select
-              className="form-select"
-              value={(formData as any).status || ClanStatus.ACTIVE}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            >
-              {Object.values(ClanStatus).map((status) => (
-                <option key={status} value={status}>
-                  {ClanStatusLabels[status]}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="form-group">
             <label className="form-label">Изображение {isCreateMode ? '(обязательно)' : '(опционально)'}</label>
             <input
