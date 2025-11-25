@@ -87,6 +87,7 @@ export class ShopItemService {
         name: item.name,
         description: item.item_template?.name || '',
         price: item.price,
+        currency: item.currency,
         image_path: item.item_template?.image_path || '',
         created_at: item.created_at,
         updated_at: item.updated_at,

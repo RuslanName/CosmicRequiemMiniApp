@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ShopItem } from '../../shop-item.entity';
+import { Currency } from '../../../../common/enums/currency.enum';
 
 export class ShopItemWithoutTemplate {
   @ApiProperty()
@@ -13,6 +14,9 @@ export class ShopItemWithoutTemplate {
 
   @ApiProperty()
   price: number;
+
+  @ApiProperty({ enum: Currency })
+  currency: Currency;
 
   @ApiProperty()
   image_path: string;
