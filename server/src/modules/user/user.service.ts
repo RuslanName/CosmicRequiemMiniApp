@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, In } from 'typeorm';
 import { User } from './user.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -38,11 +38,9 @@ import { UserAccessoryResponseDto } from '../user-accessory/dtos/user-accessory-
 import { AttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 import { UserTaskService } from '../task/services/user-task.service';
 import { TaskType } from '../task/enums/task-type.enum';
+import { UserTaskStatus } from '../task/enums/user-task-status.enum';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
-import {
-  UserTaskResponseDto,
-  TaskResponseDto,
-} from '../task/dtos/user-task-response.dto';
+import { UserTaskResponseDto } from '../task/dtos/user-task-response.dto';
 
 @Injectable()
 export class UserService {
@@ -691,20 +689,22 @@ export class UserService {
 
     const userTasks = await this.userTaskService.getUserTasks(userId);
 
-    const tasks: UserTaskResponseDto[] = userTasks.map((userTask) => ({
-      id: userTask.id,
-      progress: userTask.progress,
-      status: userTask.status,
-      task: {
-        id: userTask.task.id,
-        description: userTask.task.description,
-        type: userTask.task.type,
-        value: userTask.task.value,
-        money_reward: Number(userTask.task.money_reward),
-      },
-      created_at: userTask.created_at,
-      updated_at: userTask.updated_at,
-    }));
+    const tasks: UserTaskResponseDto[] = userTasks
+      .filter((userTask) => userTask.status !== UserTaskStatus.COMPLETED)
+      .map((userTask) => ({
+        id: userTask.id,
+        progress: userTask.progress,
+        status: userTask.status,
+        task: {
+          id: userTask.task.id,
+          description: userTask.task.description,
+          type: userTask.task.type,
+          value: userTask.task.value,
+          money_reward: Number(userTask.task.money_reward),
+        },
+        created_at: userTask.created_at,
+        updated_at: userTask.updated_at,
+      }));
 
     return { tasks };
   }
@@ -930,9 +930,79 @@ export class UserService {
         limit,
       };
     } else if (filter === 'friends') {
+      let friendVkIds: number[] = [];
+
+      try {
+        const vkApiUrl = `https://api.vk.com/method/friends.get`;
+        const vkApiParams = new URLSearchParams({
+          user_id: currentUser.vk_id.toString(),
+          access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+          v: '5.131',
+        });
+
+        const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+        const data = await response.json();
+
+        if (data.response) {
+          if (data.response.items && Array.isArray(data.response.items)) {
+            friendVkIds = data.response.items;
+          } else if (Array.isArray(data.response)) {
+            friendVkIds = data.response;
+          }
+        } else if (data.error) {
+          console.warn(
+            `Cannot get friends for user ${userId}: ${data.error.error_msg}`,
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching friends from VK API: ${error.message}`);
+      }
+
+      if (friendVkIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
+
+      users = await this.userRepository.find({
+        where: {
+          vk_id: In(friendVkIds),
+        },
+        relations: ['clan', 'guards'],
+      });
+
+      const filteredUsers = users
+        .filter((user) => user.id !== userId)
+        .filter(
+          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
+        );
+
+      const dataWithStrength = await Promise.all(
+        filteredUsers.map(async (user) => {
+          const equippedAccessories =
+            await this.userAccessoryService.findEquippedByUserId(user.id);
+          return this.transformToUserRatingResponseDto(
+            user,
+            equippedAccessories,
+          );
+        }),
+      );
+
+      dataWithStrength.sort((a, b) => {
+        const scoreA = a.strength * 1000 + Number(a.money || 0);
+        const scoreB = b.strength * 1000 + Number(b.money || 0);
+        return scoreB - scoreA;
+      });
+
+      total = dataWithStrength.length;
+      const paginatedData = dataWithStrength.slice(skip, skip + limit);
+
       return {
-        data: [],
-        total: 0,
+        data: paginatedData,
+        total,
         page,
         limit,
       };

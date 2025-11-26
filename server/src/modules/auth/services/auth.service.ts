@@ -6,7 +6,6 @@ import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
 import { Clan } from '../../clan/entities/clan.entity';
 import { ClanApplication } from '../../clan/entities/clan-application.entity';
-import { ClanApplicationStatus } from '../../clan/enums/clan-application.enum';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
@@ -14,6 +13,7 @@ import { Settings } from '../../../config/setting.config';
 import { SettingKey } from '../../setting/enums/setting-key.enum';
 import { UserTaskService } from '../../task/services/user-task.service';
 import { TaskType } from '../../task/enums/task-type.enum';
+import { ClanService } from '../../clan/clan.service';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +28,7 @@ export class AuthService {
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
     private readonly userTaskService: UserTaskService,
+    private readonly clanService: ClanService,
   ) {}
 
   async validateAuth(dto: AuthDto): Promise<string> {
@@ -168,26 +169,20 @@ export class AuthService {
       await this.userTaskService.initializeTasksForUser(dbUser.id);
     }
 
-    if (targetClan) {
-      const userWithClan = await this.userRepository.findOne({
-        where: { id: dbUser.id },
-        relations: ['clan'],
-      });
-
-      if (userWithClan && !userWithClan.clan) {
-        const clanWithMembers = await this.clanRepository.findOne({
-          where: { id: targetClan.id },
-          relations: ['members'],
-        });
-
-        if (clanWithMembers) {
-          const clanMembersCount = clanWithMembers.members?.length || 0;
-          if (clanMembersCount < clanWithMembers.max_members) {
-            userWithClan.clan = clanWithMembers;
-            await this.userRepository.save(userWithClan);
-          }
-        }
+    const vkGroupId = vk_params.vk_group_id;
+    const vkViewerGroupRole = vk_params.vk_viewer_group_role;
+    
+    if (vkGroupId) {
+      if (targetClan && !targetClan.vk_group_id) {
+        targetClan.vk_group_id = Number(vkGroupId);
+        await this.clanRepository.save(targetClan);
       }
+      
+      this.clanService
+        .syncClanWithVkGroup(dbUser.id, vkGroupId, vkViewerGroupRole || '')
+        .catch((error) => {
+          console.error('Error syncing clan with VK group:', error);
+        });
     }
 
     const payload = { sub: dbUser.id };

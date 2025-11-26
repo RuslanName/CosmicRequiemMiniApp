@@ -53,6 +53,9 @@ export class Clan {
   @Column({ type: 'uuid', unique: true, nullable: true })
   referral_link_id?: string;
 
+  @Column({ type: 'bigint', unique: true, nullable: true })
+  vk_group_id?: number | null;
+
   @AfterLoad()
   combineWars() {
     this.wars = [...(this._wars_1 || []), ...(this._wars_2 || [])];

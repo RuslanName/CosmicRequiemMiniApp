@@ -335,7 +335,6 @@ export class ClanService {
     const imagePath = image ? this.saveClanImage(image) : '';
     const clan = this.clanRepository.create({
       name: createClanByUserDto.name,
-      max_members: createClanByUserDto.max_members || 50,
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),
@@ -1449,5 +1448,111 @@ export class ClanService {
       page,
       limit,
     };
+  }
+
+  async syncClanWithVkGroup(
+    userId: number,
+    vkGroupId: string,
+    vkViewerGroupRole: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan'],
+    });
+
+    if (!user) {
+      return;
+    }
+
+    const groupId = String(vkGroupId).replace(/^-/, '');
+    const isAdmin = vkViewerGroupRole === 'admin';
+
+    let groupData: { id: number; name: string; photo_200?: string } | null =
+      null;
+
+    try {
+      const vkApiUrl = `https://api.vk.com/method/groups.getById`;
+      const vkApiParams = new URLSearchParams({
+        group_id: groupId,
+        access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+        v: '5.131',
+        fields: 'photo_200',
+      });
+
+      const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+      const data = await response.json();
+
+      if (data.error || !data.response || !data.response[0]) {
+        console.warn(
+          `Failed to get VK group data for group_id ${groupId}:`,
+          data.error,
+        );
+        return;
+      }
+
+      groupData = {
+        id: Math.abs(data.response[0].id),
+        name: data.response[0].name || '',
+        photo_200: data.response[0].photo_200 || null,
+      };
+    } catch (error) {
+      console.error(`Error fetching VK group data: ${error.message}`);
+      return;
+    }
+
+    if (!groupData) {
+      return;
+    }
+
+    const existingClan = await this.clanRepository.findOne({
+      where: { vk_group_id: groupData.id },
+      relations: ['members'],
+    });
+
+    const userCurrentClanId = user.clan_id;
+
+    if (existingClan) {
+      existingClan.name = groupData.name;
+      if (groupData.photo_200) {
+        existingClan.image_path = await this.downloadAndSaveGroupImage(
+          groupData.photo_200,
+        );
+      }
+      await this.clanRepository.save(existingClan);
+
+      if (
+        isAdmin &&
+        (userCurrentClanId !== existingClan.id || !userCurrentClanId)
+      ) {
+        user.clan_id = existingClan.id;
+        await this.userRepository.save(user);
+      }
+    }
+  }
+
+  private async downloadAndSaveGroupImage(photoUrl: string): Promise<string> {
+    try {
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const uploadDir = path.join(process.cwd(), 'data', 'clan-images');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileExtension = path.extname(new URL(photoUrl).pathname) || '.jpg';
+      const fileName = `clan-vk-${Date.now()}${fileExtension}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      fs.writeFileSync(filePath, buffer);
+
+      return path.join('data', 'clan-images', fileName).replace(/\\/g, '/');
+    } catch (error) {
+      console.error(`Error downloading group image: ${error.message}`);
+      return '';
+    }
   }
 }
