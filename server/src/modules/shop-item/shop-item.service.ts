@@ -348,4 +348,130 @@ export class ShopItemService {
       return { user, user_accessory: createdUserAccessory };
     }
   }
+
+  async purchaseForVKPayments(
+    userId: number,
+    shopItemId: number,
+  ): Promise<ShopItemPurchaseResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const shopItem = await this.shopItemRepository.findOne({
+      where: { id: shopItemId },
+      relations: ['item_template'],
+    });
+
+    if (!shopItem) {
+      throw new NotFoundException('ShopItem not found');
+    }
+
+    if (shopItem.status !== ShopItemStatus.IN_STOCK) {
+      throw new BadRequestException('ShopItem is not available');
+    }
+
+    const itemTemplate = shopItem.item_template;
+
+    if (itemTemplate.type === ItemTemplateType.GUARD) {
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for GUARD type',
+        );
+      }
+      const guardStrength = parseInt(itemTemplate.value, 10);
+      const randomCode = Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, '0');
+      const guard = this.userGuardRepository.create({
+        name: `Страж #${randomCode}`,
+        strength: guardStrength,
+        is_first: false,
+        user,
+      });
+      const createdGuard = await this.userGuardRepository.save(guard);
+      await this.userRepository.save(user);
+      return { user, created_guard: createdGuard };
+    } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
+      const userAccessory = this.userAccessoryRepository.create({
+        name: shopItem.name,
+        user,
+        item_template: itemTemplate,
+      });
+      const createdUserAccessory =
+        await this.userAccessoryRepository.save(userAccessory);
+      await this.userRepository.save(user);
+      return { user, user_accessory: createdUserAccessory };
+    } else if (
+      itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
+      itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
+    ) {
+      const boostType =
+        itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
+          ? UserBoostType.REWARD_DOUBLING
+          : UserBoostType.COOLDOWN_HALVING;
+
+      if (!itemTemplate.value) {
+        throw new BadRequestException(
+          'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
+        );
+      }
+      const boostHours = parseInt(itemTemplate.value, 10);
+      const now = new Date();
+
+      const lastBoost = await this.userBoostService.findLastByUserIdAndType(
+        user.id,
+        boostType,
+      );
+
+      let boostEndTime: Date;
+      let userBoost: UserBoost;
+
+      if (lastBoost && lastBoost.end_time && lastBoost.end_time > now) {
+        boostEndTime = new Date(
+          lastBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
+        );
+        lastBoost.end_time = boostEndTime;
+        userBoost = await this.userBoostRepository.save(lastBoost);
+      } else {
+        boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
+        userBoost = this.userBoostRepository.create({
+          type: boostType,
+          end_time: boostEndTime,
+          user,
+        });
+        userBoost = await this.userBoostRepository.save(userBoost);
+      }
+
+      await this.userRepository.save(user);
+      return { user, user_boost: userBoost };
+    } else if (
+      itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
+      itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||
+      itemTemplate.type === ItemTemplateType.AVATAR_FRAME
+    ) {
+      const userAccessory = this.userAccessoryRepository.create({
+        name: shopItem.name,
+        user,
+        item_template: itemTemplate,
+      });
+      const createdUserAccessory =
+        await this.userAccessoryRepository.save(userAccessory);
+      await this.userRepository.save(user);
+      return { user, user_accessory: createdUserAccessory };
+    } else {
+      const userAccessory = this.userAccessoryRepository.create({
+        name: shopItem.name,
+        user,
+        item_template: itemTemplate,
+      });
+      const createdUserAccessory =
+        await this.userAccessoryRepository.save(userAccessory);
+      await this.userRepository.save(user);
+      return { user, user_accessory: createdUserAccessory };
+    }
+  }
 }

@@ -11,6 +11,7 @@ import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { KitModule } from '../kit/kit.module';
 import { UserBoostModule } from '../user-boost/user-boost.module';
+import { ShopItemModule } from '../shop-item/shop-item.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UserBoostModule } from '../user-boost/user-boost.module';
     ]),
     KitModule,
     UserBoostModule,
+    ShopItemModule,
   ],
   controllers: [VKPaymentsController],
   providers: [VKPaymentsService],

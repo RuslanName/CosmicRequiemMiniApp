@@ -21,6 +21,7 @@ import { VKNotificationDto } from './dtos/vk-notification.dto';
 import { ENV } from '../../config/constants';
 import { KitService } from '../kit/kit.service';
 import { UserBoostService } from '../user-boost/user-boost.service';
+import { ShopItemService } from '../shop-item/shop-item.service';
 
 @Injectable()
 export class VKPaymentsService {
@@ -39,6 +40,7 @@ export class VKPaymentsService {
     private readonly userBoostRepository: Repository<UserBoost>,
     private readonly kitService: KitService,
     private readonly userBoostService: UserBoostService,
+    private readonly shopItemService: ShopItemService,
   ) {}
 
   async handleNotification(
@@ -238,102 +240,13 @@ export class VKPaymentsService {
       throw new BadRequestException('ShopItem is not available');
     }
 
-    const itemTemplate = shopItem.item_template;
+    await this.shopItemService.purchaseForVKPayments(user.id, shopItemId);
 
-    if (itemTemplate.type === ItemTemplateType.GUARD) {
-      if (!itemTemplate.value) {
-        throw new BadRequestException(
-          'ItemTemplate value is required for GUARD type',
-        );
-      }
-      const guardStrength = parseInt(itemTemplate.value, 10);
-      const guard = this.userGuardRepository.create({
-        name: `Guard #${Date.now()}`,
-        strength: guardStrength,
-        is_first: false,
-        user,
-      });
-      await this.userGuardRepository.save(guard);
-      return {
-        response: {
-          order_id: notification.order_id,
-        },
-      };
-    } else if (itemTemplate.type === ItemTemplateType.SHIELD) {
-      const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
-        user,
-        item_template: itemTemplate,
-      });
-      await this.userAccessoryRepository.save(userAccessory);
-      return {
-        response: {
-          order_id: notification.order_id,
-        },
-      };
-    } else if (
-      itemTemplate.type === ItemTemplateType.NICKNAME_COLOR ||
-      itemTemplate.type === ItemTemplateType.NICKNAME_ICON ||
-      itemTemplate.type === ItemTemplateType.AVATAR_FRAME
-    ) {
-      const userAccessory = this.userAccessoryRepository.create({
-        name: shopItem.name,
-        user,
-        item_template: itemTemplate,
-      });
-      await this.userAccessoryRepository.save(userAccessory);
-      return {
-        response: {
-          order_id: notification.order_id,
-        },
-      };
-    } else if (
-      itemTemplate.type === ItemTemplateType.REWARD_DOUBLING ||
-      itemTemplate.type === ItemTemplateType.COOLDOWN_HALVING
-    ) {
-      const boostType =
-        itemTemplate.type === ItemTemplateType.REWARD_DOUBLING
-          ? UserBoostType.REWARD_DOUBLING
-          : UserBoostType.COOLDOWN_HALVING;
-
-      if (!itemTemplate.value) {
-        throw new BadRequestException(
-          'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
-        );
-      }
-      const boostHours = parseInt(itemTemplate.value, 10);
-      const now = new Date();
-
-      const lastBoost = await this.userBoostService.findLastByUserIdAndType(
-        user.id,
-        boostType,
-      );
-
-      let boostEndTime: Date;
-      if (lastBoost && lastBoost.end_time && lastBoost.end_time > now) {
-        boostEndTime = new Date(
-          lastBoost.end_time.getTime() + boostHours * 60 * 60 * 1000,
-        );
-        lastBoost.end_time = boostEndTime;
-        await this.userBoostRepository.save(lastBoost);
-      } else {
-        boostEndTime = new Date(now.getTime() + boostHours * 60 * 60 * 1000);
-        const userBoost = this.userBoostRepository.create({
-          type: boostType,
-          end_time: boostEndTime,
-          user,
-        });
-        await this.userBoostRepository.save(userBoost);
-      }
-
-      return {
-        response: {
-          order_id: notification.order_id,
-        },
-      };
-    }
-
-    throw new BadRequestException('Unsupported item template type');
+    return {
+      response: {
+        order_id: notification.order_id,
+      },
+    };
   }
 
   private async processRefund(notification: VKNotificationDto): Promise<any> {
