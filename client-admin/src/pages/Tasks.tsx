@@ -190,7 +190,7 @@ const Tasks = () => {
       </table>
       <div className="pagination">
         <div className="pagination-info">
-          Показано {tasks.length} из {total}
+          Показано {tasks.length > 0 ? (page - 1) * limit + 1 : 0}-{Math.min(page * limit, total)} из {total}
         </div>
         <div className="pagination-controls">
           <button
@@ -221,9 +221,9 @@ const Tasks = () => {
         <div>
           <div className="form-group">
             <label className="form-label">Описание</label>
-            <input
-              className="form-input"
-              type="text"
+            <textarea
+              className="form-input form-textarea"
+              rows={4}
               value={(formData as any).description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />

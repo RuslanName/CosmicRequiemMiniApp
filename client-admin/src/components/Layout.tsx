@@ -42,7 +42,7 @@ const Layout = () => {
   };
 
   return (
-    <div className="layout">
+    <div className={`layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
       <button 
         className="hamburger"
         onClick={toggleSidebar}

@@ -215,7 +215,7 @@ const Clans = () => {
       </table>
       <div className="pagination">
         <div className="pagination-info">
-          Показано {clans.length} из {total}
+          Показано {clans.length > 0 ? (page - 1) * limit + 1 : 0}-{Math.min(page * limit, total)} из {total}
         </div>
         <div className="pagination-controls">
           <button

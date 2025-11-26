@@ -143,12 +143,6 @@ const GiveawayPage = () => {
                 </div>
               </div>
             )}
-            <div style={{ marginBottom: '10px' }}>
-              <strong>Создан:</strong> {new Date(giveaway.created_at).toLocaleString('ru-RU')}
-            </div>
-            <div>
-              <strong>Обновлен:</strong> {new Date(giveaway.updated_at).toLocaleString('ru-RU')}
-            </div>
           </div>
           <div style={{ padding: '15px', backgroundColor: '#fff3cd', borderRadius: '4px', color: '#856404' }}>
             <strong>Примечание:</strong> В системе может быть только один активный конкурс. Для создания нового необходимо удалить текущий.
@@ -168,9 +162,9 @@ const GiveawayPage = () => {
         <div>
           <div className="form-group">
             <label className="form-label">Описание</label>
-            <input
-              className="form-input"
-              type="text"
+            <textarea
+              className="form-input form-textarea"
+              rows={4}
               value={(formData as any).description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />

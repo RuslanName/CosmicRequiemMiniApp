@@ -207,7 +207,7 @@ const ShopItems = () => {
       </table>
       <div className="pagination">
         <div className="pagination-info">
-          Показано {accessories.length} из {total}
+          Показано {accessories.length > 0 ? (page - 1) * limit + 1 : 0}-{Math.min(page * limit, total)} из {total}
         </div>
         <div className="pagination-controls">
           <button
