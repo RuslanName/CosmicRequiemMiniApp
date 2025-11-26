@@ -10,6 +10,7 @@ const GiveawayPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [formData, setFormData] = useState<CreateGiveawayDto | UpdateGiveawayDto>({});
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
@@ -32,7 +33,8 @@ const GiveawayPage = () => {
 
   const handleCreate = () => {
     setIsCreateMode(true);
-    setFormData({ description: '', url: '', image_path: null });
+    setFormData({ description: '', url: '' });
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -42,8 +44,8 @@ const GiveawayPage = () => {
     setFormData({
       description: giveaway.description,
       url: giveaway.url,
-      image_path: giveaway.image_path || null,
     });
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -64,14 +66,15 @@ const GiveawayPage = () => {
     try {
       setError('');
       if (isCreateMode) {
-        const created = await giveawaysApi.create(formData as CreateGiveawayDto);
+        const created = await giveawaysApi.create(formData as CreateGiveawayDto, imageFile || undefined);
         setGiveaway(created);
       } else if (giveaway) {
-        const updated = await giveawaysApi.update(giveaway.id, formData as UpdateGiveawayDto);
+        const updated = await giveawaysApi.update(giveaway.id, formData as UpdateGiveawayDto, imageFile || undefined);
         setGiveaway(updated);
       }
       setIsModalOpen(false);
       setIsCreateMode(false);
+      setImageFile(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка сохранения конкурса');
     }
@@ -81,6 +84,7 @@ const GiveawayPage = () => {
     setIsModalOpen(false);
     setIsCreateMode(false);
     setFormData({});
+    setImageFile(null);
     setError('');
   };
 
@@ -182,14 +186,22 @@ const GiveawayPage = () => {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Путь к изображению (опционально)</label>
+            <label className="form-label">Изображение {isCreateMode ? '(обязательно)' : '(опционально)'}</label>
             <input
               className="form-input"
-              type="text"
-              value={(formData as any).image_path || ''}
-              onChange={(e) => setFormData({ ...formData, image_path: e.target.value || null })}
-              placeholder="/images/giveaway.jpg"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
             />
+            {giveaway && giveaway.image_path && !imageFile && (
+              <div style={{ marginTop: '10px' }}>
+                <img 
+                  src={`${ENV.API_URL}/${giveaway.image_path}`} 
+                  alt="Giveaway"
+                  style={{ width: '100px', height: '100px', objectFit: 'contain', backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+            )}
           </div>
           {error && <div className="error-message">{error}</div>}
           <div className="form-actions">

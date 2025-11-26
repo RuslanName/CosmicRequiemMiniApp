@@ -11,9 +11,4 @@ export class CreateGiveawayDto {
   @IsString()
   @IsNotEmpty()
   url: string;
-
-  @ApiProperty({ required: false, example: '/images/giveaway.jpg' })
-  @IsOptional()
-  @IsString()
-  image_path?: string | null;
 }

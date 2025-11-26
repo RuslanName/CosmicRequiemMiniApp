@@ -7,6 +7,8 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,7 +18,10 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
 import { GiveawayService } from './giveaway.service';
 import { Giveaway } from './giveaway.entity';
 import { CreateGiveawayDto } from './dtos/create-giveaway.dto';
@@ -60,6 +65,8 @@ export class GiveawayController {
   @Post('giveaways')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Создать новый конкурс' })
   @ApiBody({ type: CreateGiveawayDto })
   @ApiResponse({
@@ -72,13 +79,16 @@ export class GiveawayController {
   })
   async create(
     @Body() createGiveawayDto: CreateGiveawayDto,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<Giveaway> {
-    return this.giveawayService.create(createGiveawayDto);
+    return this.giveawayService.create(createGiveawayDto, image);
   }
 
   @Patch('giveaways/:id')
   @UseGuards(AdminJwtAuthGuard)
   @ApiCookieAuth()
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить конкурс' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiBody({ type: UpdateGiveawayDto })
@@ -90,8 +100,9 @@ export class GiveawayController {
   async update(
     @Param('id') id: string,
     @Body() updateGiveawayDto: UpdateGiveawayDto,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<Giveaway> {
-    return this.giveawayService.update(+id, updateGiveawayDto);
+    return this.giveawayService.update(+id, updateGiveawayDto, image);
   }
 
   @Delete('giveaways/:id')

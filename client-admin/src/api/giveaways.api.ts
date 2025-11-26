@@ -12,13 +12,11 @@ export interface Giveaway {
 export interface CreateGiveawayDto {
   description: string;
   url: string;
-  image_path?: string | null;
 }
 
 export interface UpdateGiveawayDto {
   description?: string;
   url?: string;
-  image_path?: string | null;
 }
 
 export const giveawaysApi = {
@@ -27,13 +25,29 @@ export const giveawaysApi = {
     return response.data;
   },
 
-  create: async (data: CreateGiveawayDto): Promise<Giveaway> => {
-    const response = await api.post('/giveaways', data);
+  create: async (data: CreateGiveawayDto, image?: File): Promise<Giveaway> => {
+    const formData = new FormData();
+    if (data.description) formData.append('description', data.description);
+    if (data.url) formData.append('url', data.url);
+    if (image) {
+      formData.append('image', image);
+    }
+    const response = await api.post('/giveaways', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
-  update: async (id: number, data: UpdateGiveawayDto): Promise<Giveaway> => {
-    const response = await api.patch(`/giveaways/${id}`, data);
+  update: async (id: number, data: UpdateGiveawayDto, image?: File): Promise<Giveaway> => {
+    const formData = new FormData();
+    if (data.description) formData.append('description', data.description);
+    if (data.url) formData.append('url', data.url);
+    if (image) {
+      formData.append('image', image);
+    }
+    const response = await api.patch(`/giveaways/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 

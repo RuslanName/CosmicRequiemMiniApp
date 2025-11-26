@@ -8,9 +8,38 @@ if [ -f /etc/nginx/templates/default.conf.template ]; then
     envsubst '${NGINX_BASE_DOMAIN} ${NGINX_SERVER_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 fi
 
+find_cert_path() {
+    local domain=$1
+    local base_path="/etc/letsencrypt/live/${domain}"
+    
+    if [ -f "${base_path}/fullchain.pem" ]; then
+        echo "${base_path}"
+        return 0
+    fi
+    
+    for suffix in "-0001" "-0002" "-0003" "-0004" "-0005"; do
+        if [ -f "${base_path}${suffix}/fullchain.pem" ]; then
+            if [ ! -e "${base_path}" ]; then
+                cd /etc/letsencrypt/live && ln -sf "$(basename ${base_path}${suffix})" "$(basename ${base_path})"
+                echo "Created symlink from ${base_path}${suffix} to ${base_path}"
+            fi
+            echo "${base_path}"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+MAIN_CERT_PATH=$(find_cert_path "${NGINX_BASE_DOMAIN}")
+API_CERT_PATH=$(find_cert_path "api.${NGINX_BASE_DOMAIN}")
+ADMIN_CERT_PATH=$(find_cert_path "admin.${NGINX_BASE_DOMAIN}")
+
+if [ -n "$MAIN_CERT_PATH" ]; then
+    MAIN_CERT="${MAIN_CERT_PATH}/fullchain.pem"
+else
 MAIN_CERT="/etc/letsencrypt/live/${NGINX_BASE_DOMAIN}/fullchain.pem"
-API_CERT="/etc/letsencrypt/live/api.${NGINX_BASE_DOMAIN}/fullchain.pem"
-ADMIN_CERT="/etc/letsencrypt/live/admin.${NGINX_BASE_DOMAIN}/fullchain.pem"
+fi
 
 if [ -f "$MAIN_CERT" ]; then
     if [ -f /etc/nginx/templates/ssl.conf.template ]; then
