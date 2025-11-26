@@ -18,4 +18,5 @@ export enum SettingKey {
   RANDOM_POWER_COEFFICIENT = 'random_power_coefficient',
   RANDOM_BONUS_PER_GUARD = 'random_bonus_per_guard',
   REFERRER_MONEY_REWARD = 'referrer_money_reward',
+  INITIAL_REFERRER_VK_ID = 'initial_referrer_vk_id',
 }

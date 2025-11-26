@@ -61,6 +61,17 @@ export class AuthService {
       });
     }
 
+    if (!referrerUser) {
+      const initialReferrerVkId = Settings[
+        SettingKey.INITIAL_REFERRER_VK_ID
+      ] as number;
+      if (initialReferrerVkId && initialReferrerVkId > 0) {
+        referrerUser = await this.userRepository.findOne({
+          where: { vk_id: initialReferrerVkId },
+        });
+      }
+    }
+
     if (!dbUser) {
       dbUser = this.userRepository.create({
         vk_id,
