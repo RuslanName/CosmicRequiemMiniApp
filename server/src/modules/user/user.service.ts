@@ -215,7 +215,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
     const transformed = this.transformUserForResponse(user);
@@ -234,7 +234,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const equippedAccessories =
@@ -263,7 +263,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
     Object.assign(user, updateUserDto);
@@ -277,7 +277,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
@@ -302,7 +302,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Training cooldown is still active',
+          message: 'Кулдаун тренировки все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -314,14 +314,14 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Contract cooldown is still active',
+          message: 'Кулдаун контракта все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
     }
 
     if (!user.guards || user.guards.length === 0) {
-      throw new BadRequestException('User has no guards');
+      throw new BadRequestException('У пользователя нет стражей');
     }
 
     const current_power = this.calculateUserPower(user.guards);
@@ -331,7 +331,7 @@ export class UserService {
 
     const userMoney = Number(user.money);
     if (userMoney < training_cost) {
-      throw new BadRequestException('Insufficient funds for training');
+      throw new BadRequestException('Недостаточно средств для тренировки');
     }
 
     const base_power_increase = Math.max(
@@ -387,7 +387,9 @@ export class UserService {
     });
 
     if (!updatedUser || !updatedUser.guards) {
-      throw new NotFoundException('User or guards not found after training');
+      throw new NotFoundException(
+        'Пользователь или стражи не найдены после тренировки',
+      );
     }
 
     const new_power = this.calculateUserPower(updatedUser.guards);
@@ -426,7 +428,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
@@ -454,7 +456,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Contract cooldown is still active',
+          message: 'Кулдаун контракта все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -466,7 +468,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Training cooldown is still active',
+          message: 'Кулдаун тренировки все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -601,7 +603,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const allGuards = (user.guards || []).slice();
@@ -718,22 +720,26 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const userTasks = await this.userTaskService.getUserTasks(userId);
     const userTask = userTasks.find((ut) => ut.task.id === taskId);
 
     if (!userTask || !userTask.task) {
-      throw new NotFoundException('Task not found');
+      throw new NotFoundException('Задача не найдена');
     }
 
     if (userTask.task.type !== TaskType.COMMUNITY_SUBSCRIBE) {
-      throw new BadRequestException('Task is not a community subscribe task');
+      throw new BadRequestException(
+        'Задача не является задачей подписки на сообщество',
+      );
     }
 
     if (!userTask.task.value) {
-      throw new BadRequestException('Task value (community_id) is not set');
+      throw new BadRequestException(
+        'Значение задачи (community_id) не установлено',
+      );
     }
 
     const communityId = userTask.task.value;
@@ -829,7 +835,7 @@ export class UserService {
     });
 
     if (!currentUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const currentUserClanId = currentUser.clan?.id || null;
@@ -1008,7 +1014,7 @@ export class UserService {
       };
     }
 
-    throw new BadRequestException('Invalid filter parameter');
+    throw new BadRequestException('Неверный параметр фильтра');
   }
 
   async attackPlayer(
@@ -1026,11 +1032,11 @@ export class UserService {
     });
 
     if (!attacker || !defender) {
-      throw new NotFoundException('Attacker or defender not found');
+      throw new NotFoundException('Атакующий или защищающийся не найден');
     }
 
     if (attacker.id === defender.id) {
-      throw new BadRequestException('Cannot attack yourself');
+      throw new BadRequestException('Нельзя атаковать себя');
     }
 
     if (
@@ -1038,7 +1044,7 @@ export class UserService {
       defender.clan &&
       attacker.clan.id === defender.clan.id
     ) {
-      throw new BadRequestException('Cannot attack member of your own clan');
+      throw new BadRequestException('Нельзя атаковать участника своего клана');
     }
 
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
@@ -1053,7 +1059,9 @@ export class UserService {
     );
 
     if (defender.shield_end_time && defender.shield_end_time > new Date()) {
-      throw new BadRequestException('Cannot attack user with active shield');
+      throw new BadRequestException(
+        'Нельзя атаковать пользователя с активным щитом',
+      );
     }
 
     if (
@@ -1094,7 +1102,7 @@ export class UserService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Attack cooldown is still active',
+          message: 'Кулдаун атаки все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
@@ -1113,11 +1121,15 @@ export class UserService {
       !defender.guards ||
       defender.guards.length === 0
     ) {
-      throw new BadRequestException('Attacker or defender has no guards');
+      throw new BadRequestException(
+        'У атакующего или защищающегося нет стражей',
+      );
     }
 
     if (defender_guards === 0) {
-      throw new BadRequestException('Defender has no capturable guards');
+      throw new BadRequestException(
+        'У защищающегося нет захватываемых стражей',
+      );
     }
 
     const win_chance = Math.min(

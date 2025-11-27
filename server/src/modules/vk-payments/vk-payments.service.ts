@@ -59,7 +59,7 @@ export class VKPaymentsService {
     }
 
     if (!isTestMode && !this.verifySignature(notification, originalQuery)) {
-      throw new UnauthorizedException('Invalid VK signature');
+      throw new UnauthorizedException('Неверная подпись VK');
     }
 
     switch (notification.notification_type) {
@@ -71,14 +71,14 @@ export class VKPaymentsService {
         return this.handleOrderStatusChange(notification);
       default:
         throw new BadRequestException(
-          `Unknown notification type: ${notification.notification_type}`,
+          `Неизвестный тип уведомления: ${notification.notification_type}`,
         );
     }
   }
 
   private async handleGetItem(notification: VKNotificationDto): Promise<any> {
     if (!notification.item_id) {
-      throw new BadRequestException('item_id is required for get_item');
+      throw new BadRequestException('item_id обязателен для get_item');
     }
 
     const shopItemId = this.extractShopItemId(notification.item_id);
@@ -91,17 +91,15 @@ export class VKPaymentsService {
       });
 
       if (!shopItem) {
-        throw new NotFoundException('ShopItem not found');
+        throw new NotFoundException('Товар магазина не найден');
       }
 
       if (shopItem.currency !== Currency.VOICES) {
-        throw new BadRequestException(
-          'Item is not available for voices purchase',
-        );
+        throw new BadRequestException('Товар недоступен для покупки за голоса');
       }
 
       if (shopItem.status !== ShopItemStatus.IN_STOCK) {
-        throw new BadRequestException('ShopItem is not available');
+        throw new BadRequestException('Товар магазина недоступен');
       }
 
       const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
@@ -127,17 +125,15 @@ export class VKPaymentsService {
       });
 
       if (!kit) {
-        throw new NotFoundException('Kit not found');
+        throw new NotFoundException('Набор не найден');
       }
 
       if (kit.currency !== Currency.VOICES) {
-        throw new BadRequestException(
-          'Kit is not available for voices purchase',
-        );
+        throw new BadRequestException('Набор недоступен для покупки за голоса');
       }
 
       if (kit.status !== ShopItemStatus.IN_STOCK) {
-        throw new BadRequestException('Kit is not available');
+        throw new BadRequestException('Набор недоступен');
       }
 
       return {
@@ -150,7 +146,7 @@ export class VKPaymentsService {
       };
     }
 
-    throw new BadRequestException('Invalid item_id format');
+    throw new BadRequestException('Неверный формат item_id');
   }
 
   private async handleOrderStatusChange(
@@ -158,7 +154,7 @@ export class VKPaymentsService {
   ): Promise<any> {
     if (!notification.order_id || !notification.item_id) {
       throw new BadRequestException(
-        'order_id and item_id are required for order_status_change',
+        'order_id и item_id обязательны для order_status_change',
       );
     }
 
@@ -185,7 +181,7 @@ export class VKPaymentsService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     if (kitId) {
@@ -195,17 +191,15 @@ export class VKPaymentsService {
       });
 
       if (!kit) {
-        throw new NotFoundException('Kit not found');
+        throw new NotFoundException('Набор не найден');
       }
 
       if (kit.currency !== Currency.VOICES) {
-        throw new BadRequestException(
-          'Kit is not available for voices purchase',
-        );
+        throw new BadRequestException('Набор недоступен для покупки за голоса');
       }
 
       if (kit.status !== ShopItemStatus.IN_STOCK) {
-        throw new BadRequestException('Kit is not available');
+        throw new BadRequestException('Набор недоступен');
       }
 
       await this.kitService.purchase(user.id, kitId);
@@ -218,7 +212,7 @@ export class VKPaymentsService {
     }
 
     if (!shopItemId) {
-      throw new BadRequestException('Invalid item_id format');
+      throw new BadRequestException('Неверный формат item_id');
     }
 
     const shopItem = await this.shopItemRepository.findOne({
@@ -227,17 +221,15 @@ export class VKPaymentsService {
     });
 
     if (!shopItem) {
-      throw new NotFoundException('ShopItem not found');
+      throw new NotFoundException('Товар магазина не найден');
     }
 
     if (shopItem.currency !== Currency.VOICES) {
-      throw new BadRequestException(
-        'Item is not available for voices purchase',
-      );
+      throw new BadRequestException('Товар недоступен для покупки за голоса');
     }
 
     if (shopItem.status !== ShopItemStatus.IN_STOCK) {
-      throw new BadRequestException('ShopItem is not available');
+      throw new BadRequestException('Товар магазина недоступен');
     }
 
     await this.shopItemService.purchaseForVKPayments(user.id, shopItemId);

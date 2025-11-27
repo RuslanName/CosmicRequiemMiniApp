@@ -32,7 +32,7 @@ export class GiveawayService {
 
   private saveGiveawayImage(file: Express.Multer.File): string {
     if (!file) {
-      throw new BadRequestException('Image file is required');
+      throw new BadRequestException('Файл изображения обязателен');
     }
 
     const uploadDir = path.join(process.cwd(), 'data', 'giveaway-images');
@@ -69,7 +69,7 @@ export class GiveawayService {
 
     if (existingGiveaway) {
       throw new BadRequestException(
-        'Giveaway already exists. Only one giveaway can exist at a time. Please update or delete the existing one.',
+        'Розыгрыш уже существует. Одновременно может существовать только один розыгрыш. Пожалуйста, обновите или удалите существующий.',
       );
     }
 
@@ -89,7 +89,7 @@ export class GiveawayService {
     const giveaway = await this.giveawayRepository.findOne({ where: { id } });
 
     if (!giveaway) {
-      throw new NotFoundException(`Giveaway with ID ${id} not found`);
+      throw new NotFoundException(`Розыгрыш с ID ${id} не найден`);
     }
 
     // Если загружено новое изображение, удаляем старое и сохраняем новое
@@ -112,7 +112,7 @@ export class GiveawayService {
     const giveaway = await this.giveawayRepository.findOne({ where: { id } });
 
     if (!giveaway) {
-      throw new NotFoundException(`Giveaway with ID ${id} not found`);
+      throw new NotFoundException(`Розыгрыш с ID ${id} не найден`);
     }
 
     // Удаляем изображение при удалении конкурса

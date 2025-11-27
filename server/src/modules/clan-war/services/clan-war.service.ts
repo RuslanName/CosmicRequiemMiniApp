@@ -44,7 +44,7 @@ export class ClanWarService {
     });
 
     if (!clanWar) {
-      throw new NotFoundException(`ClanWar with ID ${id} not found`);
+      throw new NotFoundException(`Война кланов с ID ${id} не найдена`);
     }
 
     return clanWar;
@@ -65,7 +65,7 @@ export class ClanWarService {
     });
 
     if (!clanWar) {
-      throw new NotFoundException(`ClanWar with ID ${id} not found`);
+      throw new NotFoundException(`Война кланов с ID ${id} не найдена`);
     }
 
     Object.assign(clanWar, updateClanWarDto);
@@ -76,7 +76,7 @@ export class ClanWarService {
     const clanWar = await this.clanWarRepository.findOne({ where: { id } });
 
     if (!clanWar) {
-      throw new NotFoundException(`ClanWar with ID ${id} not found`);
+      throw new NotFoundException(`Война кланов с ID ${id} не найдена`);
     }
 
     const stolenItems = await this.stolenItemRepository.find({

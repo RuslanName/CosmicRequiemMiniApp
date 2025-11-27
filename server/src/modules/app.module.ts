@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { postgresConfig } from '../config/postgres.config';
 import { redisConfig } from '../config/redis.config';
 import { UserModule } from './user/user.module';
@@ -21,6 +23,7 @@ import { VKPaymentsModule } from './vk-payments/vk-payments.module';
 import { TaskModule } from './task/task.module';
 import { GiveawayModule } from './giveaway/giveaway.module';
 import { AppController } from './app.controller';
+import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage';
 
 @Module({
   imports: [
@@ -44,6 +47,20 @@ import { AppController } from './app.controller';
     }),
 
     CommonModule,
+
+    ThrottlerModule.forRootAsync({
+      imports: [CommonModule],
+      useFactory: (storage: ThrottlerRedisStorage) => ({
+        throttlers: [
+          {
+            ttl: 60000,
+            limit: 30,
+          },
+        ],
+        storage,
+      }),
+      inject: [ThrottlerRedisStorage],
+    }),
     ShopItemModule,
     AuthModule,
     AdminModule,
@@ -60,5 +77,11 @@ import { AppController } from './app.controller';
     GiveawayModule,
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

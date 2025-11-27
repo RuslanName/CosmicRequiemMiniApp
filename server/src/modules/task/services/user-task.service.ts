@@ -21,7 +21,7 @@ export class UserTaskService {
   async initializeTasksForUser(userId: number): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const tasks = await this.taskRepository.find();
@@ -114,7 +114,7 @@ export class UserTaskService {
     });
 
     if (!task) {
-      throw new NotFoundException('Task not found');
+      throw new NotFoundException('Задача не найдена');
     }
 
     let userTask = await this.userTaskRepository.findOne({

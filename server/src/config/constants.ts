@@ -14,10 +14,29 @@ export const ENV = {
   VK_APP_SECRET: process.env.VK_APP_SECRET!,
   VK_APP_URL: process.env.VK_APP_URL!,
   VK_SERVICE_TOKEN: process.env.VK_SERVICE_TOKEN || '',
-  JWT_SECRET: process.env.JWT_SECRET!,
-  JWT_ADMIN_SECRET: process.env.JWT_ADMIN_SECRET || process.env.JWT_SECRET!,
-  JWT_EXPIRES_IN: String(process.env.JWT_EXPIRES_IN || '4h'),
-  JWT_ADMIN_EXPIRES_IN: String(process.env.JWT_ADMIN_EXPIRES_IN || '8h'),
+  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET!,
+  JWT_REFRESH_SECRET:
+    process.env.JWT_REFRESH_SECRET ||
+    (process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET!) + '_refresh',
+  JWT_ADMIN_ACCESS_SECRET:
+    process.env.JWT_ADMIN_ACCESS_SECRET ||
+    process.env.JWT_ADMIN_SECRET ||
+    process.env.JWT_ACCESS_SECRET ||
+    process.env.JWT_SECRET!,
+  JWT_ADMIN_REFRESH_SECRET:
+    process.env.JWT_ADMIN_REFRESH_SECRET ||
+    (process.env.JWT_ADMIN_ACCESS_SECRET ||
+      process.env.JWT_ADMIN_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      process.env.JWT_SECRET!) + '_admin_refresh',
+  JWT_ACCESS_EXPIRES_IN: String(process.env.JWT_ACCESS_EXPIRES_IN || '15m'),
+  JWT_REFRESH_EXPIRES_IN: String(process.env.JWT_REFRESH_EXPIRES_IN || '30d'),
+  JWT_ADMIN_ACCESS_EXPIRES_IN: String(
+    process.env.JWT_ADMIN_ACCESS_EXPIRES_IN || '15m',
+  ),
+  JWT_ADMIN_REFRESH_EXPIRES_IN: String(
+    process.env.JWT_ADMIN_REFRESH_EXPIRES_IN || '30d',
+  ),
   ADMIN_VK_ID: process.env.ADMIN_VK_ID || '',
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || '',
   ADMIN_INITIAL_PASSWORD: process.env.ADMIN_INITIAL_PASSWORD || '',

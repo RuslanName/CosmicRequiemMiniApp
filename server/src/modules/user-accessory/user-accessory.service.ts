@@ -73,11 +73,13 @@ export class UserAccessoryService {
     });
 
     if (!accessory) {
-      throw new NotFoundException('Accessory not found');
+      throw new NotFoundException('Аксессуар не найден');
     }
 
     if (accessory.user.id !== userId) {
-      throw new BadRequestException('Accessory does not belong to this user');
+      throw new BadRequestException(
+        'Аксессуар не принадлежит этому пользователю',
+      );
     }
 
     const itemTemplateType = accessory.item_template.type;
@@ -87,7 +89,7 @@ export class UserAccessoryService {
       itemTemplateType !== ItemTemplateType.NICKNAME_ICON &&
       itemTemplateType !== ItemTemplateType.AVATAR_FRAME
     ) {
-      throw new BadRequestException('This accessory type cannot be equipped');
+      throw new BadRequestException('Этот тип аксессуара нельзя экипировать');
     }
 
     const equippedOfSameType = await this.userAccessoryRepository.findOne({
@@ -114,15 +116,17 @@ export class UserAccessoryService {
     });
 
     if (!accessory) {
-      throw new NotFoundException('Accessory not found');
+      throw new NotFoundException('Аксессуар не найден');
     }
 
     if (accessory.user.id !== userId) {
-      throw new BadRequestException('Accessory does not belong to this user');
+      throw new BadRequestException(
+        'Аксессуар не принадлежит этому пользователю',
+      );
     }
 
     if (accessory.status === UserAccessoryStatus.UNEQUIPPED) {
-      throw new BadRequestException('Accessory is already unequipped');
+      throw new BadRequestException('Аксессуар уже снят');
     }
 
     accessory.status = UserAccessoryStatus.UNEQUIPPED;
@@ -139,20 +143,22 @@ export class UserAccessoryService {
     });
 
     if (!accessory) {
-      throw new NotFoundException('Accessory not found');
+      throw new NotFoundException('Аксессуар не найден');
     }
 
     if (accessory.user.id !== userId) {
-      throw new BadRequestException('Accessory does not belong to this user');
+      throw new BadRequestException(
+        'Аксессуар не принадлежит этому пользователю',
+      );
     }
 
     if (accessory.item_template.type !== ItemTemplateType.SHIELD) {
-      throw new BadRequestException('This accessory is not a shield');
+      throw new BadRequestException('Этот аксессуар не является щитом');
     }
 
     if (!accessory.item_template.value) {
       throw new BadRequestException(
-        'ItemTemplate value is required for SHIELD type',
+        'Значение шаблона предмета обязательно для типа SHIELD',
       );
     }
 
@@ -176,7 +182,7 @@ export class UserAccessoryService {
       );
       if (cooldownEndTime > now) {
         throw new BadRequestException({
-          message: 'Shield activation cooldown is still active',
+          message: 'Кулдаун активации щита все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }

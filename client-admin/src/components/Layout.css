@@ -242,7 +242,11 @@
   }
 
   .layout.sidebar-open .hamburger {
-    display: none;
+    left: 270px;
+  }
+
+  .layout.sidebar-closed .hamburger {
+    left: 20px;
   }
 
   .hamburger-inside {
@@ -259,16 +263,26 @@
 
   .main-content.sidebar-open {
     margin-left: 250px;
+    padding-left: 30px;
   }
 
   .main-content.sidebar-closed {
     margin-left: 0;
+    padding-left: 90px;
+  }
+
+  .sidebar-overlay {
+    display: none;
   }
 }
 
 @media (max-width: 768px) {
   .hamburger {
     display: flex;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
   }
 
   .hamburger-inside {
@@ -283,7 +297,8 @@
     transform: translateX(-100%);
     z-index: 1000;
     width: 280px;
-    max-width: 80vw;
+    max-width: 85vw;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
   }
 
   .sidebar.open {
@@ -294,52 +309,74 @@
     display: block;
   }
 
+  .sidebar-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar-title {
+    font-size: 20px;
+  }
+
   .main-content {
-    padding: 90px 20px 20px 20px;
+    padding: 20px 15px;
     width: 100%;
+    margin-left: 0 !important;
+    padding-top: 80px;
   }
 
   .main-content.sidebar-closed,
   .main-content.sidebar-open {
-    padding-left: 20px;
+    padding-left: 15px;
+    padding-right: 15px;
     margin-left: 0;
   }
 }
 
 @media (max-width: 480px) {
   .hamburger {
-    width: 45px;
-    height: 45px;
-    top: 15px;
-    left: 15px;
+    width: 44px;
+    height: 44px;
+    top: 12px;
+    left: 12px;
+    padding: 8px;
   }
 
   .hamburger span {
     width: 22px;
+    height: 2.5px;
   }
 
   .hamburger-inside {
     width: 40px;
     height: 40px;
     min-width: 40px;
+    padding: 8px;
   }
 
   .hamburger-inside span {
     width: 20px;
+    height: 2.5px;
   }
 
   .sidebar {
     width: 260px;
-    max-width: 85vw;
-    padding: 15px;
+    max-width: 90vw;
   }
 
   .sidebar-header {
+    padding: 12px 15px;
     gap: 10px;
+    margin-bottom: 20px;
   }
 
   .sidebar-title {
     font-size: 18px;
+  }
+
+  .sidebar-nav {
+    padding: 0 15px;
+    gap: 16px;
   }
 
   .sidebar-link {
@@ -347,42 +384,98 @@
     font-size: 15px;
   }
 
+  .nav-section-title {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
   .main-content {
-    padding: 80px 15px 15px 15px;
+    padding: 75px 12px 12px 12px;
+  }
+
+  .main-content.sidebar-closed,
+  .main-content.sidebar-open {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .logout-btn {
     padding: 12px 16px;
     font-size: 15px;
+    margin: 0 15px 15px 15px;
   }
 }
 
 @media (max-width: 360px) {
+  .hamburger {
+    width: 40px;
+    height: 40px;
+    top: 10px;
+    left: 10px;
+    padding: 7px;
+  }
+
+  .hamburger span {
+    width: 20px;
+    height: 2px;
+  }
+
   .hamburger-inside {
     width: 36px;
     height: 36px;
     min-width: 36px;
+    padding: 7px;
   }
 
   .hamburger-inside span {
     width: 18px;
+    height: 2px;
   }
 
   .sidebar {
     width: 240px;
+    max-width: 92vw;
   }
 
   .sidebar-header {
+    padding: 10px 12px;
     gap: 8px;
+    margin-bottom: 15px;
   }
 
   .sidebar-title {
     font-size: 16px;
   }
 
+  .sidebar-nav {
+    padding: 0 12px;
+    gap: 14px;
+  }
+
   .sidebar-link {
     padding: 8px 12px;
     font-size: 14px;
+  }
+
+  .nav-section-title {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+
+  .main-content {
+    padding: 70px 10px 10px 10px;
+  }
+
+  .main-content.sidebar-closed,
+  .main-content.sidebar-open {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .logout-btn {
+    padding: 10px 14px;
+    font-size: 14px;
+    margin: 0 12px 12px 12px;
   }
 }
 

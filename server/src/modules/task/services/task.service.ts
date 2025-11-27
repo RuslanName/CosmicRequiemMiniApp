@@ -40,7 +40,7 @@ export class TaskService {
     });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(`Задача с ID ${id} не найдена`);
     }
 
     return task;
@@ -55,7 +55,7 @@ export class TaskService {
     const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(`Задача с ID ${id} не найдена`);
     }
 
     Object.assign(task, updateTaskDto);
@@ -66,7 +66,7 @@ export class TaskService {
     const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(`Задача с ID ${id} не найдена`);
     }
 
     await this.taskRepository.remove(task);

@@ -207,7 +207,7 @@ export class UserController {
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
       throw new BadRequestException(
-        'Filter parameter must be one of: top, suitable, friends',
+        'Параметр фильтра должен быть одним из: top, suitable, friends',
       );
     }
     return this.userService.getAttackableUsers(

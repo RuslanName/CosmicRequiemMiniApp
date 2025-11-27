@@ -47,7 +47,7 @@ export class UserGuardService {
     });
 
     if (!userGuard) {
-      throw new NotFoundException(`UserGuard with ID ${id} not found`);
+      throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
     return userGuard;
@@ -62,7 +62,7 @@ export class UserGuardService {
       ] as number;
       if (rest.strength > maxStrengthFirstGuard) {
         throw new BadRequestException(
-          `First guard strength cannot exceed ${maxStrengthFirstGuard}`,
+          `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
         );
       }
     }
@@ -84,7 +84,7 @@ export class UserGuardService {
     });
 
     if (!userGuard) {
-      throw new NotFoundException(`UserGuard with ID ${id} not found`);
+      throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
     const { user_id, ...rest } = updateUserGuardDto;
@@ -100,7 +100,7 @@ export class UserGuardService {
       ] as number;
       if (newStrength > maxStrengthFirstGuard) {
         throw new BadRequestException(
-          `First guard strength cannot exceed ${maxStrengthFirstGuard}`,
+          `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
         );
       }
     }
@@ -116,7 +116,7 @@ export class UserGuardService {
     const userGuard = await this.userGuardRepository.findOne({ where: { id } });
 
     if (!userGuard) {
-      throw new NotFoundException(`UserGuard with ID ${id} not found`);
+      throw new NotFoundException(`Страж с ID ${id} не найден`);
     }
 
     await this.userGuardRepository.remove(userGuard);

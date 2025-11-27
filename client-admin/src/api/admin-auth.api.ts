@@ -5,6 +5,10 @@ export interface AdminLoginDto {
   password: string;
 }
 
+export interface RefreshTokenDto {
+  refreshToken: string;
+}
+
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -16,9 +20,29 @@ export const adminAuthApi = {
     return response.data;
   },
 
-  logout: async (): Promise<LoginResponse> => {
-    const response = await api.post('/auth/admin/logout');
+  refresh: async (refreshToken: string): Promise<LoginResponse> => {
+    const response = await api.post('/auth/admin/refresh', {
+      refreshToken,
+    });
     return response.data;
+  },
+
+  logout: async (refreshToken?: string): Promise<LoginResponse> => {
+    try {
+      if (refreshToken) {
+        const response = await api.post('/auth/admin/logout', {
+          refreshToken,
+        });
+        return response.data;
+      } else {
+        const response = await api.post('/auth/admin/logout', {
+          refreshToken: '',
+        });
+        return response.data;
+      }
+    } catch (error) {
+      return { success: true, message: 'Logout successful' };
+    }
   },
 
   getMe: async () => {

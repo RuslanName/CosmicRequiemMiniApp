@@ -47,7 +47,7 @@ export class AdminService {
     });
 
     if (!admin) {
-      throw new NotFoundException(`Admin with ID ${id} not found`);
+      throw new NotFoundException(`Администратор с ID ${id} не найден`);
     }
 
     return admin;
@@ -72,7 +72,7 @@ export class AdminService {
 
     if (existingAdmin) {
       throw new BadRequestException(
-        'Admin with this username or user_id already exists',
+        'Администратор с таким именем пользователя или user_id уже существует',
       );
     }
 
@@ -92,7 +92,9 @@ export class AdminService {
     const admin = await this.findOne(id);
 
     if (admin.is_system_admin) {
-      throw new BadRequestException('Cannot modify system administrator');
+      throw new BadRequestException(
+        'Нельзя изменять системного администратора',
+      );
     }
 
     if (updateAdminDto.username) {
@@ -102,7 +104,7 @@ export class AdminService {
 
       if (existingAdmin && existingAdmin.id !== id) {
         throw new BadRequestException(
-          'Admin with this username already exists',
+          'Администратор с таким именем пользователя уже существует',
         );
       }
     }
@@ -113,7 +115,9 @@ export class AdminService {
       });
 
       if (existingAdmin && existingAdmin.id !== id) {
-        throw new BadRequestException('Admin with this user_id already exists');
+        throw new BadRequestException(
+          'Администратор с таким user_id уже существует',
+        );
       }
     }
 
@@ -135,7 +139,7 @@ export class AdminService {
     const admin = await this.findOne(id);
 
     if (admin.is_system_admin) {
-      throw new BadRequestException('Cannot delete system administrator');
+      throw new BadRequestException('Нельзя удалить системного администратора');
     }
 
     await this.adminRepository.remove(admin);

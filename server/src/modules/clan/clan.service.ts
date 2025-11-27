@@ -206,7 +206,7 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException(`Clan with ID ${id} not found`);
+      throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
     return this.transformToClanWithStatsResponseDto(clan);
@@ -217,7 +217,7 @@ export class ClanService {
     paginationDto?: PaginationDto,
   ): Promise<PaginatedResponseDto<ClanWithStatsResponseDto>> {
     if (!query || query.trim() === '') {
-      throw new BadRequestException('Query parameter is required');
+      throw new BadRequestException('Параметр запроса обязателен');
     }
 
     const { page = 1, limit = 10 } = paginationDto || {};
@@ -246,7 +246,7 @@ export class ClanService {
 
   private saveClanImage(file: Express.Multer.File): string {
     if (!file) {
-      throw new BadRequestException('Image file is required');
+      throw new BadRequestException('Файл изображения обязателен');
     }
 
     const uploadDir = path.join(process.cwd(), 'data', 'clan-images');
@@ -281,11 +281,11 @@ export class ClanService {
     });
 
     if (!leader) {
-      throw new NotFoundException('Leader not found');
+      throw new NotFoundException('Лидер не найден');
     }
 
     if (leader.clan_id) {
-      throw new BadRequestException('Leader is already in a clan');
+      throw new BadRequestException('Лидер уже состоит в клане');
     }
 
     const imagePath = this.saveClanImage(image);
@@ -293,6 +293,7 @@ export class ClanService {
       ...createClanDto,
       image_path: imagePath,
       referral_link_id: randomUUID(),
+      vk_group_id: createClanDto.vk_group_id || null,
     });
     const savedClan = await this.clanRepository.save(clan);
 
@@ -317,11 +318,11 @@ export class ClanService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     if (user.clan_id) {
-      throw new BadRequestException('User is already in a clan');
+      throw new BadRequestException('Пользователь уже состоит в клане');
     }
 
     const existingClan = await this.clanRepository.findOne({
@@ -329,7 +330,7 @@ export class ClanService {
     });
 
     if (existingClan) {
-      throw new BadRequestException('User already has a clan');
+      throw new BadRequestException('У пользователя уже есть клан');
     }
 
     const imagePath = image ? this.saveClanImage(image) : '';
@@ -338,6 +339,7 @@ export class ClanService {
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),
+      vk_group_id: createClanByUserDto.vk_group_id || null,
     });
     const savedClan = await this.clanRepository.save(clan);
 
@@ -363,7 +365,7 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException(`Clan with ID ${id} not found`);
+      throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
     if (image) {
@@ -389,7 +391,7 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException(`Clan with ID ${id} not found`);
+      throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
     if (clan.members && clan.members.length > 0) {
@@ -429,7 +431,9 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException('Clan not found or user is not a leader');
+      throw new NotFoundException(
+        'Клан не найден или пользователь не является лидером',
+      );
     }
 
     if (clan.members && clan.members.length > 0) {
@@ -469,7 +473,9 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException('Clan not found or user is not a leader');
+      throw new NotFoundException(
+        'Клан не найден или пользователь не является лидером',
+      );
     }
 
     return clan;
@@ -493,7 +499,7 @@ export class ClanService {
         lastWar.end_time.getTime() + clanWarCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Clan war cooldown is still active');
+        throw new BadRequestException('Кулдаун войны кланов все еще активен');
       }
     }
 
@@ -539,7 +545,7 @@ export class ClanService {
     const myClan = await this.getLeaderClan(userId);
 
     if (myClan.id === targetClanId) {
-      throw new BadRequestException('Cannot declare war on your own clan');
+      throw new BadRequestException('Нельзя объявить войну своему клану');
     }
 
     const targetClan = await this.clanRepository.findOne({
@@ -547,7 +553,7 @@ export class ClanService {
     });
 
     if (!targetClan) {
-      throw new NotFoundException('Target clan not found');
+      throw new NotFoundException('Целевой клан не найден');
     }
 
     const maxClanWarsCount = Settings[SettingKey.MAX_CLAN_WARS_COUNT];
@@ -564,7 +570,7 @@ export class ClanService {
         lastWar.end_time.getTime() + clanWarCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Clan war cooldown is still active');
+        throw new BadRequestException('Кулдаун войны кланов все еще активен');
       }
     }
 
@@ -583,7 +589,7 @@ export class ClanService {
 
     if (activeWarsCount >= maxClanWarsCount) {
       throw new BadRequestException(
-        'Target clan has reached maximum active wars',
+        'Целевой клан достиг максимального количества активных войн',
       );
     }
 
@@ -623,7 +629,7 @@ export class ClanService {
     });
 
     if (!user || !user.clan) {
-      throw new BadRequestException('User is not in a clan');
+      throw new BadRequestException('Пользователь не состоит в клане');
     }
 
     const activeWars = await this.clanWarRepository.find({
@@ -668,7 +674,7 @@ export class ClanService {
     });
 
     if (!attacker || !defender) {
-      throw new NotFoundException('Attacker or defender not found');
+      throw new NotFoundException('Атакующий или защищающийся не найден');
     }
 
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
@@ -683,7 +689,9 @@ export class ClanService {
     );
 
     if (defender.shield_end_time && defender.shield_end_time > new Date()) {
-      throw new BadRequestException('Cannot attack user with active shield');
+      throw new BadRequestException(
+        'Нельзя атаковать пользователя с активным щитом',
+      );
     }
     if (
       defenderShieldBoost &&
@@ -723,23 +731,25 @@ export class ClanService {
       );
       if (cooldownEndTime > new Date()) {
         throw new BadRequestException({
-          message: 'Attack cooldown is still active',
+          message: 'Кулдаун атаки все еще активен',
           cooldown_end: cooldownEndTime,
         });
       }
     }
 
     if (!attacker.clan || !defender.clan) {
-      throw new BadRequestException('Attacker or defender is not in a clan');
+      throw new BadRequestException(
+        'Атакующий или защищающийся не состоит в клане',
+      );
     }
 
     if (attacker.clan.id === defender.clan.id) {
-      throw new BadRequestException('Cannot attack member of your own clan');
+      throw new BadRequestException('Нельзя атаковать участника своего клана');
     }
 
     if (enemyClanId && defender.clan.id !== enemyClanId) {
       throw new BadRequestException(
-        'Target user does not belong to the specified enemy clan',
+        'Целевой пользователь не принадлежит указанному вражескому клану',
       );
     }
 
@@ -759,7 +769,7 @@ export class ClanService {
     });
 
     if (!activeWar) {
-      throw new BadRequestException('No active war between clans');
+      throw new BadRequestException('Нет активной войны между кланами');
     }
 
     if (enemyClanId) {
@@ -770,7 +780,7 @@ export class ClanService {
           activeWar.clan_1_id === enemyClanId);
       if (!isEnemyClanInWar) {
         throw new BadRequestException(
-          'No active war with the specified enemy clan',
+          'Нет активной войны с указанным вражеским кланом',
         );
       }
     }
@@ -788,11 +798,15 @@ export class ClanService {
       !defender.guards ||
       defender.guards.length === 0
     ) {
-      throw new BadRequestException('Attacker or defender has no guards');
+      throw new BadRequestException(
+        'У атакующего или защищающегося нет стражей',
+      );
     }
 
     if (defender_guards === 0) {
-      throw new BadRequestException('Defender has no capturable guards');
+      throw new BadRequestException(
+        'У защищающегося нет захватываемых стражей',
+      );
     }
 
     const win_chance = Math.min(
@@ -924,15 +938,15 @@ export class ClanService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     if (!user.clan) {
-      throw new BadRequestException('User is not in a clan');
+      throw new BadRequestException('Пользователь не состоит в клане');
     }
 
     if (user.clan.leader?.id === userId) {
-      throw new BadRequestException('Clan leader cannot leave the clan');
+      throw new BadRequestException('Лидер клана не может покинуть клан');
     }
 
     user.clan_leave_time = new Date();
@@ -953,11 +967,11 @@ export class ClanService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     if (user.clan) {
-      throw new BadRequestException('User is already in a clan');
+      throw new BadRequestException('Пользователь уже состоит в клане');
     }
 
     const clan = await this.clanRepository.findOne({
@@ -966,11 +980,11 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException('Clan not found');
+      throw new NotFoundException('Клан не найден');
     }
 
     if (clan.members && clan.members.length >= clan.max_members) {
-      throw new BadRequestException('Clan is full');
+      throw new BadRequestException('Клан заполнен');
     }
 
     const existingApplication = await this.clanApplicationRepository.findOne({
@@ -982,7 +996,7 @@ export class ClanService {
     });
 
     if (existingApplication) {
-      throw new BadRequestException('Application already exists');
+      throw new BadRequestException('Заявка уже существует');
     }
 
     const clanJoinCooldown = Settings[SettingKey.CLAN_JOIN_COOLDOWN];
@@ -991,7 +1005,9 @@ export class ClanService {
         user.clan_leave_time.getTime() + clanJoinCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Clan join cooldown is still active');
+        throw new BadRequestException(
+          'Кулдаун вступления в клан все еще активен',
+        );
       }
     }
 
@@ -1029,21 +1045,21 @@ export class ClanService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException('Заявка не найдена');
     }
 
     if (application.clan.id !== clan.id) {
-      throw new BadRequestException('Application does not belong to your clan');
+      throw new BadRequestException('Заявка не принадлежит вашему клану');
     }
 
     if (application.status !== ClanApplicationStatus.PENDING) {
-      throw new BadRequestException('Application is not pending');
+      throw new BadRequestException('Заявка не находится в ожидании');
     }
 
     const user = application.user;
 
     if (user.clan) {
-      throw new BadRequestException('User is already in a clan');
+      throw new BadRequestException('Пользователь уже состоит в клане');
     }
 
     const clanJoinCooldown = Settings[SettingKey.CLAN_JOIN_COOLDOWN];
@@ -1052,7 +1068,9 @@ export class ClanService {
         user.clan_leave_time.getTime() + clanJoinCooldown,
       );
       if (cooldownEndTime > new Date()) {
-        throw new BadRequestException('Clan join cooldown is still active');
+        throw new BadRequestException(
+          'Кулдаун вступления в клан все еще активен',
+        );
       }
     }
 
@@ -1062,14 +1080,14 @@ export class ClanService {
     });
 
     if (!updatedClan) {
-      throw new NotFoundException('Clan not found');
+      throw new NotFoundException('Клан не найден');
     }
 
     if (
       updatedClan.members &&
       updatedClan.members.length >= updatedClan.max_members
     ) {
-      throw new BadRequestException('Clan is full');
+      throw new BadRequestException('Клан заполнен');
     }
 
     application.status = ClanApplicationStatus.ACCEPTED;
@@ -1093,15 +1111,15 @@ export class ClanService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException('Заявка не найдена');
     }
 
     if (application.clan.id !== clan.id) {
-      throw new BadRequestException('Application does not belong to your clan');
+      throw new BadRequestException('Заявка не принадлежит вашему клану');
     }
 
     if (application.status !== ClanApplicationStatus.PENDING) {
-      throw new BadRequestException('Application is not pending');
+      throw new BadRequestException('Заявка не находится в ожидании');
     }
 
     application.status = ClanApplicationStatus.REJECTED;
@@ -1122,11 +1140,11 @@ export class ClanService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     if (!user.clan) {
-      throw new NotFoundException('User is not in a clan');
+      throw new NotFoundException('Пользователь не состоит в клане');
     }
 
     const activeWarsCount = await this.clanWarRepository.count({
@@ -1221,7 +1239,7 @@ export class ClanService {
     });
 
     if (!user || !user.clan) {
-      throw new NotFoundException('User is not in a clan');
+      throw new NotFoundException('Пользователь не состоит в клане');
     }
 
     const activeWars = await this.clanWarRepository.find({
@@ -1275,7 +1293,7 @@ export class ClanService {
     });
 
     if (!user || !user.clan) {
-      throw new NotFoundException('User is not in a clan');
+      throw new NotFoundException('Пользователь не состоит в клане');
     }
 
     const activeWars = await this.clanWarRepository.find({
@@ -1292,7 +1310,7 @@ export class ClanService {
 
     if (!enemyClanIds.includes(enemyClanId)) {
       throw new BadRequestException(
-        'Clan is not an enemy or war is not active',
+        'Клан не является врагом или война не активна',
       );
     }
 
@@ -1308,7 +1326,7 @@ export class ClanService {
     });
 
     if (!enemyClan) {
-      throw new NotFoundException('Enemy clan not found');
+      throw new NotFoundException('Вражеский клан не найден');
     }
 
     const transformed = this.transformToClanWithStatsResponseDto(enemyClan);
@@ -1349,7 +1367,7 @@ export class ClanService {
     });
 
     if (!clan) {
-      throw new NotFoundException('Clan not found');
+      throw new NotFoundException('Клан не найден');
     }
 
     const members = await this.userRepository.find({

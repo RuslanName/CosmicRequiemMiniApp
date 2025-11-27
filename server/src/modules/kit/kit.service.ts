@@ -125,7 +125,7 @@ export class KitService {
     });
 
     if (!kit) {
-      throw new NotFoundException(`Kit with ID ${id} not found`);
+      throw new NotFoundException(`Набор с ID ${id} не найден`);
     }
 
     return kit;
@@ -137,7 +137,7 @@ export class KitService {
     });
 
     if (itemTemplates.length !== createKitDto.item_template_ids.length) {
-      throw new NotFoundException('Some item templates not found');
+      throw new NotFoundException('Некоторые шаблоны предметов не найдены');
     }
 
     const kit = this.kitRepository.create({
@@ -158,7 +158,7 @@ export class KitService {
     });
 
     if (!kit) {
-      throw new NotFoundException(`Kit with ID ${id} not found`);
+      throw new NotFoundException(`Набор с ID ${id} не найден`);
     }
 
     if (updateKitDto.item_template_ids) {
@@ -167,7 +167,7 @@ export class KitService {
       });
 
       if (itemTemplates.length !== updateKitDto.item_template_ids.length) {
-        throw new NotFoundException('Some item templates not found');
+        throw new NotFoundException('Некоторые шаблоны предметов не найдены');
       }
 
       kit.item_templates = itemTemplates;
@@ -187,7 +187,7 @@ export class KitService {
     const kit = await this.kitRepository.findOne({ where: { id } });
 
     if (!kit) {
-      throw new NotFoundException(`Kit with ID ${id} not found`);
+      throw new NotFoundException(`Набор с ID ${id} не найден`);
     }
 
     await this.kitRepository.remove(kit);
@@ -202,7 +202,7 @@ export class KitService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const kit = await this.kitRepository.findOne({
@@ -211,25 +211,25 @@ export class KitService {
     });
 
     if (!kit) {
-      throw new NotFoundException('Kit not found');
+      throw new NotFoundException('Набор не найден');
     }
 
     if (kit.status !== ShopItemStatus.IN_STOCK) {
-      throw new BadRequestException('Kit is not available');
+      throw new BadRequestException('Набор недоступен');
     }
 
     // Для виртуальной валюты списываем деньги с пользователя
     // Для голосов (VOICES) деньги уже списаны VK, просто выдаем товары
     if (kit.currency === Currency.VIRTUAL) {
       if (Number(user.money) < kit.price) {
-        throw new BadRequestException('Insufficient funds');
+        throw new BadRequestException('Недостаточно средств');
       }
       user.money = Number(user.money) - kit.price;
     } else if (kit.currency === Currency.VOICES) {
       // Для голосов не списываем деньги - их уже списал VK
       // Просто выдаем товары
     } else {
-      throw new BadRequestException(`Unsupported currency: ${kit.currency}`);
+      throw new BadRequestException(`Неподдерживаемая валюта: ${kit.currency}`);
     }
 
     const createdGuards: UserGuard[] = [];
@@ -240,7 +240,7 @@ export class KitService {
       if (itemTemplate.type === ItemTemplateType.GUARD) {
         if (!itemTemplate.value) {
           throw new BadRequestException(
-            'ItemTemplate value is required for GUARD type',
+            'Значение шаблона предмета обязательно для типа GUARD',
           );
         }
         const guardStrength = parseInt(itemTemplate.value, 10);
@@ -272,7 +272,7 @@ export class KitService {
 
         if (!itemTemplate.value) {
           throw new BadRequestException(
-            'ItemTemplate value is required for REWARD_DOUBLING and COOLDOWN_HALVING types',
+            'Значение шаблона предмета обязательно для типов REWARD_DOUBLING и COOLDOWN_HALVING',
           );
         }
         const boostHours = parseInt(itemTemplate.value, 10);

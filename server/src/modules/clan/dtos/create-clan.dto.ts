@@ -26,4 +26,13 @@ export class CreateClanDto {
   @IsArray()
   @IsNumber({}, { each: true })
   war_ids?: number[];
+
+  @ApiProperty({
+    example: 123456789,
+    required: false,
+    description: 'ID сообщества VK',
+  })
+  @IsOptional()
+  @IsNumber()
+  vk_group_id?: number;
 }

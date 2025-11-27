@@ -6,6 +6,7 @@ import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
 import { Clan } from '../../clan/entities/clan.entity';
 import { ClanApplication } from '../../clan/entities/clan-application.entity';
+import { RefreshToken } from '../entities/refresh-token.entity';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
@@ -27,15 +28,20 @@ export class AuthService {
     private readonly clanRepository: Repository<Clan>,
     @InjectRepository(ClanApplication)
     private readonly clanApplicationRepository: Repository<ClanApplication>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly userTaskService: UserTaskService,
     private readonly clanService: ClanService,
   ) {}
 
-  async validateAuth(dto: AuthDto): Promise<string> {
+  async validateAuth(dto: AuthDto): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
     const { user, sign, vk_params } = dto;
 
     if (!this.verifySignature(vk_params, sign)) {
-      throw new UnauthorizedException('Invalid VK signature');
+      throw new UnauthorizedException('Неверная подпись VK');
     }
 
     const vk_id = user.id;
@@ -47,18 +53,11 @@ export class AuthService {
 
     const startParam = vk_params.start;
     let referrerUser: User | null = null;
-    let targetClan: Clan | null = null;
 
     if (startParam && startParam.startsWith('ref_')) {
       const referrerLinkId = startParam.replace('ref_', '');
       referrerUser = await this.userRepository.findOne({
         where: { referral_link_id: referrerLinkId },
-      });
-    } else if (startParam && startParam.startsWith('clan_')) {
-      const clanLinkId = startParam.replace('clan_', '');
-      targetClan = await this.clanRepository.findOne({
-        where: { referral_link_id: clanLinkId },
-        relations: ['members'],
       });
     }
 
@@ -106,7 +105,6 @@ export class AuthService {
         referrerUser.money = Number(referrerUser.money) + referrerReward;
         await this.userRepository.save(referrerUser);
 
-        // TODO: Временное решение - даем initial_referrer_vk_id 10 стражей по 1 силе
         const initialReferrerVkId = Settings[
           SettingKey.INITIAL_REFERRER_VK_ID
         ] as number;
@@ -169,24 +167,140 @@ export class AuthService {
       await this.userTaskService.initializeTasksForUser(dbUser.id);
     }
 
-    const vkGroupId = vk_params.vk_group_id;
-    const vkViewerGroupRole = vk_params.vk_viewer_group_role;
+    const payload = { sub: dbUser.id };
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any,
+    });
 
-    if (vkGroupId) {
-      if (targetClan && !targetClan.vk_group_id) {
-        targetClan.vk_group_id = Number(vkGroupId);
-        await this.clanRepository.save(targetClan);
+    const refreshTokenPayload = {
+      sub: dbUser.id,
+      type: 'refresh',
+    };
+    const refreshToken = this.jwtService.sign(refreshTokenPayload, {
+      secret: ENV.JWT_REFRESH_SECRET,
+      expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
+    });
+
+    const expiresAt = new Date();
+    const refreshExpiresIn = this.parseExpiresIn(ENV.JWT_REFRESH_EXPIRES_IN);
+    expiresAt.setSeconds(expiresAt.getSeconds() + refreshExpiresIn);
+
+    const refreshTokenEntity = this.refreshTokenRepository.create({
+      token: refreshToken,
+      user_id: dbUser.id,
+      expires_at: expiresAt,
+    });
+    await this.refreshTokenRepository.save(refreshTokenEntity);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async refreshTokens(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: ENV.JWT_REFRESH_SECRET,
+      });
+
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Неверный тип токена');
       }
 
-      this.clanService
-        .syncClanWithVkGroup(dbUser.id, vkGroupId, vkViewerGroupRole || '')
-        .catch((error) => {
-          console.error('Error syncing clan with VK group:', error);
-        });
+      const tokenEntity = await this.refreshTokenRepository.findOne({
+        where: { token: refreshToken },
+        relations: ['user'],
+      });
+
+      if (!tokenEntity || tokenEntity.expires_at < new Date()) {
+        throw new UnauthorizedException(
+          'Refresh токен истек или недействителен',
+        );
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: payload.sub },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Пользователь не найден');
+      }
+
+      await this.refreshTokenRepository.remove(tokenEntity);
+
+      const newPayload = { sub: user.id };
+      const newAccessToken = this.jwtService.sign(newPayload, {
+        expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any,
+      });
+
+      const newRefreshTokenPayload = {
+        sub: user.id,
+        type: 'refresh',
+      };
+      const newRefreshToken = this.jwtService.sign(newRefreshTokenPayload, {
+        secret: ENV.JWT_REFRESH_SECRET,
+        expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
+      });
+
+      const expiresAt = new Date();
+      const refreshExpiresIn = this.parseExpiresIn(ENV.JWT_REFRESH_EXPIRES_IN);
+      expiresAt.setSeconds(expiresAt.getSeconds() + refreshExpiresIn);
+
+      const newRefreshTokenEntity = this.refreshTokenRepository.create({
+        token: newRefreshToken,
+        user_id: user.id,
+        expires_at: expiresAt,
+      });
+      await this.refreshTokenRepository.save(newRefreshTokenEntity);
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Неверный refresh токен');
+    }
+  }
+
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    const tokenEntity = await this.refreshTokenRepository.findOne({
+      where: { token: refreshToken },
+    });
+
+    if (tokenEntity) {
+      await this.refreshTokenRepository.remove(tokenEntity);
+    }
+  }
+
+  async revokeAllUserTokens(userId: number): Promise<void> {
+    await this.refreshTokenRepository.delete({ user_id: userId });
+  }
+
+  private parseExpiresIn(expiresIn: string): number {
+    const match = expiresIn.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      return 30 * 24 * 60 * 60;
     }
 
-    const payload = { sub: dbUser.id };
-    return this.jwtService.sign(payload);
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    switch (unit) {
+      case 's':
+        return value;
+      case 'm':
+        return value * 60;
+      case 'h':
+        return value * 60 * 60;
+      case 'd':
+        return value * 24 * 60 * 60;
+      default:
+        return 30 * 24 * 60 * 60;
+    }
   }
 
   private verifySignature(
@@ -200,7 +314,7 @@ export class AuthService {
     }
 
     if (!params || typeof params !== 'object') {
-      throw new UnauthorizedException('Invalid params');
+      throw new UnauthorizedException('Неверные параметры');
     }
 
     const queryString = Object.keys(params)

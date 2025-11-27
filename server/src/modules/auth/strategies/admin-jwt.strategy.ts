@@ -18,20 +18,22 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
   ) {
     super({
       jwtFromRequest: (req: Request) => {
-        let token = null;
-        if (req && req.cookies) {
-          token = req.cookies['admin_token'];
+        if (req && req.cookies && req.cookies['admin_access_token']) {
+          return req.cookies['admin_access_token'];
         }
-        return token;
+        if (req && req.cookies && req.cookies['admin_token']) {
+          return req.cookies['admin_token'];
+        }
+        return null;
       },
       ignoreExpiration: false,
-      secretOrKey: ENV.JWT_ADMIN_SECRET,
+      secretOrKey: ENV.JWT_ADMIN_ACCESS_SECRET,
     });
   }
 
   async validate(payload: { sub: number; adminId: number; type: string }) {
     if (payload.type !== 'admin') {
-      throw new UnauthorizedException('Invalid token type');
+      throw new UnauthorizedException('Неверный тип токена');
     }
 
     const admin = await this.adminRepository.findOne({
@@ -40,7 +42,7 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
     });
 
     if (!admin) {
-      throw new UnauthorizedException('Admin not found');
+      throw new UnauthorizedException('Администратор не найден');
     }
 
     const user = await this.userRepository.findOne({
@@ -48,7 +50,7 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Пользователь не найден');
     }
 
     return {

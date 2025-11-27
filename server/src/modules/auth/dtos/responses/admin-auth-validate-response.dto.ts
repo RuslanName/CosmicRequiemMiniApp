@@ -5,6 +5,9 @@ export class AdminAuthValidateResponseDto {
   @ApiProperty()
   token: string;
 
+  @ApiProperty()
+  refreshToken: string;
+
   @ApiProperty({ type: () => Admin })
   admin: Admin;
 }

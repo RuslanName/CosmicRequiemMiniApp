@@ -66,7 +66,7 @@ export class AdminController {
   @ApiResponse({ status: 404, description: 'Администратор не найден' })
   async findMe(@Request() req: AuthenticatedRequest): Promise<Admin> {
     if (!req.user.adminId) {
-      throw new NotFoundException('Admin ID not found in request');
+      throw new NotFoundException('ID администратора не найден в запросе');
     }
     return this.adminService.findOne(req.user.adminId);
   }

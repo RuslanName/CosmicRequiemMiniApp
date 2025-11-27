@@ -11,6 +11,8 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { Admin } from '../admin/admin.entity';
 import { Clan } from '../clan/entities/clan.entity';
 import { ClanApplication } from '../clan/entities/clan-application.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { AdminRefreshToken } from './entities/admin-refresh-token.entity';
 import { ENV } from '../../config/constants';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
@@ -19,13 +21,21 @@ import { ClanModule } from '../clan/clan.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserGuard, Admin, Clan, ClanApplication]),
+    TypeOrmModule.forFeature([
+      User,
+      UserGuard,
+      Admin,
+      Clan,
+      ClanApplication,
+      RefreshToken,
+      AdminRefreshToken,
+    ]),
     TaskModule,
     ClanModule,
     PassportModule,
     JwtModule.register({
-      secret: ENV.JWT_SECRET,
-      signOptions: { expiresIn: ENV.JWT_EXPIRES_IN as any },
+      secret: ENV.JWT_ACCESS_SECRET,
+      signOptions: { expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any },
       global: true,
     }),
   ],

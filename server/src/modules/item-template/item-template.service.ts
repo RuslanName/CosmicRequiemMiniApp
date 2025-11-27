@@ -56,7 +56,7 @@ export class ItemTemplateService {
     });
 
     if (!itemTemplate) {
-      throw new NotFoundException(`ItemTemplate with ID ${id} not found`);
+      throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
     }
 
     return itemTemplate;
@@ -75,7 +75,7 @@ export class ItemTemplateService {
         const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
         if (!hexColorRegex.test(value)) {
           throw new BadRequestException(
-            'Value must be a valid hex color (e.g., #ff0000)',
+            'Значение должно быть валидным hex-цветом (например, #ff0000)',
           );
         }
         break;
@@ -86,7 +86,7 @@ export class ItemTemplateService {
         const guardStrength = parseInt(value, 10);
         if (isNaN(guardStrength) || guardStrength <= 0) {
           throw new BadRequestException(
-            'Value must be a positive number for GUARD type',
+            'Значение должно быть положительным числом для типа GUARD',
           );
         }
         break;
@@ -96,7 +96,7 @@ export class ItemTemplateService {
         const timeValue = parseInt(value, 10);
         if (isNaN(timeValue) || timeValue <= 0) {
           throw new BadRequestException(
-            'Value must be a positive number (time in hours) for SHIELD, REWARD_DOUBLING, and COOLDOWN_HALVING types',
+            'Значение должно быть положительным числом (время в часах) для типов SHIELD, REWARD_DOUBLING и COOLDOWN_HALVING',
           );
         }
         break;
@@ -162,7 +162,7 @@ export class ItemTemplateService {
     });
 
     if (!itemTemplate) {
-      throw new NotFoundException(`ItemTemplate with ID ${id} not found`);
+      throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
     }
 
     const typeToValidate = updateItemTemplateDto.type || itemTemplate.type;
@@ -199,7 +199,7 @@ export class ItemTemplateService {
     });
 
     if (!itemTemplate) {
-      throw new NotFoundException(`ItemTemplate with ID ${id} not found`);
+      throw new NotFoundException(`Шаблон предмета с ID ${id} не найден`);
     }
 
     const shopItems = await this.shopItemRepository.find({
@@ -208,7 +208,7 @@ export class ItemTemplateService {
 
     if (shopItems.length > 0) {
       throw new BadRequestException(
-        `Cannot delete ItemTemplate: ${shopItems.length} shop items are using it`,
+        `Нельзя удалить шаблон предмета: ${shopItems.length} товаров магазина используют его`,
       );
     }
 
@@ -220,7 +220,7 @@ export class ItemTemplateService {
 
     if (kits.length > 0) {
       throw new BadRequestException(
-        `Cannot delete ItemTemplate: ${kits.length} kits are using it`,
+        `Нельзя удалить шаблон предмета: ${kits.length} наборов используют его`,
       );
     }
 
@@ -230,7 +230,7 @@ export class ItemTemplateService {
 
     if (userAccessories.length > 0) {
       throw new BadRequestException(
-        `Cannot delete ItemTemplate: ${userAccessories.length} user accessories are using it`,
+        `Нельзя удалить шаблон предмета: ${userAccessories.length} аксессуаров пользователей используют его`,
       );
     }
 
