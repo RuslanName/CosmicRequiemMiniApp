@@ -37,6 +37,8 @@ import { ENV } from '../../config/constants';
 import { randomUUID } from 'crypto';
 import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/enums/notification-type.enum';
 
 @Injectable()
 export class ClanService {
@@ -55,6 +57,7 @@ export class ClanService {
     private readonly clanApplicationRepository: Repository<ClanApplication>,
     private readonly userBoostService: UserBoostService,
     private readonly eventHistoryService: EventHistoryService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   private calculateUserPower(guards: UserGuard[]): number {
@@ -143,6 +146,17 @@ export class ClanService {
     return transformed;
   }
 
+  private getUserAvatarUrl(user: User): string {
+    if (!user.image_path) {
+      return '';
+    }
+    if (user.image_path.startsWith('http')) {
+      return user.image_path;
+    }
+    const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
+    return `${baseUrl}/${user.image_path.replace(/^\//, '')}`;
+  }
+
   private transformToUserWithStatsResponseDto(
     user: User,
   ): UserWithStatsResponseDto {
@@ -155,7 +169,7 @@ export class ClanService {
       first_name: user.first_name,
       last_name: user.last_name,
       sex: user.sex,
-      avatar_url: user.avatar_url,
+      avatar_url: this.getUserAvatarUrl(user),
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
@@ -605,6 +619,33 @@ export class ClanService {
     });
 
     const savedWar = await this.clanWarRepository.save(clanWar);
+
+    const clan1Members = await this.userRepository.find({
+      where: { clan_id: myClan.id },
+      select: ['id'],
+    });
+
+    const clan2Members = await this.userRepository.find({
+      where: { clan_id: targetClan.id },
+      select: ['id'],
+    });
+
+    const clan1MemberIds = clan1Members.map((m) => m.id);
+    const clan2MemberIds = clan2Members.map((m) => m.id);
+
+    await this.notificationService.createForUsers(
+      clan1MemberIds,
+      'Началась война кланов',
+      `Ваш клан "${myClan.name}" объявил войну клану "${targetClan.name}"`,
+      NotificationType.WAR,
+    );
+
+    await this.notificationService.createForUsers(
+      clan2MemberIds,
+      'Началась война кланов',
+      `Клан "${myClan.name}" объявил войну вашему клану "${targetClan.name}"`,
+      NotificationType.WAR,
+    );
 
     const warWithRelations = await this.clanWarRepository.findOne({
       where: { id: savedWar.id },
@@ -1573,5 +1614,18 @@ export class ClanService {
       console.error(`Error downloading group image: ${error.message}`);
       return '';
     }
+  }
+
+  async getNotifications(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan'],
+    });
+
+    if (!user || !user.clan) {
+      return [];
+    }
+
+    return this.notificationService.findByUserId(userId);
   }
 }

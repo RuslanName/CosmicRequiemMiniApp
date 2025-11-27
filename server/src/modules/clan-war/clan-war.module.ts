@@ -7,9 +7,13 @@ import { ClanWar } from './entities/clan-war.entity';
 import { StolenItem } from './entities/stolen-item.entity';
 import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ClanWar, StolenItem, User, UserGuard])],
+  imports: [
+    TypeOrmModule.forFeature([ClanWar, StolenItem, User, UserGuard]),
+    NotificationModule,
+  ],
   controllers: [ClanWarController],
   providers: [ClanWarService, ClanWarSchedulerService],
   exports: [ClanWarService],

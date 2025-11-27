@@ -69,7 +69,6 @@ const Users = () => {
       first_name: user.first_name,
       last_name: user.last_name,
       sex: user.sex,
-      avatar_url: user.avatar_url,
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
@@ -220,15 +219,6 @@ const Users = () => {
               type="number"
               value={formData.sex || ''}
               onChange={(e) => setFormData({ ...formData, sex: parseInt(e.target.value) })}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Аватар URL</label>
-            <input
-              className="form-input"
-              type="text"
-              value={formData.avatar_url || ''}
-              onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
             />
           </div>
           <div className="form-group">

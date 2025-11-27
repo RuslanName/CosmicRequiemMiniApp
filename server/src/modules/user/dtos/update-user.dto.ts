@@ -24,11 +24,6 @@ export class UpdateUserDto {
   @IsNumber()
   sex?: number;
 
-  @ApiProperty({ example: 'https://example.com/avatar.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  avatar_url?: string;
-
   @ApiProperty({ example: '01.01.2000', required: false })
   @IsOptional()
   @IsString()

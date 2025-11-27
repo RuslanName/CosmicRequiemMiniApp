@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   [SettingKey.RANDOM_BONUS_PER_GUARD]: 0.2,
   [SettingKey.REFERRER_MONEY_REWARD]: 100,
   [SettingKey.INITIAL_REFERRER_VK_ID]: 0,
+  [SettingKey.ADV_DISABLE_COST_VOICES_COUNT]: 20,
 } as const;
 
 export const TIME_UNIT_MULTIPLIERS: Partial<Record<SettingKey, number>> = {

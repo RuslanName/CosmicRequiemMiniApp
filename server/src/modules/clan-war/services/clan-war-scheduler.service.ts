@@ -8,6 +8,8 @@ import { ClanWarStatus } from '../enums/clan-war-status.enum';
 import { StolenItemType } from '../enums/stolen-item-type.enum';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
+import { NotificationService } from '../../notification/notification.service';
+import { NotificationType } from '../../notification/enums/notification-type.enum';
 
 @Injectable()
 export class ClanWarSchedulerService {
@@ -20,6 +22,7 @@ export class ClanWarSchedulerService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Cron('0 */5 * * * *')
@@ -81,6 +84,36 @@ export class ClanWarSchedulerService {
       winnerStatus === ClanWarStatus.WON_BY_CLAN_1
         ? war.clan_2.id
         : war.clan_1.id;
+
+    const winnerClan = winnerClanId === war.clan_1.id ? war.clan_1 : war.clan_2;
+    const loserClan = loserClanId === war.clan_1.id ? war.clan_1 : war.clan_2;
+
+    const winnerMembers = await this.userRepository.find({
+      where: { clan_id: winnerClanId },
+      select: ['id'],
+    });
+
+    const loserMembers = await this.userRepository.find({
+      where: { clan_id: loserClanId },
+      select: ['id'],
+    });
+
+    const winnerMemberIds = winnerMembers.map((m) => m.id);
+    const loserMemberIds = loserMembers.map((m) => m.id);
+
+    await this.notificationService.createForUsers(
+      winnerMemberIds,
+      'Война кланов завершена',
+      `Ваш клан "${winnerClan.name}" победил в войне против клана "${loserClan.name}"`,
+      NotificationType.WAR,
+    );
+
+    await this.notificationService.createForUsers(
+      loserMemberIds,
+      'Война кланов завершена',
+      `Ваш клан "${loserClan.name}" проиграл в войне против клана "${winnerClan.name}"`,
+      NotificationType.WAR,
+    );
 
     for (const item of stolenItems) {
       const thiefClanId = item.thief.clan?.id;

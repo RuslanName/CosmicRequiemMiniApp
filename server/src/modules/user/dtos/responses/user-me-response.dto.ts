@@ -73,4 +73,10 @@ export class UserMeResponseDto {
 
   @ApiProperty()
   referrer_money_reward: number;
+
+  @ApiProperty()
+  show_adv: boolean;
+
+  @ApiProperty()
+  adv_disable_cost_voices_count: number;
 }

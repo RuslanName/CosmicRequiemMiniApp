@@ -15,6 +15,8 @@ import { SettingKey } from '../../setting/enums/setting-key.enum';
 import { UserTaskService } from '../../task/services/user-task.service';
 import { TaskType } from '../../task/enums/task-type.enum';
 import { ClanService } from '../../clan/clan.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AuthService {
@@ -73,18 +75,24 @@ export class AuthService {
     }
 
     if (!dbUser) {
+      const photoUrl = user.photo_max_orig || user.photo_200 || '';
       dbUser = this.userRepository.create({
         vk_id,
         first_name: user.first_name,
         last_name: user.last_name || null,
         sex: user.sex ?? 0,
-        avatar_url: user.photo_max_orig || user.photo_200 || '',
+        image_path: photoUrl, // Временно сохраняем URL, потом скачаем
         birthday_date: this.formatBirthday(user.bdate, user.bdate_visibility),
         last_login_at: new Date(),
         referral_link_id: randomUUID(),
         referrer: referrerUser || undefined,
       });
       await this.userRepository.save(dbUser);
+
+      // Скачиваем аватар на сервер
+      if (photoUrl) {
+        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+      }
 
       const firstGuard = this.userGuardRepository.create({
         name: `#${dbUser.id}`,
@@ -140,8 +148,19 @@ export class AuthService {
       dbUser.first_name = user.first_name;
       dbUser.last_name = user.last_name || null;
       dbUser.sex = user.sex ?? dbUser.sex;
-      dbUser.avatar_url =
-        user.photo_max_orig || user.photo_200 || dbUser.avatar_url;
+      const photoUrl = user.photo_max_orig || user.photo_200 || null;
+      if (photoUrl) {
+        // Проверяем, нужно ли обновить аватар
+        const needsUpdate =
+          !dbUser.image_path ||
+          dbUser.image_path.startsWith('http') ||
+          (dbUser.image_path &&
+            !fs.existsSync(path.join(process.cwd(), dbUser.image_path)));
+
+        if (needsUpdate) {
+          await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+        }
+      }
       dbUser.birthday_date = this.formatBirthday(
         user.bdate,
         user.bdate_visibility,
@@ -342,6 +361,47 @@ export class AuthService {
         return bdate;
       default:
         return null;
+    }
+  }
+
+  private async downloadAndSaveUserAvatar(
+    photoUrl: string,
+    userId: number,
+  ): Promise<void> {
+    try {
+      if (!photoUrl || !photoUrl.startsWith('http')) {
+        return;
+      }
+
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const uploadDir = path.join(process.cwd(), 'data', 'user-avatars');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileExtension = path.extname(new URL(photoUrl).pathname) || '.jpg';
+      const fileName = `user-${userId}-${Date.now()}${fileExtension}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      fs.writeFileSync(filePath, buffer);
+
+      const imagePath = path
+        .join('data', 'user-avatars', fileName)
+        .replace(/\\/g, '/');
+
+      // Обновляем image_path в базе данных
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user) {
+        user.image_path = imagePath;
+        await this.userRepository.save(user);
+      }
+    } catch (error) {
+      console.error(`Error downloading user avatar: ${error.message}`);
     }
   }
 }

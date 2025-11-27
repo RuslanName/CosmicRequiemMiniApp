@@ -22,6 +22,7 @@ import { UserBoostModule } from './user-boost/user-boost.module';
 import { VKPaymentsModule } from './vk-payments/vk-payments.module';
 import { TaskModule } from './task/task.module';
 import { GiveawayModule } from './giveaway/giveaway.module';
+import { NotificationModule } from './notification/notification.module';
 import { AppController } from './app.controller';
 import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage';
 
@@ -75,6 +76,7 @@ import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage
     VKPaymentsModule,
     TaskModule,
     GiveawayModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

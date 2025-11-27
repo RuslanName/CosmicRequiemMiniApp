@@ -10,6 +10,7 @@ import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 import { ClanApplication } from './entities/clan-application.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
 import { EventHistoryModule } from '../event-history/event-history.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EventHistoryModule } from '../event-history/event-history.module';
     ]),
     UserBoostModule,
     EventHistoryModule,
+    NotificationModule,
   ],
   controllers: [ClanController],
   providers: [ClanService],

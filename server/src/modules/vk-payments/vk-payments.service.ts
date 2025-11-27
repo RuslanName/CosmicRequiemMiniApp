@@ -22,6 +22,9 @@ import { ENV } from '../../config/constants';
 import { KitService } from '../kit/kit.service';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { ShopItemService } from '../shop-item/shop-item.service';
+import { UserService } from '../user/user.service';
+import { Settings } from '../../config/setting.config';
+import { SettingKey } from '../setting/enums/setting-key.enum';
 
 @Injectable()
 export class VKPaymentsService {
@@ -41,6 +44,7 @@ export class VKPaymentsService {
     private readonly kitService: KitService,
     private readonly userBoostService: UserBoostService,
     private readonly shopItemService: ShopItemService,
+    private readonly userService: UserService,
   ) {}
 
   async handleNotification(
@@ -83,6 +87,22 @@ export class VKPaymentsService {
 
     const shopItemId = this.extractShopItemId(notification.item_id);
     const kitId = this.extractKitId(notification.item_id);
+    const isAdvDisable = notification.item_id === 'adv_disable';
+
+    if (isAdvDisable) {
+      const price = Settings[
+        SettingKey.ADV_DISABLE_COST_VOICES_COUNT
+      ] as number;
+
+      return {
+        response: {
+          title: 'Отключение рекламы на год',
+          photo_url: undefined,
+          price: price,
+          item_id: notification.item_id,
+        },
+      };
+    }
 
     if (shopItemId) {
       const shopItem = await this.shopItemRepository.findOne({
@@ -174,6 +194,7 @@ export class VKPaymentsService {
   private async processPurchase(notification: VKNotificationDto): Promise<any> {
     const shopItemId = this.extractShopItemId(notification.item_id!);
     const kitId = this.extractKitId(notification.item_id!);
+    const isAdvDisable = notification.item_id === 'adv_disable';
 
     const user = await this.userRepository.findOne({
       where: { vk_id: notification.user_id! },
@@ -182,6 +203,15 @@ export class VKPaymentsService {
 
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (isAdvDisable) {
+      await this.userService.disableAdv(user.id);
+      return {
+        response: {
+          order_id: notification.order_id,
+        },
+      };
     }
 
     if (kitId) {

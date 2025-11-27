@@ -63,7 +63,7 @@ export class AuthController {
   @Post('refresh')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
-    summary: 'Обновление access token с помощью refresh token',
+    summary: 'Обновление access token с помощью refresh token (Для Mini App)',
   })
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
@@ -111,7 +111,7 @@ export class AuthController {
   @Post('logout')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
-    summary: 'Выход из системы и отзыв refresh token',
+    summary: 'Выход из системы и отзыв refresh token (Для Mini App)',
   })
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({

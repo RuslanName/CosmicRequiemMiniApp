@@ -25,7 +25,6 @@ export interface UpdateUserDto {
   first_name?: string;
   last_name?: string;
   sex?: number;
-  avatar_url?: string;
   birthday_date?: string;
   money?: number;
   shield_end_time?: string;

@@ -51,6 +51,7 @@ import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-respo
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
+import { NotificationResponseDto } from './dtos/responses/notification-response.dto';
 
 @ApiTags('Clans')
 @Controller('clans')
@@ -722,5 +723,25 @@ export class ClanController {
   @ApiResponse({ status: 404, description: 'Клан не найден' })
   async remove(@Param('id') id: string): Promise<void> {
     return this.clanService.remove(+id);
+  }
+
+  @Get('me/notifications')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить уведомления текущего клана (Для Mini App)',
+    description:
+      'Возвращает список непрочитанных уведомлений (со статусом SENT) для текущего пользователя',
+  })
+  @ApiResponse({
+    status: 200,
+    type: [NotificationResponseDto],
+    description: 'Список уведомлений',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getNotifications(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<NotificationResponseDto[]> {
+    return this.clanService.getNotifications(req.user.id);
   }
 }

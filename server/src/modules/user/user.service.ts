@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, In } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
 import { User } from './user.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -66,15 +68,89 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
+  private getAvatarUrl(user: User): string {
+    if (!user.image_path) {
+      return '';
+    }
+    if (user.image_path.startsWith('http')) {
+      return user.image_path;
+    }
+    const baseUrl = ENV.VK_APP_URL.replace(/\/$/, '');
+    return `${baseUrl}/${user.image_path.replace(/^\//, '')}`;
+  }
+
   private transformUserForResponse(
     user: User,
-  ): User & { referral_link?: string } {
+  ): User & { referral_link?: string; avatar_url?: string } {
     const transformed: any = { ...user };
     if (user.referral_link_id) {
       transformed.referral_link = `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`;
       delete transformed.referral_link_id;
     }
+    transformed.avatar_url = this.getAvatarUrl(user);
     return transformed;
+  }
+
+  private async downloadAndSaveUserAvatar(
+    photoUrl: string,
+    userId: number,
+  ): Promise<string | null> {
+    try {
+      if (!photoUrl || !photoUrl.startsWith('http')) {
+        return null;
+      }
+
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const uploadDir = path.join(process.cwd(), 'data', 'user-avatars');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileExtension = path.extname(new URL(photoUrl).pathname) || '.jpg';
+      const fileName = `user-${userId}-${Date.now()}${fileExtension}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      fs.writeFileSync(filePath, buffer);
+
+      return path.join('data', 'user-avatars', fileName).replace(/\\/g, '/');
+    } catch (error) {
+      console.error(`Error downloading user avatar: ${error.message}`);
+      return null;
+    }
+  }
+
+  private async ensureUserAvatarExists(
+    user: User,
+    photoUrl?: string,
+  ): Promise<void> {
+    if (user.image_path && !user.image_path.startsWith('http')) {
+      const fullPath = path.join(process.cwd(), user.image_path);
+      if (fs.existsSync(fullPath)) {
+        return;
+      }
+    }
+
+    const urlToDownload =
+      photoUrl ||
+      (user.image_path?.startsWith('http') ? user.image_path : null);
+
+    if (!urlToDownload) {
+      return;
+    }
+
+    const imagePath = await this.downloadAndSaveUserAvatar(
+      urlToDownload,
+      user.id,
+    );
+    if (imagePath) {
+      user.image_path = imagePath;
+      await this.userRepository.save(user);
+    }
   }
 
   private transformToUserMeResponseDto(
@@ -87,6 +163,10 @@ export class UserService {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
+    const showAdv = this.getShowAdv(user);
+    const advDisableCost = Settings[
+      SettingKey.ADV_DISABLE_COST_VOICES_COUNT
+    ] as number;
 
     return {
       id: transformed.id,
@@ -94,7 +174,7 @@ export class UserService {
       first_name: transformed.first_name,
       last_name: transformed.last_name,
       sex: transformed.sex,
-      avatar_url: transformed.avatar_url,
+      avatar_url: transformed.avatar_url || '',
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
@@ -113,6 +193,8 @@ export class UserService {
       training_cost: trainingCost,
       contract_income: contractIncome,
       referrer_money_reward: referrerMoneyReward,
+      show_adv: showAdv,
+      adv_disable_cost_voices_count: advDisableCost,
     };
   }
 
@@ -129,7 +211,7 @@ export class UserService {
       first_name: transformed.first_name,
       last_name: transformed.last_name,
       sex: transformed.sex,
-      avatar_url: transformed.avatar_url,
+      avatar_url: transformed.avatar_url || '',
       birthday_date: transformed.birthday_date,
       money: transformed.money,
       shield_end_time: transformed.shield_end_time,
@@ -160,7 +242,7 @@ export class UserService {
       first_name: user.first_name,
       last_name: user.last_name,
       sex: user.sex,
-      avatar_url: user.avatar_url,
+      avatar_url: this.getAvatarUrl(user),
       birthday_date: user.birthday_date,
       money: user.money,
       shield_end_time: user.shield_end_time,
@@ -202,13 +284,7 @@ export class UserService {
     };
   }
 
-  async findOne(id: number): Promise<
-    User & {
-      strength: number;
-      guards_count: number;
-      referral_link?: string;
-    }
-  > {
+  async findOne(id: number): Promise<UserWithBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['guards'],
@@ -218,13 +294,7 @@ export class UserService {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
-    const transformed = this.transformUserForResponse(user);
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    return {
-      ...transformed,
-      strength: this.calculateUserPower(user.guards || []),
-      guards_count: guardsCount,
-    };
+    return this.transformToUserBasicStatsResponseDto(user);
   }
 
   async findMe(userId: number): Promise<UserMeResponseDto> {
@@ -852,7 +922,11 @@ export class UserService {
         .filter((user) => user.id !== userId)
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        );
+        )
+        .filter((user) => {
+          const guardsCount = this.getGuardsCount(user.guards || []);
+          return guardsCount > 1;
+        });
 
       const dataWithStrength = await Promise.all(
         filteredUsers.map(async (user) => {
@@ -896,6 +970,10 @@ export class UserService {
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
+        .filter((user) => {
+          const guardsCount = this.getGuardsCount(user.guards || []);
+          return guardsCount > 1;
+        })
         .filter((user) => {
           const strength = this.calculateUserPower(user.guards || []);
           return (
@@ -984,7 +1062,11 @@ export class UserService {
         .filter((user) => user.id !== userId)
         .filter(
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        );
+        )
+        .filter((user) => {
+          const guardsCount = this.getGuardsCount(user.guards || []);
+          return guardsCount > 1;
+        });
 
       const dataWithStrength = await Promise.all(
         filteredUsers.map(async (user) => {
@@ -1326,5 +1408,50 @@ export class UserService {
       page: result.page,
       limit: result.limit,
     };
+  }
+
+  async disableAdv(
+    userId: number,
+  ): Promise<{ show_adv: boolean; adv_disable_end_time: Date | null }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const cost = Settings[SettingKey.ADV_DISABLE_COST_VOICES_COUNT] as number;
+    if (!cost || cost <= 0) {
+      throw new BadRequestException(
+        'Стоимость отключения рекламы не настроена',
+      );
+    }
+
+    const now = new Date();
+    const oneYearFromNow = new Date(now);
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+    if (user.adv_disable_end_time && user.adv_disable_end_time > now) {
+      user.adv_disable_end_time = new Date(
+        user.adv_disable_end_time.getTime() + 365 * 24 * 60 * 60 * 1000,
+      );
+    } else {
+      user.adv_disable_end_time = oneYearFromNow;
+    }
+
+    await this.userRepository.save(user);
+
+    return {
+      show_adv: false,
+      adv_disable_end_time: user.adv_disable_end_time,
+    };
+  }
+
+  private getShowAdv(user: User): boolean {
+    if (!user.adv_disable_end_time) {
+      return true;
+    }
+    return user.adv_disable_end_time <= new Date();
   }
 }

@@ -31,8 +31,8 @@ export class User {
   @Column({ type: 'integer' })
   sex: number;
 
-  @Column({ type: 'varchar' })
-  avatar_url: string;
+  @Column({ type: 'varchar', nullable: true })
+  image_path: string | null;
 
   @Column({ type: 'varchar', length: 10, nullable: true })
   birthday_date: string | null;
@@ -54,6 +54,9 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   clan_leave_time?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  adv_disable_end_time?: Date;
 
   @Column({
     type: 'enum',

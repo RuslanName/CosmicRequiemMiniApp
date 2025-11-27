@@ -27,7 +27,7 @@ export async function initAdmin(
         vk_id: Number(adminVkId),
         first_name: 'System',
         sex: 0,
-        avatar_url: '',
+        image_path: null,
       });
     }
 
