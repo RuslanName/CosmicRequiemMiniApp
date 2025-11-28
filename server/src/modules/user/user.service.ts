@@ -1061,89 +1061,85 @@ export class UserService {
         limit,
       };
     } else if (filter === 'friends') {
-      let friendVkIds: number[] = [];
-
-      try {
-        const vkApiUrl = `https://api.vk.com/method/friends.get`;
-        const vkApiParams = new URLSearchParams({
-          user_id: currentUser.vk_id.toString(),
-          access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
-          v: '5.131',
-        });
-
-        const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-        const data = await response.json();
-
-        if (data.response) {
-          if (data.response.items && Array.isArray(data.response.items)) {
-            friendVkIds = data.response.items;
-          } else if (Array.isArray(data.response)) {
-            friendVkIds = data.response;
-          }
-        } else if (data.error) {
-          console.warn(
-            `Cannot get friends for user ${userId}: ${data.error.error_msg}`,
-          );
-        }
-      } catch (error) {
-        console.error(`Error fetching friends from VK API: ${error.message}`);
-      }
-
-      if (friendVkIds.length === 0) {
-        return {
-          data: [],
-          total: 0,
-          page,
-          limit,
-        };
-      }
-
-      users = await this.userRepository.find({
-        where: {
-          vk_id: In(friendVkIds),
-        },
-        relations: ['clan', 'guards'],
-      });
-
-      const filteredUsers = users
-        .filter((user) => user.id !== userId)
-        .filter(
-          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        )
-        .filter((user) => {
-          const guardsCount = this.getGuardsCount(user.guards || []);
-          return guardsCount > 1;
-        });
-
-      const dataWithStrength = await Promise.all(
-        filteredUsers.map(async (user) => {
-          const equippedAccessories =
-            await this.userAccessoryService.findEquippedByUserId(user.id);
-          return this.transformToUserRatingResponseDto(
-            user,
-            equippedAccessories,
-          );
-        }),
-      );
-
-      dataWithStrength.sort((a, b) => {
-        const scoreA = a.strength * 1000 + Number(a.money || 0);
-        const scoreB = b.strength * 1000 + Number(b.money || 0);
-        return scoreB - scoreA;
-      });
-
-      total = dataWithStrength.length;
-      const paginatedData = dataWithStrength.slice(skip, skip + limit);
-
       return {
-        data: paginatedData,
-        total,
+        data: [],
+        total: 0,
         page,
         limit,
       };
     }
 
     throw new BadRequestException('Неверный параметр фильтра');
+  }
+
+  async getAttackableFriendsByVkIds(
+    userId: number,
+    friendVkIds: number[],
+    paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
+    const { page = 1, limit = 10 } = paginationDto || {};
+    const skip = (page - 1) * limit;
+
+    const currentUser = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['clan'],
+    });
+
+    if (!currentUser) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const currentUserClanId = currentUser.clan_id;
+
+    if (friendVkIds.length === 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+      };
+    }
+
+    const users = await this.userRepository.find({
+      where: {
+        vk_id: In(friendVkIds),
+      },
+      relations: ['clan', 'guards'],
+    });
+
+    const filteredUsers = users
+      .filter((user) => user.id !== userId)
+      .filter(
+        (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
+      )
+      .filter((user) => {
+        const guardsCount = this.getGuardsCount(user.guards || []);
+        return guardsCount > 1;
+      });
+
+    const dataWithStrength = await Promise.all(
+      filteredUsers.map(async (user) => {
+        const equippedAccessories =
+          await this.userAccessoryService.findEquippedByUserId(user.id);
+        return this.transformToUserRatingResponseDto(user, equippedAccessories);
+      }),
+    );
+
+    dataWithStrength.sort((a, b) => {
+      const scoreA = a.strength * 1000 + Number(a.money || 0);
+      const scoreB = b.strength * 1000 + Number(b.money || 0);
+      return scoreB - scoreA;
+    });
+
+    const total = dataWithStrength.length;
+    const paginatedData = dataWithStrength.slice(skip, skip + limit);
+
+    return {
+      data: paginatedData,
+      total,
+      page,
+      limit,
+    };
   }
 
   async attackPlayer(

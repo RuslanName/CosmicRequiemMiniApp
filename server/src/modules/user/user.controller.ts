@@ -46,6 +46,7 @@ import { UserAccessoryService } from '../user-accessory/user-accessory.service';
 import { ActivateShieldResponseDto } from './dtos/responses/activate-shield-response.dto';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
+import { GetFriendsDto } from './dtos/get-friends.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -213,6 +214,32 @@ export class UserController {
     return this.userService.getAttackableUsers(
       req.user.id,
       filter,
+      paginationDto,
+    );
+  }
+
+  @Post('attackable/friends')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Получить список друзей для атаки по VK ID (Для Mini App)',
+    description:
+      'Принимает список VK ID друзей, полученных через VK Bridge, и возвращает только тех, кто зарегистрирован в системе и доступен для атаки.',
+  })
+  @ApiResponse({
+    status: 200,
+    type: PaginatedResponseDto<UserRatingResponseDto>,
+    description: 'Список друзей для атаки с пагинацией',
+  })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async getAttackableFriends(
+    @Request() req: AuthenticatedRequest,
+    @Body() getFriendsDto: GetFriendsDto,
+    @Query() paginationDto?: PaginationDto,
+  ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
+    return this.userService.getAttackableFriendsByVkIds(
+      req.user.id,
+      getFriendsDto.friend_vk_ids,
       paginationDto,
     );
   }
