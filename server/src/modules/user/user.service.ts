@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, In } from 'typeorm';
+import { Repository, MoreThan, In, Not, IsNull } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
@@ -601,10 +601,17 @@ export class UserService {
 
     const allUsers = await this.userRepository.find({
       relations: ['guards'],
+      where: {
+        image_path: Not(IsNull()),
+      },
     });
 
+    const usersWithImagePath = allUsers.filter(
+      (user) => user.image_path && user.image_path.trim() !== '',
+    );
+
     const usersWithStrength = await Promise.all(
-      allUsers.map(async (user) => {
+      usersWithImagePath.map(async (user) => {
         const equippedAccessories =
           await this.userAccessoryService.findEquippedByUserId(user.id);
         return {
