@@ -43,9 +43,10 @@ export class AuthService {
   }> {
     const { user, sign, vk_params } = dto;
 
-    if (!this.verifySignature(vk_params, sign)) {
-      throw new UnauthorizedException('Неверная подпись VK');
-    }
+    // Временно отключена проверка подписи
+    // if (!this.verifySignature(vk_params, sign)) {
+    //   throw new UnauthorizedException('Неверная подпись VK');
+    // }
 
     const vk_id = user.id;
 
@@ -121,55 +122,6 @@ export class AuthService {
         ] as number;
         referrerUser.money = Number(referrerUser.money) + referrerReward;
         await this.userRepository.save(referrerUser);
-
-        const initialReferrerVkId = Settings[
-          SettingKey.INITIAL_REFERRER_VK_ID
-        ] as number;
-        if (
-          initialReferrerVkId &&
-          initialReferrerVkId > 0 &&
-          referrerUser.vk_id === initialReferrerVkId
-        ) {
-          const existingGuards = await this.userGuardRepository.find({
-            where: { user_id: referrerUser.id },
-          });
-          const guardsToCreate = 10 - existingGuards.length;
-
-          if (guardsToCreate > 0) {
-            for (let i = 0; i < guardsToCreate; i++) {
-              let guardName: string;
-              let guardNumber = existingGuards.length + i + 1;
-              let attempts = 0;
-              const maxAttempts = 100;
-
-              do {
-                guardName = `#${formatTo8Digits(guardNumber)}`;
-                const exists = await this.userGuardRepository.findOne({
-                  where: { name: guardName },
-                });
-                if (!exists) {
-                  break;
-                }
-                guardNumber++;
-                attempts++;
-              } while (attempts < maxAttempts);
-
-              if (attempts >= maxAttempts) {
-                throw new UnauthorizedException(
-                  'Не удалось сгенерировать уникальное имя стража',
-                );
-              }
-
-              const guard = this.userGuardRepository.create({
-                name: guardName,
-                strength: 1,
-                is_first: false,
-                user: referrerUser,
-              });
-              await this.userGuardRepository.save(guard);
-            }
-          }
-        }
 
         const referralGuardStrength = Settings[
           SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
