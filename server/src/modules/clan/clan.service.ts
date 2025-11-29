@@ -1742,7 +1742,6 @@ export class ClanService {
         user_id: user.vk_id.toString(),
         access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
         v: '5.131',
-        filter: 'admin',
         extended: '1',
         fields: 'photo_200,screen_name',
       });
@@ -1760,7 +1759,42 @@ export class ClanService {
         return [];
       }
 
-      return data.response.items.map((group: any) => ({
+      const allGroups = data.response.items || [];
+      const adminGroups: any[] = [];
+
+      for (const group of allGroups) {
+        const isMemberUrl = `https://api.vk.com/method/groups.isMember`;
+        const isMemberParams = new URLSearchParams({
+          group_id: Math.abs(group.id).toString(),
+          user_id: user.vk_id.toString(),
+          extended: '1',
+          access_token: ENV.VK_SERVICE_TOKEN || ENV.VK_APP_SECRET,
+          v: '5.131',
+        });
+
+        const isMemberResponse = await fetch(`${isMemberUrl}?${isMemberParams}`);
+        const isMemberData = await isMemberResponse.json();
+
+        if (!isMemberData.error && isMemberData.response) {
+          let memberInfo: { member?: number; role?: string } | null = null;
+
+          if (Array.isArray(isMemberData.response)) {
+            memberInfo = isMemberData.response[0] || null;
+          } else if (typeof isMemberData.response === 'object') {
+            memberInfo = isMemberData.response;
+          }
+
+          if (memberInfo && memberInfo.member === 1) {
+            const isAdmin =
+              memberInfo.role === 'administrator' || memberInfo.role === 'admin';
+            if (isAdmin) {
+              adminGroups.push(group);
+            }
+          }
+        }
+      }
+
+      return adminGroups.map((group: any) => ({
         id: Math.abs(group.id),
         name: group.name || '',
         screen_name: group.screen_name || '',
