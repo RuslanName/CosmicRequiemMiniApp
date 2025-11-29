@@ -25,12 +25,10 @@ import { ClanWithReferralResponseDto } from './dtos/responses/clan-with-referral
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
 import { UserWithStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { AttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
-import { ClanReferralLinkResponseDto } from './dtos/responses/clan-referral-link-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
 import { ClanApplicationStatus } from './enums/clan-application.enum';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Express } from 'express';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { ENV } from '../../config/constants';
@@ -344,14 +342,18 @@ export class ClanService {
 
     if (!createClanByUserDto.name || !createClanByUserDto.name.trim()) {
       throw new BadRequestException('Название клана обязательно');
-    }
+      }
 
     if (
       !createClanByUserDto.image_url ||
       !createClanByUserDto.image_url.trim()
     ) {
       throw new BadRequestException('URL изображения обязателен');
-    }
+      }
+
+    if (!this.verifyVkImageUrl(createClanByUserDto.image_url)) {
+      throw new BadRequestException('Неверный URL изображения сообщества');
+      }
 
     let imagePath = '';
     try {
@@ -1594,6 +1596,9 @@ export class ClanService {
     if (existingClan) {
       existingClan.name = groupData.name;
       if (groupData.photo_200) {
+        if (!this.verifyVkImageUrl(groupData.photo_200)) {
+          throw new BadRequestException('Неверный URL изображения сообщества');
+        }
         existingClan.image_path = await this.downloadAndSaveGroupImage(
           groupData.photo_200,
         );
@@ -1610,7 +1615,40 @@ export class ClanService {
     }
   }
 
+  private verifyVkImageUrl(url: string): boolean {
+    if (!url || typeof url !== 'string') {
+      return false;
+    }
+
+    const vkImageUrlPattern = /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
+
+    if (!vkImageUrlPattern.test(url)) {
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      const allowedDomains = [
+        'vk.com',
+        'userapi.com',
+        'vk-cdn.net',
+        'vkuser.net',
+        'vk.me',
+        'vkuseraudio.net',
+        'vk-cdn.org',
+      ];
+
+      return allowedDomains.some((domain) => urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`));
+    } catch {
+      return false;
+    }
+  }
+
   private async downloadAndSaveGroupImage(photoUrl: string): Promise<string> {
+    if (!this.verifyVkImageUrl(photoUrl)) {
+      throw new BadRequestException('Неверный URL изображения сообщества');
+    }
+
     try {
       const response = await fetch(photoUrl);
       if (!response.ok) {

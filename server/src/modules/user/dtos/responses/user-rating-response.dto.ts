@@ -59,6 +59,9 @@ export class UserRatingResponseDto {
   @ApiProperty()
   guards_count: number;
 
+  @ApiProperty({ required: false, nullable: true })
+  profile_url?: string | null;
+
   @ApiProperty({
     type: [UserAccessoryResponseDto],
     required: false,

@@ -30,6 +30,9 @@ export class ItemTemplate {
   @Column({ type: 'integer', nullable: true })
   quantity: number | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  name_in_kit: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

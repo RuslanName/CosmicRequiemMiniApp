@@ -17,7 +17,6 @@ import { ENV } from '../../config/constants';
 import { UserBoostService } from '../user-boost/user-boost.service';
 import { UserBoostType } from '../user-boost/enums/user-boost-type.enum';
 import { UserAccessoryService } from '../user-accessory/user-accessory.service';
-import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserBoost } from '../user-boost/user-boost.entity';
 import { EventHistoryService } from '../event-history/event-history.service';
 import { EventHistoryType } from '../event-history/enums/event-history-type.enum';
@@ -1122,6 +1121,7 @@ export class UserService {
     userId: number,
     friendVkIds: number[],
     paginationDto?: PaginationDto,
+    vkAccessToken?: string,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
@@ -1133,6 +1133,10 @@ export class UserService {
 
     if (!currentUser) {
       throw new NotFoundException('Пользователь не найден');
+    }
+
+    if (vkAccessToken && friendVkIds.length > 0) {
+      console.log('Токен доступа получен, список друзей уже проверен на клиенте через VKWebAppCallAPIMethod');
     }
 
     const currentUserClanId = currentUser.clan_id;
@@ -1382,49 +1386,49 @@ export class UserService {
       if (!isInitialReferrerAttack) {
         stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
-        if (stolen_money > 0) {
-          defender.money = Number(defender.money) - stolen_money;
-          attacker.money = Number(attacker.money) + stolen_money;
-          await this.userRepository.save([defender, attacker]);
+      if (stolen_money > 0) {
+        defender.money = Number(defender.money) - stolen_money;
+        attacker.money = Number(attacker.money) + stolen_money;
+        await this.userRepository.save([defender, attacker]);
 
-          const moneyItem = this.stolenItemRepository.create({
-            type: StolenItemType.MONEY,
-            value: stolen_money.toString(),
+        const moneyItem = this.stolenItemRepository.create({
+          type: StolenItemType.MONEY,
+          value: stolen_money.toString(),
+          thief: attacker,
+          victim: defender,
+          clan_war_id: null,
+        });
+        await this.stolenItemRepository.save(moneyItem);
+        stolen_items.push(moneyItem);
+      }
+
+        captured_guards = Math.round(
+        defender_guards * 0.08 * (win_chance / 100),
+      );
+
+      if (
+        captured_guards > 0 &&
+        defender.guards &&
+        defender.guards.length > 0
+      ) {
+        const capturableGuards = defender.guards.filter(
+          (guard) => !guard.is_first,
+        );
+        const guardsToCapture = capturableGuards.slice(0, captured_guards);
+
+        for (const guard of guardsToCapture) {
+          guard.user = attacker;
+          await this.userGuardRepository.save(guard);
+
+          const guardItem = this.stolenItemRepository.create({
+            type: StolenItemType.GUARD,
+            value: guard.id.toString(),
             thief: attacker,
             victim: defender,
             clan_war_id: null,
           });
-          await this.stolenItemRepository.save(moneyItem);
-          stolen_items.push(moneyItem);
-        }
-
-        captured_guards = Math.round(
-          defender_guards * 0.08 * (win_chance / 100),
-        );
-
-        if (
-          captured_guards > 0 &&
-          defender.guards &&
-          defender.guards.length > 0
-        ) {
-          const capturableGuards = defender.guards.filter(
-            (guard) => !guard.is_first,
-          );
-          const guardsToCapture = capturableGuards.slice(0, captured_guards);
-
-          for (const guard of guardsToCapture) {
-            guard.user = attacker;
-            await this.userGuardRepository.save(guard);
-
-            const guardItem = this.stolenItemRepository.create({
-              type: StolenItemType.GUARD,
-              value: guard.id.toString(),
-              thief: attacker,
-              victim: defender,
-              clan_war_id: null,
-            });
-            await this.stolenItemRepository.save(guardItem);
-            stolen_items.push(guardItem);
+          await this.stolenItemRepository.save(guardItem);
+          stolen_items.push(guardItem);
           }
         }
       }
@@ -1433,19 +1437,19 @@ export class UserService {
       await this.userRepository.save(attacker);
 
       if (!isInitialReferrerAttack || stolen_items.length > 0) {
-        await this.eventHistoryService.create(
-          attacker.id,
-          EventHistoryType.ATTACK,
-          stolen_items,
-          defender.id,
-        );
+      await this.eventHistoryService.create(
+        attacker.id,
+        EventHistoryType.ATTACK,
+        stolen_items,
+        defender.id,
+      );
 
-        await this.eventHistoryService.create(
-          defender.id,
-          EventHistoryType.DEFENSE,
-          stolen_items,
-          attacker.id,
-        );
+      await this.eventHistoryService.create(
+        defender.id,
+        EventHistoryType.DEFENSE,
+        stolen_items,
+        attacker.id,
+      );
       }
 
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);

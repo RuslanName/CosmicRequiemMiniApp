@@ -43,12 +43,23 @@ export class AuthService {
   }> {
     const { user, sign, vk_params } = dto;
 
-    // Временно отключена проверка подписи
-    // if (!this.verifySignature(vk_params, sign)) {
-    //   throw new UnauthorizedException('Неверная подпись VK');
-    // }
+    if (!this.verifySignature(vk_params, sign)) {
+      throw new UnauthorizedException('Неверная подпись VK');
+    }
 
-    const vk_id = user.id;
+    if (!vk_params.vk_user_id) {
+      throw new UnauthorizedException('Отсутствует vk_user_id в параметрах запуска');
+    }
+
+    const vk_id = parseInt(vk_params.vk_user_id, 10);
+
+    if (isNaN(vk_id) || vk_id <= 0) {
+      throw new UnauthorizedException('Неверный vk_user_id в параметрах запуска');
+    }
+
+    if (+user.id !== +vk_id) {
+      throw new UnauthorizedException('Неверные параметры: user.id не совпадает с vk_user_id');
+    }
 
     let dbUser = await this.userRepository.findOne({
       where: { vk_id },
@@ -59,10 +70,12 @@ export class AuthService {
     let referrerUser: User | null = null;
 
     if (startParam && startParam.startsWith('ref_')) {
-      const referrerLinkId = startParam.replace('ref_', '');
+      const referrerLinkId = startParam.split('_')[1];
+      if (referrerLinkId) {
       referrerUser = await this.userRepository.findOne({
         where: { referral_link_id: referrerLinkId },
       });
+      }
     }
 
     if (!referrerUser) {
@@ -92,6 +105,9 @@ export class AuthService {
       await this.userRepository.save(dbUser);
 
       if (photoUrl) {
+        if (!this.verifyVkImageUrl(photoUrl)) {
+          throw new UnauthorizedException('Неверный URL аватара профиля');
+        }
         await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
         dbUser = await this.userRepository.findOne({
           where: { id: dbUser.id },
@@ -153,6 +169,9 @@ export class AuthService {
       dbUser.sex = user.sex ?? dbUser.sex;
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
+        if (!this.verifyVkImageUrl(photoUrl)) {
+          throw new UnauthorizedException('Неверный URL аватара профиля');
+        }
         const needsUpdate =
           !dbUser.image_path ||
           dbUser.image_path.startsWith('http') ||
@@ -358,6 +377,35 @@ export class AuthService {
       .digest('base64url');
 
     return computedHash === sign;
+  }
+
+  private verifyVkImageUrl(url: string): boolean {
+    if (!url || typeof url !== 'string') {
+      return false;
+    }
+
+    const vkImageUrlPattern = /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
+
+    if (!vkImageUrlPattern.test(url)) {
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      const allowedDomains = [
+        'vk.com',
+        'userapi.com',
+        'vk-cdn.net',
+        'vkuser.net',
+        'vk.me',
+        'vkuseraudio.net',
+        'vk-cdn.org',
+      ];
+
+      return allowedDomains.some((domain) => urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`));
+    } catch {
+      return false;
+    }
   }
 
   private formatBirthday(bdate?: string, visibility?: number): string | null {

@@ -52,4 +52,7 @@ export class ClanWithReferralResponseDto {
 
   @ApiProperty({ required: false })
   has_active_wars?: boolean;
+
+  @ApiProperty({ required: false, nullable: true })
+  community_url?: string | null;
 }

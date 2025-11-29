@@ -142,9 +142,7 @@ export class KitService {
       .where('kit.status = :status', { status: ShopItemStatus.IN_STOCK });
 
     if (purchasedKitIds.length > 0) {
-      queryBuilder.andWhere('kit.id NOT IN (:...ids)', {
-        ids: purchasedKitIds,
-      });
+      queryBuilder.andWhere('kit.id NOT IN (:...ids)', { ids: purchasedKitIds });
     }
 
     const [data, total] = await queryBuilder
@@ -294,7 +292,7 @@ export class KitService {
         }
         const guardStrength = parseInt(itemTemplate.value, 10);
         const quantity = itemTemplate.quantity || 1;
-
+        
         for (let i = 0; i < quantity; i++) {
           const guardName = await this.generateUniqueGuardName();
           const guard = this.userGuardRepository.create({
@@ -393,13 +391,11 @@ export class KitService {
 
     await this.userRepository.save(user);
 
-    // Transform entities to response DTOs
     const userResponse = await this.userService.findMe(user.id);
     const guardsResponse = createdGuards.map((guard) =>
       this.transformUserGuardToResponseDto(guard),
     );
 
-    // Transform only created accessories
     const accessoriesResponse = await Promise.all(
       userAccessories.map(async (accessory) => {
         const accessoryWithRelations =
@@ -412,7 +408,7 @@ export class KitService {
         }
         return {
           id: accessoryWithRelations.id,
-          name: accessoryWithRelations.item_template?.name || '',
+          name: accessoryWithRelations.item_template?.name_in_kit || accessoryWithRelations.item_template?.name || '',
           status: accessoryWithRelations.status,
           type: accessoryWithRelations.item_template?.type || '',
           value: accessoryWithRelations.item_template?.value || null,

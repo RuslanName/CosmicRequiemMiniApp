@@ -42,4 +42,7 @@ export class ClanRatingResponseDto {
 
   @ApiProperty({ required: false })
   members_count?: number;
+
+  @ApiProperty({ required: false, nullable: true })
+  community_url?: string | null;
 }

@@ -230,7 +230,7 @@ export class ShopItemService {
     }
 
     const shopItem = this.shopItemRepository.create({
-      name: itemTemplate.name,
+      name: createShopItemDto.name,
       currency: createShopItemDto.currency,
       price: createShopItemDto.price,
       status: createShopItemDto.status,
@@ -269,11 +269,8 @@ export class ShopItemService {
       shopItem.item_template = itemTemplate;
     }
 
-    if (updateShopItemDto.item_template_id && shopItem.item_template) {
-      shopItem.name = shopItem.item_template.name;
-    }
-
     Object.assign(shopItem, {
+      name: updateShopItemDto.name,
       currency: updateShopItemDto.currency,
       price: updateShopItemDto.price,
       status: updateShopItemDto.status,

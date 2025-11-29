@@ -19,6 +19,8 @@ export const itemTemplatesApi = {
     if (data.name) formData.append('name', data.name);
     if (data.type) formData.append('type', data.type);
     if (data.value) formData.append('value', data.value);
+    if (data.quantity !== undefined) formData.append('quantity', data.quantity.toString());
+    if (data.name_in_kit) formData.append('name_in_kit', data.name_in_kit);
     if (image) {
       formData.append('image', image);
     }
@@ -33,6 +35,8 @@ export const itemTemplatesApi = {
     if (data.name) formData.append('name', data.name);
     if (data.type) formData.append('type', data.type);
     if (data.value !== undefined) formData.append('value', data.value || '');
+    if (data.quantity !== undefined) formData.append('quantity', data.quantity !== null ? data.quantity.toString() : '');
+    if (data.name_in_kit !== undefined) formData.append('name_in_kit', data.name_in_kit || '');
     if (data.image_path) formData.append('image_path', data.image_path);
     if (image) {
       formData.append('image', image);

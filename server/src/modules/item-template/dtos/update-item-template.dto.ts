@@ -41,6 +41,15 @@ export class UpdateItemTemplateDto {
   quantity?: number;
 
   @ApiProperty({
+    example: 'Красный никнейм',
+    description: 'Название для отображения в наборе (необязательно)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  name_in_kit?: string;
+
+  @ApiProperty({
     example: 'data/item-template-images/item-template-123.jpg',
     required: false,
     description: 'Путь к изображению',

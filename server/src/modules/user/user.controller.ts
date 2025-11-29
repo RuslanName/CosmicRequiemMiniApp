@@ -243,6 +243,7 @@ export class UserController {
       req.user.id,
       getFriendsDto.friend_vk_ids,
       paginationDto,
+      getFriendsDto.vk_access_token,
     );
   }
 

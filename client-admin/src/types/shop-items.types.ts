@@ -11,6 +11,7 @@ export interface ShopItem {
 }
 
 export interface CreateShopItemDto {
+  name: string;
   currency: string;
   price: number;
   status?: string;
@@ -18,6 +19,7 @@ export interface CreateShopItemDto {
 }
 
 export interface UpdateShopItemDto {
+  name?: string;
   currency?: string;
   price?: number;
   status?: string;

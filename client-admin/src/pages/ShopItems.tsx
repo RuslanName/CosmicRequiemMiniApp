@@ -69,7 +69,7 @@ const ShopItems = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingAccessory(null);
-    setFormData({ currency: 'virtual', price: 0, item_template_id: 0 });
+    setFormData({ name: '', currency: 'virtual', price: 0, item_template_id: 0 });
     setIsModalOpen(true);
   };
 
@@ -77,6 +77,7 @@ const ShopItems = () => {
     setIsCreateMode(false);
     setEditingAccessory(accessory);
     setFormData({
+      name: accessory.name,
       currency: accessory.currency,
       price: accessory.price,
       status: accessory.status,
@@ -185,7 +186,7 @@ const ShopItems = () => {
                   '-'
                 )}
               </td>
-              <td>{accessory.item_template?.name || '-'}</td>
+              <td>{accessory.name || '-'}</td>
               <td>{CurrencyLabels[accessory.currency as Currency] || accessory.currency}</td>
               <td>{accessory.price}</td>
               <td>{ShopItemStatusLabels[accessory.status as ShopItemStatus] || accessory.status}</td>
@@ -235,6 +236,16 @@ const ShopItems = () => {
         title={isCreateMode ? 'Создать товар магазина' : 'Редактировать товар магазина'}
       >
         <div>
+          <div className="form-group">
+            <label className="form-label">Название</label>
+            <input
+              className="form-input"
+              type="text"
+              value={(formData as any).name || ''}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Введите название товара"
+            />
+          </div>
           <div className="form-group">
             <label className="form-label">Валюта</label>
             <select

@@ -70,7 +70,7 @@ const ItemTemplates = () => {
   const handleCreate = () => {
     setIsCreateMode(true);
     setEditingItemTemplate(null);
-    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR, quantity: undefined });
+    setFormData({ name: '', type: ItemTemplateType.NICKNAME_COLOR, quantity: undefined, name_in_kit: undefined });
     setImageFile(null);
     setSelectedColor('#ff0000');
     setIsModalOpen(true);
@@ -84,6 +84,7 @@ const ItemTemplates = () => {
       type: itemTemplate.type,
       value: itemTemplate.value || undefined,
       quantity: itemTemplate.quantity || undefined,
+      name_in_kit: itemTemplate.name_in_kit || undefined,
     });
     setImageFile(null);
     if (itemTemplate.type === ItemTemplateType.NICKNAME_COLOR && itemTemplate.value) {
@@ -338,6 +339,16 @@ const ItemTemplates = () => {
               />
             </div>
           )}
+          <div className="form-group">
+            <label className="form-label">Название в наборе (необязательно)</label>
+            <input
+              className="form-input"
+              type="text"
+              value={(formData as any).name_in_kit || ''}
+              onChange={(e) => setFormData({ ...formData, name_in_kit: e.target.value || undefined })}
+              placeholder="Введите название для отображения в наборе"
+            />
+          </div>
           {((formData as any).type !== ItemTemplateType.NICKNAME_ICON && 
             (formData as any).type !== ItemTemplateType.AVATAR_FRAME) && (
           <div className="form-group">

@@ -17,6 +17,9 @@ class GuardAsUserDto {
   @ApiProperty({ required: false, nullable: true })
   image_path?: string | null;
 
+  @ApiProperty({ required: false, nullable: true })
+  profile_url?: string | null;
+
   @ApiProperty({ type: [UserAccessoryResponseDto] })
   equipped_accessories: UserAccessoryResponseDto[];
 }

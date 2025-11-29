@@ -32,4 +32,13 @@ export class CreateItemTemplateDto {
   @IsOptional()
   @IsNumber()
   quantity?: number;
+
+  @ApiProperty({
+    example: 'Красный никнейм',
+    description: 'Название для отображения в наборе (необязательно)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  name_in_kit?: string;
 }
