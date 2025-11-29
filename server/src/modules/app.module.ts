@@ -54,8 +54,8 @@ import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage
       useFactory: (storage: ThrottlerRedisStorage) => ({
         throttlers: [
           {
-            ttl: 60000,
-            limit: 30,
+            ttl: 30000,
+            limit: 60,
           },
         ],
         storage,

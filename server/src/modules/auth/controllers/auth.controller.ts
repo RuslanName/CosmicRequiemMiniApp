@@ -1,7 +1,6 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../services/auth.service';
 import { AuthDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
@@ -15,7 +14,6 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({
     summary:
       'Аутентификация пользователя и получение JWT токенов (Для Mini App)',
@@ -27,10 +25,6 @@ export class AuthController {
   })
   @ApiResponse({
     status: 401,
-  })
-  @ApiResponse({
-    status: 429,
-    description: 'Слишком много запросов',
   })
   async login(
     @Body() authDto: AuthDto,
@@ -62,7 +56,6 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
     summary: 'Обновление access token с помощью refresh token (Для Mini App)',
   })
@@ -74,10 +67,6 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Неверный или истекший refresh токен',
-  })
-  @ApiResponse({
-    status: 429,
-    description: 'Слишком много запросов',
   })
   async refresh(
     @Body() refreshTokenDto: RefreshTokenDto,
@@ -110,7 +99,6 @@ export class AuthController {
   }
 
   @Post('logout')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({
     summary: 'Выход из системы и отзыв refresh token (Для Mini App)',
   })
