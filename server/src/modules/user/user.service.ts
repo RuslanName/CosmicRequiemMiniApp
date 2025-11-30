@@ -67,12 +67,16 @@ export class UserService {
     return guards ? guards.length : 0;
   }
 
+  private isInitialReferrer(userVkId: number, initialReferrerVkId: number | undefined): boolean {
+    return !!(initialReferrerVkId && initialReferrerVkId > 0 && userVkId === initialReferrerVkId);
+  }
+
   private transformUserForResponse(
     user: User,
   ): User & { referral_link?: string } {
     const transformed: any = { ...user };
     if (user.referral_link_id) {
-      transformed.referral_link = `${ENV.VK_APP_URL}/?start=ref_${user.referral_link_id}`;
+      transformed.referral_link = `${ENV.VK_APP_URL}?start=ref_${user.referral_link_id}`;
       delete transformed.referral_link_id;
     }
     return transformed;
@@ -992,6 +996,10 @@ export class UserService {
     let users: User[];
     let total: number;
 
+    const initialReferrerVkId = Settings[
+      SettingKey.INITIAL_REFERRER_VK_ID
+    ] as number;
+
     if (!filter || filter === 'top') {
       users = await this.userRepository.find({
         relations: ['clan', 'guards'],
@@ -1003,6 +1011,9 @@ export class UserService {
           (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
         )
         .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
           const guardsCount = this.getGuardsCount(user.guards || []);
           return guardsCount > 1;
         });
@@ -1048,16 +1059,45 @@ export class UserService {
         },
       });
 
+      if (initialReferrerVkId && initialReferrerVkId > 0) {
+        const initialReferrerExists = users.some(
+          (user) => user.vk_id === initialReferrerVkId,
+        );
+        if (!initialReferrerExists) {
+          const initialReferrer = await this.userRepository.findOne({
+            where: { vk_id: initialReferrerVkId },
+            relations: ['clan', 'guards', 'referrals'],
+          });
+          if (initialReferrer && initialReferrer.id !== userId) {
+            users.push(initialReferrer);
+          }
+        }
+      }
+
       const filteredUsers = users
-        .filter((user) => user.id !== userId)
-        .filter(
-          (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
-        )
         .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
+          return user.id !== userId;
+        })
+        .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
+          return !currentUserClanId || user.clan?.id !== currentUserClanId;
+        })
+        .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
           const guardsCount = this.getGuardsCount(user.guards || []);
           return guardsCount > 1;
         })
         .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
           const strength = this.calculateUserPower(user.guards || []);
           return (
             strength >= currentStrength - strengthRange &&
@@ -1065,13 +1105,11 @@ export class UserService {
           );
         })
         .filter((user) => {
+          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+            return true;
+          }
           const hasReferrals = user.referrals && user.referrals.length > 0;
-          const isInitialReferrer =
-            initialReferrerVkId &&
-            initialReferrerVkId > 0 &&
-            user.vk_id === initialReferrerVkId;
-
-          return !hasReferrals || isInitialReferrer;
+          return !hasReferrals;
         });
 
       const dataWithStrength = await Promise.all(
@@ -1086,6 +1124,16 @@ export class UserService {
       );
 
       dataWithStrength.sort((a, b) => {
+        const isAInitialReferrer = this.isInitialReferrer(a.vk_id, initialReferrerVkId);
+        const isBInitialReferrer = this.isInitialReferrer(b.vk_id, initialReferrerVkId);
+
+        if (isAInitialReferrer && !isBInitialReferrer) {
+          return -1;
+        }
+        if (!isAInitialReferrer && isBInitialReferrer) {
+          return 1;
+        }
+
         const distanceA = Math.abs(a.strength - currentStrength);
         const distanceB = Math.abs(b.strength - currentStrength);
         if (distanceA !== distanceB) {
@@ -1136,7 +1184,9 @@ export class UserService {
     }
 
     if (vkAccessToken && friendVkIds.length > 0) {
-      console.log('Токен доступа получен, список друзей уже проверен на клиенте через VKWebAppCallAPIMethod');
+      console.log(
+        'Токен доступа получен, список друзей уже проверен на клиенте через VKWebAppCallAPIMethod',
+      );
     }
 
     const currentUserClanId = currentUser.clan_id;
@@ -1386,49 +1436,49 @@ export class UserService {
       if (!isInitialReferrerAttack) {
         stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
-      if (stolen_money > 0) {
-        defender.money = Number(defender.money) - stolen_money;
-        attacker.money = Number(attacker.money) + stolen_money;
-        await this.userRepository.save([defender, attacker]);
+        if (stolen_money > 0) {
+          defender.money = Number(defender.money) - stolen_money;
+          attacker.money = Number(attacker.money) + stolen_money;
+          await this.userRepository.save([defender, attacker]);
 
-        const moneyItem = this.stolenItemRepository.create({
-          type: StolenItemType.MONEY,
-          value: stolen_money.toString(),
-          thief: attacker,
-          victim: defender,
-          clan_war_id: null,
-        });
-        await this.stolenItemRepository.save(moneyItem);
-        stolen_items.push(moneyItem);
-      }
-
-        captured_guards = Math.round(
-        defender_guards * 0.08 * (win_chance / 100),
-      );
-
-      if (
-        captured_guards > 0 &&
-        defender.guards &&
-        defender.guards.length > 0
-      ) {
-        const capturableGuards = defender.guards.filter(
-          (guard) => !guard.is_first,
-        );
-        const guardsToCapture = capturableGuards.slice(0, captured_guards);
-
-        for (const guard of guardsToCapture) {
-          guard.user = attacker;
-          await this.userGuardRepository.save(guard);
-
-          const guardItem = this.stolenItemRepository.create({
-            type: StolenItemType.GUARD,
-            value: guard.id.toString(),
+          const moneyItem = this.stolenItemRepository.create({
+            type: StolenItemType.MONEY,
+            value: stolen_money.toString(),
             thief: attacker,
             victim: defender,
             clan_war_id: null,
           });
-          await this.stolenItemRepository.save(guardItem);
-          stolen_items.push(guardItem);
+          await this.stolenItemRepository.save(moneyItem);
+          stolen_items.push(moneyItem);
+        }
+
+        captured_guards = Math.round(
+          defender_guards * 0.08 * (win_chance / 100),
+        );
+
+        if (
+          captured_guards > 0 &&
+          defender.guards &&
+          defender.guards.length > 0
+        ) {
+          const capturableGuards = defender.guards.filter(
+            (guard) => !guard.is_first,
+          );
+          const guardsToCapture = capturableGuards.slice(0, captured_guards);
+
+          for (const guard of guardsToCapture) {
+            guard.user = attacker;
+            await this.userGuardRepository.save(guard);
+
+            const guardItem = this.stolenItemRepository.create({
+              type: StolenItemType.GUARD,
+              value: guard.id.toString(),
+              thief: attacker,
+              victim: defender,
+              clan_war_id: null,
+            });
+            await this.stolenItemRepository.save(guardItem);
+            stolen_items.push(guardItem);
           }
         }
       }
@@ -1437,19 +1487,19 @@ export class UserService {
       await this.userRepository.save(attacker);
 
       if (!isInitialReferrerAttack || stolen_items.length > 0) {
-      await this.eventHistoryService.create(
-        attacker.id,
-        EventHistoryType.ATTACK,
-        stolen_items,
-        defender.id,
-      );
+        await this.eventHistoryService.create(
+          attacker.id,
+          EventHistoryType.ATTACK,
+          stolen_items,
+          defender.id,
+        );
 
-      await this.eventHistoryService.create(
-        defender.id,
-        EventHistoryType.DEFENSE,
-        stolen_items,
-        attacker.id,
-      );
+        await this.eventHistoryService.create(
+          defender.id,
+          EventHistoryType.DEFENSE,
+          stolen_items,
+          attacker.id,
+        );
       }
 
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
@@ -1466,6 +1516,7 @@ export class UserService {
     attacker.last_attack_time = new Date();
     await this.userRepository.save(attacker);
 
+    if (!isInitialReferrerAlreadyStolen) {
     await this.eventHistoryService.create(
       attacker.id,
       EventHistoryType.ATTACK,
@@ -1479,12 +1530,13 @@ export class UserService {
       stolen_items,
       attacker.id,
     );
+    }
 
     const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 
     return {
       win_chance,
-      is_win: false,
+      is_win: is_win,
       stolen_money: 0,
       captured_guards: 0,
       attack_cooldown_end: attackCooldownEnd,

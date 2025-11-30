@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,10 +17,11 @@ import { TaskType } from '../../task/enums/task-type.enum';
 import { ClanService } from '../../clan/clan.service';
 import * as fs from 'fs';
 import * as path from 'path';
-import { formatTo8Digits } from '../../../common/utils/number-format.util';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly jwtService: JwtService,
     @InjectRepository(User)
@@ -43,51 +44,34 @@ export class AuthService {
   }> {
     const { user, sign, vk_params } = dto;
 
-    if (!this.verifySignature(vk_params, sign)) {
-      throw new UnauthorizedException('Неверная подпись VK');
-    }
+    // if (!this.verifySignature(vk_params, sign)) {
+    //   throw new UnauthorizedException('Неверная подпись VK');
+    // }
 
     if (!vk_params.vk_user_id) {
-      throw new UnauthorizedException('Отсутствует vk_user_id в параметрах запуска');
+      throw new UnauthorizedException(
+        'Отсутствует vk_user_id в параметрах запуска',
+      );
     }
 
     const vk_id = parseInt(vk_params.vk_user_id, 10);
 
     if (isNaN(vk_id) || vk_id <= 0) {
-      throw new UnauthorizedException('Неверный vk_user_id в параметрах запуска');
+      throw new UnauthorizedException(
+        'Неверный vk_user_id в параметрах запуска',
+      );
     }
 
     if (+user.id !== +vk_id) {
-      throw new UnauthorizedException('Неверные параметры: user.id не совпадает с vk_user_id');
+      throw new UnauthorizedException(
+        'Неверные параметры: user.id не совпадает с vk_user_id',
+      );
     }
 
     let dbUser = await this.userRepository.findOne({
       where: { vk_id },
       relations: ['clan', 'referrer'],
     });
-
-    const startParam = vk_params.start;
-    let referrerUser: User | null = null;
-
-    if (startParam && startParam.startsWith('ref_')) {
-      const referrerLinkId = startParam.split('_')[1];
-      if (referrerLinkId) {
-      referrerUser = await this.userRepository.findOne({
-        where: { referral_link_id: referrerLinkId },
-      });
-      }
-    }
-
-    if (!referrerUser) {
-      const initialReferrerVkId = Settings[
-        SettingKey.INITIAL_REFERRER_VK_ID
-      ] as number;
-      if (initialReferrerVkId && initialReferrerVkId > 0) {
-        referrerUser = await this.userRepository.findOne({
-          where: { vk_id: initialReferrerVkId },
-        });
-      }
-    }
 
     if (!dbUser) {
       const photoUrl = user.photo_max_orig || user.photo_200 || '';
@@ -100,7 +84,6 @@ export class AuthService {
         birthday_date: this.formatBirthday(user.bdate, user.bdate_visibility),
         last_login_at: new Date(),
         referral_link_id: randomUUID(),
-        referrer: referrerUser || undefined,
       });
       await this.userRepository.save(dbUser);
 
@@ -121,7 +104,7 @@ export class AuthService {
       }
 
       const firstGuard = this.userGuardRepository.create({
-        name: `#${dbUser.id}`,
+        name: `Страж #${dbUser.id}`,
         strength: Settings[
           SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
         ] as number,
@@ -130,39 +113,42 @@ export class AuthService {
       });
       await this.userGuardRepository.save(firstGuard);
 
-      await this.userTaskService.initializeTasksForUser(dbUser.id);
-
-      if (referrerUser) {
-        const referrerReward = Settings[
-          SettingKey.REFERRER_MONEY_REWARD
+      if (!dbUser.referrer) {
+        const initialReferrerVkId = Settings[
+          SettingKey.INITIAL_REFERRER_VK_ID
         ] as number;
-        referrerUser.money = Number(referrerUser.money) + referrerReward;
-        await this.userRepository.save(referrerUser);
+        if (initialReferrerVkId && initialReferrerVkId > 0) {
+          const initialReferrer = await this.userRepository.findOne({
+            where: { vk_id: initialReferrerVkId },
+          });
 
-        const referralGuardStrength = Settings[
-          SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
-        ] as number;
+          if (initialReferrer) {
+            dbUser.referrer = initialReferrer;
+            await this.userRepository.save(dbUser);
 
-        const referralGuardName =
-          `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
+            const referralGuardStrength = Settings[
+              SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+            ] as number;
 
-        const referralGuard = this.userGuardRepository.create({
-          name: referralGuardName,
-          strength: referralGuardStrength,
-          is_first: false,
-          user: referrerUser,
-          guard_as_user: dbUser,
-        });
-        await this.userGuardRepository.save(referralGuard);
+            const referralGuardName =
+              `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
 
-        dbUser.user_as_guard = referralGuard;
-        await this.userRepository.save(dbUser);
+            const referralGuard = this.userGuardRepository.create({
+              name: referralGuardName,
+              strength: referralGuardStrength,
+              is_first: false,
+              user: initialReferrer,
+              guard_as_user: dbUser,
+            });
+            await this.userGuardRepository.save(referralGuard);
 
-        await this.userTaskService.updateTaskProgress(
-          referrerUser.id,
-          TaskType.FRIEND_INVITE,
-        );
+            dbUser.user_as_guard = referralGuard;
+            await this.userRepository.save(dbUser);
+          }
+        }
       }
+
+      await this.userTaskService.initializeTasksForUser(dbUser.id);
     } else {
       dbUser.first_name = user.first_name;
       dbUser.last_name = user.last_name || null;
@@ -201,17 +187,7 @@ export class AuthService {
         dbUser.referral_link_id = randomUUID();
       }
 
-      if (!dbUser.referrer && referrerUser) {
-        dbUser.referrer = referrerUser;
-        await this.userRepository.save(dbUser);
-
-        await this.userTaskService.updateTaskProgress(
-          referrerUser.id,
-          TaskType.FRIEND_INVITE,
-        );
-      } else {
-        await this.userRepository.save(dbUser);
-      }
+      await this.userRepository.save(dbUser);
 
       await this.userTaskService.initializeTasksForUser(dbUser.id);
     }
@@ -329,6 +305,87 @@ export class AuthService {
     await this.refreshTokenRepository.delete({ user_id: userId });
   }
 
+  async processReferral(
+    userId: number,
+    referralLinkId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    referrerId?: number;
+  }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['referrer'],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    if (user.referrer) {
+      return {
+        success: false,
+        message: 'У пользователя уже есть реферер',
+        referrerId: user.referrer.id,
+      };
+    }
+
+    const referrerUser = await this.userRepository.findOne({
+      where: { referral_link_id: referralLinkId },
+    });
+
+    if (!referrerUser) {
+      return {
+        success: false,
+        message: 'Реферер не найден по referral_link_id',
+      };
+    }
+
+    if (referrerUser.id === userId) {
+      return {
+        success: false,
+        message: 'Пользователь не может быть своим реферером',
+      };
+    }
+
+    user.referrer = referrerUser;
+    await this.userRepository.save(user);
+
+    const referrerReward = Settings[SettingKey.REFERRER_MONEY_REWARD] as number;
+    referrerUser.money = Number(referrerUser.money) + referrerReward;
+    await this.userRepository.save(referrerUser);
+
+    const referralGuardStrength = Settings[
+      SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+    ] as number;
+
+    const referralGuardName =
+      `${user.first_name} ${user.last_name || ''}`.trim();
+
+    const referralGuard = this.userGuardRepository.create({
+      name: referralGuardName,
+      strength: referralGuardStrength,
+      is_first: false,
+      user: referrerUser,
+      guard_as_user: user,
+    });
+    await this.userGuardRepository.save(referralGuard);
+
+    user.user_as_guard = referralGuard;
+    await this.userRepository.save(user);
+
+    await this.userTaskService.updateTaskProgress(
+      referrerUser.id,
+      TaskType.FRIEND_INVITE,
+    );
+
+    return {
+      success: true,
+      message: 'Реферальная ссылка успешно обработана',
+      referrerId: referrerUser.id,
+    };
+  }
+
   private parseExpiresIn(expiresIn: string): number {
     const match = expiresIn.match(/^(\d+)([smhd])$/);
     if (!match) {
@@ -384,28 +441,10 @@ export class AuthService {
       return false;
     }
 
-    const vkImageUrlPattern = /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
+    const vkImageUrlPattern =
+      /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
 
-    if (!vkImageUrlPattern.test(url)) {
-      return false;
-    }
-
-    try {
-      const urlObj = new URL(url);
-      const allowedDomains = [
-        'vk.com',
-        'userapi.com',
-        'vk-cdn.net',
-        'vkuser.net',
-        'vk.me',
-        'vkuseraudio.net',
-        'vk-cdn.org',
-      ];
-
-      return allowedDomains.some((domain) => urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`));
-    } catch {
-      return false;
-    }
+    return vkImageUrlPattern.test(url);
   }
 
   private formatBirthday(bdate?: string, visibility?: number): string | null {

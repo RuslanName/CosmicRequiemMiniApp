@@ -1,16 +1,37 @@
-import { Controller, Post, Body, Res } from '@nestjs/common';
-import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  Logger,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { Request as ExpressRequest, Response } from 'express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { AuthDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
+import { ProcessReferralDto } from '../dtos/process-referral.dto';
 import { AuthLoginResponseDto } from '../dtos/responses/auth-login-response.dto';
 import { LogoutResponseDto } from '../dtos/responses/logout-response.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../../common/types/request.types';
 import { ENV } from '../../../config/constants';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Post()
@@ -28,6 +49,8 @@ export class AuthController {
   })
   async login(
     @Body() authDto: AuthDto,
+    @Req() req: ExpressRequest,
+    @Query() query: Record<string, any>,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthLoginResponseDto> {
     const { accessToken, refreshToken } =
@@ -132,5 +155,30 @@ export class AuthController {
       success: true,
       message: 'Выход выполнен успешно',
     };
+  }
+
+  @Post('referral')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Обработка реферальной ссылки',
+  })
+  @ApiBody({ type: ProcessReferralDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Реферальная ссылка обработана',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Не авторизован',
+  })
+  async processReferral(
+    @Request() req: AuthenticatedRequest,
+    @Body() processReferralDto: ProcessReferralDto,
+  ): Promise<{ success: boolean; message: string; referrerId?: number }> {
+    return await this.authService.processReferral(
+      req.user.id,
+      processReferralDto.referral_link_id,
+    );
   }
 }

@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNumber, ArrayMinSize, ArrayMaxSize, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsNumber,
+  ArrayMinSize,
+  ArrayMaxSize,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class GetFriendsDto {
   @ApiProperty({
@@ -14,7 +21,8 @@ export class GetFriendsDto {
   friend_vk_ids: number[];
 
   @ApiProperty({
-    description: 'VK Access Token пользователя для проверки прав на получение списка друзей',
+    description:
+      'VK Access Token пользователя для проверки прав на получение списка друзей',
     required: false,
     example: 'vk1.a.xxx...',
   })

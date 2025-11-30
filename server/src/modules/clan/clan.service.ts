@@ -342,18 +342,18 @@ export class ClanService {
 
     if (!createClanByUserDto.name || !createClanByUserDto.name.trim()) {
       throw new BadRequestException('Название клана обязательно');
-      }
+    }
 
     if (
       !createClanByUserDto.image_url ||
       !createClanByUserDto.image_url.trim()
     ) {
       throw new BadRequestException('URL изображения обязателен');
-      }
+    }
 
     if (!this.verifyVkImageUrl(createClanByUserDto.image_url)) {
       throw new BadRequestException('Неверный URL изображения сообщества');
-      }
+    }
 
     let imagePath = '';
     try {
@@ -708,7 +708,7 @@ export class ClanService {
     }
 
     const enemyClanIds = activeWars.map((war) =>
-      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
+      war.clan_1_id === user.clan!.id ? war.clan_2_id : war.clan_1_id,
     );
 
     const members = await this.userRepository.find({
@@ -1314,7 +1314,7 @@ export class ClanService {
     });
 
     const enemyClanIds = activeWars.map((war) =>
-      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
+      war.clan_1_id === user.clan!.id ? war.clan_2_id : war.clan_1_id,
     );
 
     if (enemyClanIds.length === 0) {
@@ -1330,7 +1330,7 @@ export class ClanService {
     const warsMap = new Map(
       activeWars.map((war) => {
         const enemyClanId =
-          war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id;
+          war.clan_1_id === user.clan!.id ? war.clan_2_id : war.clan_1_id;
         return [enemyClanId, war];
       }),
     );
@@ -1368,7 +1368,7 @@ export class ClanService {
     });
 
     const enemyClanIds = activeWars.map((war) =>
-      war.clan_1.id === user.clan!.id ? war.clan_2.id : war.clan_1.id,
+      war.clan_1_id === user.clan!.id ? war.clan_2_id : war.clan_1_id,
     );
 
     if (!enemyClanIds.includes(enemyClanId)) {
@@ -1379,8 +1379,8 @@ export class ClanService {
 
     const activeWar = activeWars.find(
       (war) =>
-        (war.clan_1.id === user.clan!.id && war.clan_2.id === enemyClanId) ||
-        (war.clan_2.id === user.clan!.id && war.clan_1.id === enemyClanId),
+        (war.clan_1_id === user.clan!.id && war.clan_2_id === enemyClanId) ||
+        (war.clan_2_id === user.clan!.id && war.clan_1_id === enemyClanId),
     );
 
     const enemyClan = await this.clanRepository.findOne({
@@ -1620,28 +1620,10 @@ export class ClanService {
       return false;
     }
 
-    const vkImageUrlPattern = /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
+    const vkImageUrlPattern =
+      /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
 
-    if (!vkImageUrlPattern.test(url)) {
-      return false;
-    }
-
-    try {
-      const urlObj = new URL(url);
-      const allowedDomains = [
-        'vk.com',
-        'userapi.com',
-        'vk-cdn.net',
-        'vkuser.net',
-        'vk.me',
-        'vkuseraudio.net',
-        'vk-cdn.org',
-      ];
-
-      return allowedDomains.some((domain) => urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`));
-    } catch {
-      return false;
-    }
+    return vkImageUrlPattern.test(url);
   }
 
   private async downloadAndSaveGroupImage(photoUrl: string): Promise<string> {
