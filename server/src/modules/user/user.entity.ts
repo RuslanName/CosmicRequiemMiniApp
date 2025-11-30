@@ -112,7 +112,4 @@ export class User {
   })
   @JoinColumn({ name: 'user_as_guard_id' })
   user_as_guard?: UserGuard | null;
-
-  @Column({ type: 'boolean', default: false })
-  initial_referrer_stolen: boolean;
 }

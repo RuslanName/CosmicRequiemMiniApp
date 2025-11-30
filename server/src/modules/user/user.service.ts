@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, In, Not, IsNull } from 'typeorm';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
@@ -119,6 +120,21 @@ export class UserService {
     } catch (error) {
       console.error(`Error downloading user avatar: ${error.message}`);
       return null;
+    }
+  }
+
+  private formatBirthday(bdate?: string, visibility?: number): string | null {
+    if (!bdate || visibility === undefined) return null;
+
+    switch (visibility) {
+      case 0:
+        return null;
+      case 1:
+        return bdate;
+      case 2:
+        return bdate;
+      default:
+        return null;
     }
   }
 
@@ -297,6 +313,143 @@ export class UserService {
     }
 
     return this.transformToUserBasicStatsResponseDto(user);
+  }
+
+  async init(
+    initUserDto: {
+      user: {
+        id: number;
+        first_name: string;
+        last_name?: string;
+        photo_200?: string;
+        photo_max_orig?: string;
+        bdate?: string;
+        bdate_visibility?: number;
+        sex?: number;
+      };
+      vk_params: Record<string, string>;
+      sign: string;
+    },
+    startParam?: string,
+  ): Promise<UserMeResponseDto> {
+    const { user, vk_params } = initUserDto;
+
+    if (!vk_params.vk_user_id) {
+      throw new BadRequestException(
+        'Отсутствует vk_user_id в параметрах запуска',
+      );
+    }
+
+    const vk_id = parseInt(vk_params.vk_user_id, 10);
+
+    if (isNaN(vk_id) || vk_id <= 0) {
+      throw new BadRequestException('Неверный vk_user_id в параметрах запуска');
+    }
+
+    if (+user.id !== +vk_id) {
+      throw new BadRequestException(
+        'Неверные параметры: user.id не совпадает с vk_user_id',
+      );
+    }
+
+    let dbUser = await this.userRepository.findOne({
+      where: { vk_id },
+      relations: ['clan', 'guards', 'referrer'],
+    });
+
+    if (!dbUser) {
+      throw new NotFoundException(
+        'Пользователь не найден. Сначала выполните авторизацию через /auth',
+      );
+    }
+
+    if (startParam?.startsWith('ref_')) {
+      const referralLinkId = startParam.replace('ref_', '');
+
+      if (!dbUser.referrer && referralLinkId) {
+        const referrerUser = await this.userRepository.findOne({
+          where: { referral_link_id: referralLinkId },
+        });
+
+        if (referrerUser && referrerUser.id !== dbUser.id) {
+          dbUser.referrer = referrerUser;
+          await this.userRepository.save(dbUser);
+
+          const referrerReward = Settings[
+            SettingKey.REFERRER_MONEY_REWARD
+          ] as number;
+          referrerUser.money = Number(referrerUser.money) + referrerReward;
+          await this.userRepository.save(referrerUser);
+
+          const referralGuardStrength = Settings[
+            SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+          ] as number;
+
+          const referralGuardName =
+            `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
+
+          const referralGuard = this.userGuardRepository.create({
+            name: referralGuardName,
+            strength: referralGuardStrength,
+            is_first: false,
+            user: referrerUser,
+            guard_as_user: dbUser,
+            user_id: referrerUser.id,
+          });
+          await this.userGuardRepository.save(referralGuard);
+
+          dbUser.user_as_guard = referralGuard;
+          await this.userRepository.save(dbUser);
+
+          await this.userTaskService.updateTaskProgress(
+            referrerUser.id,
+            TaskType.FRIEND_INVITE,
+          );
+        }
+      }
+    }
+
+    dbUser.first_name = user.first_name;
+    dbUser.last_name = user.last_name || null;
+    dbUser.sex = user.sex ?? dbUser.sex;
+
+    const needsUpdate =
+      !dbUser.image_path ||
+      dbUser.image_path.startsWith('http') ||
+      (dbUser.image_path &&
+        !fs.existsSync(path.join(process.cwd(), dbUser.image_path)));
+
+    if (user.photo_max_orig || user.photo_200) {
+      const photoUrl = user.photo_max_orig || user.photo_200 || '';
+      if (photoUrl && needsUpdate) {
+        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+        dbUser = await this.userRepository.findOne({
+          where: { id: dbUser.id },
+          relations: ['clan', 'guards'],
+        });
+        if (!dbUser) {
+          throw new NotFoundException(
+            'Пользователь не найден после обновления аватара',
+          );
+        }
+      }
+    }
+
+    dbUser.birthday_date = this.formatBirthday(
+      user.bdate,
+      user.bdate_visibility,
+    );
+    dbUser.last_login_at = new Date();
+
+    if (!dbUser.referral_link_id) {
+      dbUser.referral_link_id = randomUUID();
+    }
+
+    await this.userRepository.save(dbUser);
+
+    await this.userTaskService.initializeTasksForUser(dbUser.id);
+
+    return this.findMe(dbUser.id);
   }
 
   async findMe(userId: number): Promise<UserMeResponseDto> {
@@ -1371,12 +1524,6 @@ export class UserService {
       initialReferrerVkId > 0 &&
       Number(defender.vk_id) === Number(initialReferrerVkId);
 
-    const isFirstInitialReferrerAttack =
-      isAttackingInitialReferrer && !attacker.initial_referrer_stolen;
-
-    const isSubsequentInitialReferrerAttack =
-      isAttackingInitialReferrer && attacker.initial_referrer_stolen;
-
     const win_chance = Math.min(
       75,
       Math.max(
@@ -1390,10 +1537,10 @@ export class UserService {
       isAttackingInitialReferrer || Math.random() * 100 < win_chance;
     const stolen_items: StolenItem[] = [];
 
-    let firstInitialReferrerGuardStolen = false;
+    let initialReferrerGuardStolen = false;
 
     if (
-      isFirstInitialReferrerAttack &&
+      isAttackingInitialReferrer &&
       defender.guards &&
       defender.guards.length > 0
     ) {
@@ -1404,9 +1551,6 @@ export class UserService {
       if (capturableGuards.length > 0) {
         const guardToSteal = capturableGuards[0];
         const stolenGuardId = guardToSteal.id;
-
-        attacker.initial_referrer_stolen = true;
-        await this.userRepository.save(attacker);
 
         await this.userGuardRepository.update(stolenGuardId, {
           user_id: attacker.id,
@@ -1421,23 +1565,11 @@ export class UserService {
         });
         await this.stolenItemRepository.save(guardItem);
         stolen_items.push(guardItem);
-        firstInitialReferrerGuardStolen = true;
+        initialReferrerGuardStolen = true;
       }
     }
 
-    if (isFirstInitialReferrerAttack && !firstInitialReferrerGuardStolen) {
-      attacker.last_attack_time = new Date();
-      await this.userRepository.save(attacker);
-      return {
-        win_chance: 100,
-        is_win: true,
-        stolen_money: 0,
-        captured_guards: 0,
-        attack_cooldown_end: new Date(new Date().getTime() + attackCooldown),
-      };
-    }
-
-    if (isSubsequentInitialReferrerAttack) {
+    if (isAttackingInitialReferrer && !initialReferrerGuardStolen) {
       attacker.last_attack_time = new Date();
       await this.userRepository.save(attacker);
       return {
@@ -1453,7 +1585,7 @@ export class UserService {
       let stolen_money = 0;
       let captured_guards = 0;
 
-      if (!isFirstInitialReferrerAttack) {
+      if (!isAttackingInitialReferrer) {
         stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
         if (stolen_money > 0) {
@@ -1531,7 +1663,7 @@ export class UserService {
         is_win: true,
         stolen_money: stolen_money || 0,
         captured_guards:
-          captured_guards || (firstInitialReferrerGuardStolen ? 1 : 0),
+          captured_guards || (initialReferrerGuardStolen ? 1 : 0),
         attack_cooldown_end: attackCooldownEnd,
       };
     }

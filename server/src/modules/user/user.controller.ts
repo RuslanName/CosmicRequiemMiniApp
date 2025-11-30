@@ -22,14 +22,12 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { User } from './user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
-import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { EquipAccessoryDto } from '../user-accessory/dtos/equip-accessory.dto';
 import { AttackPlayerDto } from './dtos/attack-player.dto';
 import { ActivateShieldDto } from './dtos/activate-shield.dto';
@@ -49,6 +47,8 @@ import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { CheckCommunitySubscribeDto } from './dtos/check-community-subscribe.dto';
 import { GetFriendsDto } from './dtos/get-friends.dto';
 import { CommunitySubscribeResponseDto } from './dtos/responses/community-subscribe-response.dto';
+import { InitUserDto } from './dtos/init-user.dto';
+import { Headers } from '@nestjs/common';
 
 @ApiTags('Users')
 @Controller('users')
@@ -57,6 +57,28 @@ export class UserController {
     private readonly userService: UserService,
     private readonly userAccessoryService: UserAccessoryService,
   ) {}
+
+  @Post('init')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Инициализация пользователя и обработка реферальной ссылки',
+    description:
+      'Обрабатывает данные пользователя и применяет реферальную ссылку из startParam',
+  })
+  @ApiBody({ type: InitUserDto })
+  @ApiResponse({
+    status: 200,
+    type: UserMeResponseDto,
+    description: 'Пользователь успешно инициализирован',
+  })
+  @ApiResponse({ status: 400, description: 'Неверные данные' })
+  async init(
+    @Body() initUserDto: InitUserDto,
+    @Headers('start-param') startParam?: string,
+  ): Promise<UserMeResponseDto> {
+    return this.userService.init(initUserDto, startParam);
+  }
 
   @Get()
   @UseGuards(AdminJwtAuthGuard)
