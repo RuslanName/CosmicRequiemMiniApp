@@ -62,7 +62,7 @@ export class VKPaymentsService {
       }
     }
 
-    if (!isTestMode && !this.verifySignature(notification, originalQuery)) {
+    if (!isTestMode && ENV.VERIFY_VK_SIGNATURE && !this.verifySignature(notification, originalQuery)) {
       throw new UnauthorizedException('Неверная подпись VK');
     }
 
