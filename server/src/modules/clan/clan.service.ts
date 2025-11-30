@@ -93,9 +93,6 @@ export class ClanService {
   ): ClanWithStatsResponseDto | ClanWithReferralResponseDto {
     const transformed: any = { ...clan };
 
-    if (options?.includeReferralLink && clan.referral_link_id) {
-      transformed.referral_link = `${ENV.VK_APP_URL}/?start=clan_${clan.referral_link_id}`;
-    }
     delete transformed.referral_link_id;
 
     if (clan.members) {

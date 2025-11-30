@@ -79,4 +79,7 @@ export class UserMeResponseDto {
 
   @ApiProperty()
   adv_disable_cost_voices_count: number;
+
+  @ApiProperty()
+  referrals_count: number;
 }

@@ -84,7 +84,7 @@ export class UserService {
   ): User & { referral_link?: string } {
     const transformed: any = { ...user };
     if (user.referral_link_id) {
-      transformed.referral_link = `${ENV.VK_APP_URL}?start=ref_${user.referral_link_id}`;
+      transformed.referral_link = `${ENV.VK_APP_URL}#ref_${user.referral_link_id}`;
       delete transformed.referral_link_id;
     }
     return transformed;
@@ -181,6 +181,7 @@ export class UserService {
     const advDisableCost = Settings[
       SettingKey.ADV_DISABLE_COST_VOICES_COUNT
     ] as number;
+    const referralsCount = user.referrals ? user.referrals.length : 0;
 
     return {
       id: transformed.id,
@@ -209,6 +210,7 @@ export class UserService {
       referrer_money_reward: referrerMoneyReward,
       show_adv: showAdv,
       adv_disable_cost_voices_count: advDisableCost,
+      referrals_count: referralsCount,
     };
   }
 
@@ -315,147 +317,10 @@ export class UserService {
     return this.transformToUserBasicStatsResponseDto(user);
   }
 
-  async init(
-    initUserDto: {
-      user: {
-        id: number;
-        first_name: string;
-        last_name?: string;
-        photo_200?: string;
-        photo_max_orig?: string;
-        bdate?: string;
-        bdate_visibility?: number;
-        sex?: number;
-      };
-      vk_params: Record<string, string>;
-      sign: string;
-    },
-    startParam?: string,
-  ): Promise<UserMeResponseDto> {
-    const { user, vk_params } = initUserDto;
-
-    if (!vk_params.vk_user_id) {
-      throw new BadRequestException(
-        'Отсутствует vk_user_id в параметрах запуска',
-      );
-    }
-
-    const vk_id = parseInt(vk_params.vk_user_id, 10);
-
-    if (isNaN(vk_id) || vk_id <= 0) {
-      throw new BadRequestException('Неверный vk_user_id в параметрах запуска');
-    }
-
-    if (+user.id !== +vk_id) {
-      throw new BadRequestException(
-        'Неверные параметры: user.id не совпадает с vk_user_id',
-      );
-    }
-
-    let dbUser = await this.userRepository.findOne({
-      where: { vk_id },
-      relations: ['clan', 'guards', 'referrer'],
-    });
-
-    if (!dbUser) {
-      throw new NotFoundException(
-        'Пользователь не найден. Сначала выполните авторизацию через /auth',
-      );
-    }
-
-    if (startParam?.startsWith('ref_')) {
-      const referralLinkId = startParam.replace('ref_', '');
-
-      if (!dbUser.referrer && referralLinkId) {
-        const referrerUser = await this.userRepository.findOne({
-          where: { referral_link_id: referralLinkId },
-        });
-
-        if (referrerUser && referrerUser.id !== dbUser.id) {
-          dbUser.referrer = referrerUser;
-          await this.userRepository.save(dbUser);
-
-          const referrerReward = Settings[
-            SettingKey.REFERRER_MONEY_REWARD
-          ] as number;
-          referrerUser.money = Number(referrerUser.money) + referrerReward;
-          await this.userRepository.save(referrerUser);
-
-          const referralGuardStrength = Settings[
-            SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
-          ] as number;
-
-          const referralGuardName =
-            `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
-
-          const referralGuard = this.userGuardRepository.create({
-            name: referralGuardName,
-            strength: referralGuardStrength,
-            is_first: false,
-            user: referrerUser,
-            guard_as_user: dbUser,
-            user_id: referrerUser.id,
-          });
-          await this.userGuardRepository.save(referralGuard);
-
-          dbUser.user_as_guard = referralGuard;
-          await this.userRepository.save(dbUser);
-
-          await this.userTaskService.updateTaskProgress(
-            referrerUser.id,
-            TaskType.FRIEND_INVITE,
-          );
-        }
-      }
-    }
-
-    dbUser.first_name = user.first_name;
-    dbUser.last_name = user.last_name || null;
-    dbUser.sex = user.sex ?? dbUser.sex;
-
-    const needsUpdate =
-      !dbUser.image_path ||
-      dbUser.image_path.startsWith('http') ||
-      (dbUser.image_path &&
-        !fs.existsSync(path.join(process.cwd(), dbUser.image_path)));
-
-    if (user.photo_max_orig || user.photo_200) {
-      const photoUrl = user.photo_max_orig || user.photo_200 || '';
-      if (photoUrl && needsUpdate) {
-        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
-        dbUser = await this.userRepository.findOne({
-          where: { id: dbUser.id },
-          relations: ['clan', 'guards'],
-        });
-        if (!dbUser) {
-          throw new NotFoundException(
-            'Пользователь не найден после обновления аватара',
-          );
-        }
-      }
-    }
-
-    dbUser.birthday_date = this.formatBirthday(
-      user.bdate,
-      user.bdate_visibility,
-    );
-    dbUser.last_login_at = new Date();
-
-    if (!dbUser.referral_link_id) {
-      dbUser.referral_link_id = randomUUID();
-    }
-
-    await this.userRepository.save(dbUser);
-
-    await this.userTaskService.initializeTasksForUser(dbUser.id);
-
-    return this.findMe(dbUser.id);
-  }
-
   async findMe(userId: number): Promise<UserMeResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['guards'],
+      relations: ['guards', 'referrals'],
     });
 
     if (!user) {

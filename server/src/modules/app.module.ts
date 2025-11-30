@@ -25,6 +25,7 @@ import { GiveawayModule } from './giveaway/giveaway.module';
 import { NotificationModule } from './notification/notification.module';
 import { AppController } from './app.controller';
 import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage';
+import { ENV } from '../config/constants';
 
 @Module({
   imports: [
@@ -54,8 +55,8 @@ import { ThrottlerRedisStorage } from '../common/storage/throttler-redis.storage
       useFactory: (storage: ThrottlerRedisStorage) => ({
         throttlers: [
           {
-            ttl: 30000,
-            limit: 60,
+            ttl: ENV.THROTTLER_TTL,
+            limit: ENV.THROTTLER_LIMIT,
           },
         ],
         storage,

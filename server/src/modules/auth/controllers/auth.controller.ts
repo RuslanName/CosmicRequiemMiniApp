@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Res, Req, Query } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, Headers } from '@nestjs/common';
 import { Request as ExpressRequest, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
@@ -29,11 +29,15 @@ export class AuthController {
   async login(
     @Body() authDto: AuthDto,
     @Req() req: ExpressRequest,
-    @Query() query: Record<string, any>,
     @Res({ passthrough: true }) res: Response,
+    @Headers('start-param') startParam?: string,
   ): Promise<AuthLoginResponseDto> {
-    const { accessToken, refreshToken } =
-      await this.authService.validateAuth(authDto);
+    const headerStartParam =
+      startParam || (req.headers['start-param'] as string | undefined);
+    const { accessToken, refreshToken } = await this.authService.validateAuth(
+      authDto,
+      headerStartParam,
+    );
 
     res.cookie('access_token', accessToken, {
       httpOnly: true,

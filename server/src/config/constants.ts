@@ -46,4 +46,6 @@ export const ENV = {
   CLUSTER_WORKERS: process.env.CLUSTER_WORKERS || undefined,
   VERIFY_VK_SIGNATURE: process.env.VERIFY_VK_SIGNATURE !== 'false',
   ALLOWED_ORIGINS: getAllowedOrigins(),
+  THROTTLER_TTL: Number(process.env.THROTTLER_TTL || 30000),
+  THROTTLER_LIMIT: Number(process.env.THROTTLER_LIMIT || 60),
 };

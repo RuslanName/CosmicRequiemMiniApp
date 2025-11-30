@@ -28,7 +28,10 @@ export class AuthService {
     private readonly userTaskService: UserTaskService,
   ) {}
 
-  async validateAuth(dto: AuthDto): Promise<{
+  async validateAuth(
+    dto: AuthDto,
+    startParam?: string,
+  ): Promise<{
     accessToken: string;
     refreshToken: string;
   }> {
@@ -103,6 +106,8 @@ export class AuthService {
       });
       await this.userGuardRepository.save(firstGuard);
 
+      await this.processReferralLink(dbUser, startParam);
+
       if (!dbUser.referrer) {
         const initialReferrerVkId = Settings[
           SettingKey.INITIAL_REFERRER_VK_ID
@@ -139,7 +144,19 @@ export class AuthService {
       }
 
       await this.userTaskService.initializeTasksForUser(dbUser.id);
+
+      dbUser = await this.userRepository.findOne({
+        where: { id: dbUser.id },
+        relations: ['clan', 'referrer', 'user_as_guard'],
+      });
+      if (!dbUser) {
+        throw new UnauthorizedException(
+          'Пользователь не найден после инициализации',
+        );
+      }
     } else {
+      await this.processReferralLink(dbUser, startParam);
+
       dbUser.first_name = user.first_name;
       dbUser.last_name = user.last_name || null;
       dbUser.sex = user.sex ?? dbUser.sex;
@@ -289,6 +306,59 @@ export class AuthService {
     if (tokenEntity) {
       await this.refreshTokenRepository.remove(tokenEntity);
     }
+  }
+
+  private async processReferralLink(
+    dbUser: User,
+    startParam?: string,
+  ): Promise<void> {
+    if (dbUser.referrer || !startParam?.startsWith('ref_')) {
+      return;
+    }
+
+    const referralLinkId = startParam.replace('ref_', '');
+    if (!referralLinkId) {
+      return;
+    }
+
+    const referrerUser = await this.userRepository.findOne({
+      where: { referral_link_id: referralLinkId },
+    });
+
+    if (!referrerUser || referrerUser.id === dbUser.id) {
+      return;
+    }
+
+    dbUser.referrer = referrerUser;
+    await this.userRepository.save(dbUser);
+
+    const referrerReward = Settings[SettingKey.REFERRER_MONEY_REWARD] as number;
+    referrerUser.money = Number(referrerUser.money) + referrerReward;
+    await this.userRepository.save(referrerUser);
+
+    const referralGuardStrength = Settings[
+      SettingKey.INITIAL_STRENGTH_FIRST_USER_GUARD
+    ] as number;
+
+    const referralGuardName =
+      `${dbUser.first_name} ${dbUser.last_name || ''}`.trim();
+
+    const referralGuard = this.userGuardRepository.create({
+      name: referralGuardName,
+      strength: referralGuardStrength,
+      is_first: false,
+      user: referrerUser,
+      guard_as_user: dbUser,
+    });
+    await this.userGuardRepository.save(referralGuard);
+
+    dbUser.user_as_guard = referralGuard;
+    await this.userRepository.save(dbUser);
+
+    await this.userTaskService.updateTaskProgress(
+      referrerUser.id,
+      TaskType.FRIEND_INVITE,
+    );
   }
 
   private parseExpiresIn(expiresIn: string): number {

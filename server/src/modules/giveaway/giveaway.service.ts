@@ -92,7 +92,6 @@ export class GiveawayService {
       throw new NotFoundException(`Розыгрыш с ID ${id} не найден`);
     }
 
-    // Если загружено новое изображение, удаляем старое и сохраняем новое
     if (image) {
       if (giveaway.image_path) {
         this.deleteGiveawayImage(giveaway.image_path);
@@ -115,7 +114,6 @@ export class GiveawayService {
       throw new NotFoundException(`Розыгрыш с ID ${id} не найден`);
     }
 
-    // Удаляем изображение при удалении конкурса
     if (giveaway.image_path) {
       this.deleteGiveawayImage(giveaway.image_path);
     }
