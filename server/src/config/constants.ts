@@ -44,5 +44,6 @@ export const ENV = {
   MODE: process.env.MODE || 'dev',
   CLUSTER_ENABLED: process.env.CLUSTER_ENABLED !== 'false',
   CLUSTER_WORKERS: process.env.CLUSTER_WORKERS || undefined,
+  VERIFY_VK_SIGNATURE: process.env.VERIFY_VK_SIGNATURE !== 'false',
   ALLOWED_ORIGINS: getAllowedOrigins(),
 };

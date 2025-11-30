@@ -34,7 +34,7 @@ export class AuthService {
   }> {
     const { user, sign, vk_params } = dto;
 
-    if (!this.verifySignature(vk_params, sign)) {
+    if (ENV.VERIFY_VK_SIGNATURE && !this.verifySignature(vk_params, sign)) {
       throw new UnauthorizedException('Неверная подпись VK');
     }
 
