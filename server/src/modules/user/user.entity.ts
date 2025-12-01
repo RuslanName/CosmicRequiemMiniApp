@@ -19,6 +19,8 @@ import { UserTask } from '../task/entities/user-task.entity';
 @Entity()
 @Index(['clan_id'])
 @Index(['status'])
+@Index(['referrerId'])
+@Index(['image_path'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -91,10 +93,14 @@ export class User {
   @OneToMany(() => UserTask, (userTask) => userTask.user)
   tasks?: UserTask[];
 
+  @Column({ type: 'int', nullable: true })
+  referrerId: number | null;
+
   @ManyToOne(() => User, (user) => user.referrals, {
     nullable: true,
     onDelete: 'SET NULL',
   })
+  @JoinColumn({ name: 'referrerId' })
   referrer?: User;
 
   @OneToMany(() => User, (user) => user.referrer)

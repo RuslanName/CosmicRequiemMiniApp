@@ -1108,7 +1108,7 @@ export class UserService {
       ] as number;
 
       users = await this.userRepository.find({
-        relations: ['clan', 'guards', 'referrals'],
+        relations: ['clan', 'guards'],
         where: {
           id: MoreThan(0),
         },
@@ -1126,7 +1126,7 @@ export class UserService {
         if (!initialReferrerExists && !currentUserIsInitialReferrer) {
           const initialReferrer = await this.userRepository.findOne({
             where: { vk_id: Number(initialReferrerVkId) },
-            relations: ['clan', 'guards', 'referrals'],
+            relations: ['clan', 'guards'],
           });
           if (initialReferrer && initialReferrer.id !== userId) {
             users.push(initialReferrer);
@@ -1164,20 +1164,34 @@ export class UserService {
             strength <= currentStrength + strengthRange
           );
         })
-        .filter((user) => {
-          if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
-            return true;
-          }
-          const hasReferrals = user.referrals && user.referrals.length > 0;
-          return !hasReferrals;
-        });
+        .filter((user) => user.id !== userId);
 
-      const userIds = filteredUsers.map((user) => user.id);
+      const filteredUserIds = filteredUsers.map((user) => user.id);
+      const usersWithReferrals = await this.userRepository
+        .createQueryBuilder('user')
+        .leftJoin('user.referrals', 'referral')
+        .where('user.id IN (:...ids)', { ids: filteredUserIds })
+        .andWhere('referral.id IS NOT NULL')
+        .select('user.id')
+        .getRawMany();
+
+      const userIdsWithReferrals = new Set(
+        usersWithReferrals.map((u) => u.user_id),
+      );
+
+      const finalFilteredUsers = filteredUsers.filter((user) => {
+        if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
+          return true;
+        }
+        return !userIdsWithReferrals.has(user.id);
+      });
+
+      const userIds = finalFilteredUsers.map((user) => user.id);
       const shieldBoostsMap =
         await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
 
       const dataWithStrength = await Promise.all(
-        filteredUsers.map(async (user) => {
+        finalFilteredUsers.map(async (user) => {
           const equippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(user.id);
           return await this.transformToUserRatingResponseDto(
