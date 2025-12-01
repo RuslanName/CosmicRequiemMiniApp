@@ -1647,8 +1647,12 @@ export class UserService {
         if (!event.stolen_items) return [];
         const relevantItems =
           event.type === EventHistoryType.ATTACK
-            ? event.stolen_items.filter((item) => item.thief.id === userId)
-            : event.stolen_items.filter((item) => item.victim.id === userId);
+            ? event.stolen_items.filter(
+                (item) => item.thief && item.thief.id === userId,
+              )
+            : event.stolen_items.filter(
+                (item) => item.victim && item.victim.id === userId,
+              );
         return relevantItems
           .filter((item) => item.type === StolenItemType.GUARD)
           .map((item) => parseInt(item.value, 10))
@@ -1675,8 +1679,12 @@ export class UserService {
         if (stolen_items && stolen_items.length > 0) {
           const relevantItems =
             event.type === EventHistoryType.ATTACK
-              ? stolen_items.filter((item) => item.thief.id === userId)
-              : stolen_items.filter((item) => item.victim.id === userId);
+              ? stolen_items.filter(
+                  (item) => item.thief && item.thief.id === userId,
+                )
+              : stolen_items.filter(
+                  (item) => item.victim && item.victim.id === userId,
+                );
 
           for (const item of relevantItems) {
             if (item.type === StolenItemType.MONEY) {

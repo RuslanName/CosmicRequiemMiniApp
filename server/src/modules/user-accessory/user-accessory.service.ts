@@ -107,6 +107,9 @@ export class UserAccessoryService {
     }
 
     for (const accessory of accessories) {
+      if (!accessory.user || !accessory.user.id) {
+        continue;
+      }
       const userId = accessory.user.id;
       const userAccessories = accessoriesMap.get(userId) || [];
       userAccessories.push(this.transformToUserAccessoryResponseDto(accessory));

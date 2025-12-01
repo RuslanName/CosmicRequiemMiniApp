@@ -16,10 +16,10 @@ export const postgresConfig: TypeOrmModuleOptions = {
   synchronize: isDev,
   ssl: false,
   extra: {
-    max: 20,
-    min: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    max: 10,
+    min: 2,
+    idleTimeoutMillis: 60000,
+    connectionTimeoutMillis: 10000,
   },
   logging: isDev ? ['error', 'warn', 'schema'] : ['error'],
 };
