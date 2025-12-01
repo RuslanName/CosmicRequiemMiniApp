@@ -310,20 +310,125 @@ export class UserService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.userRepository.findAndCount({
-      relations: ['guards', 'user_as_guard', 'referrals'],
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.user_as_guard', 'user_as_guard')
+      .select([
+        'user.id',
+        'user.vk_id',
+        'user.first_name',
+        'user.last_name',
+        'user.sex',
+        'user.image_path',
+        'user.birthday_date',
+        'user.money',
+        'user.last_training_time',
+        'user.last_contract_time',
+        'user.last_attack_time',
+        'user.clan_leave_time',
+        'user.status',
+        'user.registered_at',
+        'user.last_login_at',
+        'user.clan_id',
+        'user.referral_link_id',
+        'user_as_guard.strength',
+      ])
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(ug.strength), 0)', 'sum')
+            .from(UserGuard, 'ug')
+            .where('ug.user_id = user.id'),
+        'total_strength',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(ug.id)', 'count')
+            .from(UserGuard, 'ug')
+            .where('ug.user_id = user.id'),
+        'guards_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(r.id)', 'count')
+            .from(User, 'r')
+            .where('r.referrerId = user.id'),
+        'referrals_count',
+      )
+      .orderBy('user.id', 'ASC')
+      .skip(skip)
+      .take(limit);
 
-    const userIds = data.map((user) => user.id);
+    const [rawData, total] = await Promise.all([
+      queryBuilder.getRawMany(),
+      this.userRepository.count(),
+    ]);
+
+    const userIds = rawData.map((row) => row.user_id);
     const shieldBoostsMap =
       await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
 
     const dataWithStrength = await Promise.all(
-      data.map((user) =>
-        this.transformToUserBasicStatsResponseDto(user, shieldBoostsMap),
-      ),
+      rawData.map(async (row) => {
+        const user = {
+          id: row.user_id,
+          vk_id: row.user_vk_id,
+          first_name: row.user_first_name,
+          last_name: row.user_last_name,
+          sex: row.user_sex,
+          image_path: row.user_image_path,
+          birthday_date: row.user_birthday_date,
+          money: row.user_money,
+          last_training_time: row.user_last_training_time,
+          last_contract_time: row.user_last_contract_time,
+          last_attack_time: row.user_last_attack_time,
+          clan_leave_time: row.user_clan_leave_time,
+          status: row.user_status,
+          registered_at: row.user_registered_at,
+          last_login_at: row.user_last_login_at,
+          clan_id: row.user_clan_id,
+          referral_link_id: row.user_referral_link_id,
+        } as User;
+
+        const guardsCount = parseInt(row.guards_count) || 0;
+        const strength = parseFloat(row.total_strength) || 0;
+        const referralsCount = parseInt(row.referrals_count) || 0;
+        const firstGuardStrength = row.user_as_guard_strength
+          ? Number(row.user_as_guard_strength)
+          : null;
+
+        const transformed = this.transformUserForResponse(user);
+        const shieldEndTime = shieldBoostsMap
+          ? shieldBoostsMap.get(user.id) || null
+          : await this.getShieldEndTimeFromBoost(user.id);
+
+        return {
+          id: transformed.id,
+          vk_id: transformed.vk_id,
+          first_name: transformed.first_name,
+          last_name: transformed.last_name,
+          sex: transformed.sex,
+          image_path: transformed.image_path || null,
+          birthday_date: transformed.birthday_date,
+          money: transformed.money,
+          shield_end_time: shieldEndTime || undefined,
+          last_training_time: transformed.last_training_time,
+          last_contract_time: transformed.last_contract_time,
+          last_attack_time: transformed.last_attack_time,
+          clan_leave_time: transformed.clan_leave_time,
+          status: transformed.status,
+          registered_at: transformed.registered_at,
+          last_login_at: transformed.last_login_at,
+          clan_id: transformed.clan_id,
+          strength,
+          guards_count: guardsCount,
+          first_guard_strength: firstGuardStrength,
+          referral_link: transformed.referral_link,
+          referrals_count: referralsCount,
+        } as UserWithBasicStatsResponseDto;
+      }),
     );
 
     return {
@@ -335,16 +440,115 @@ export class UserService {
   }
 
   async findOne(id: number): Promise<UserWithBasicStatsResponseDto> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: ['guards', 'user_as_guard', 'referrals'],
-    });
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.user_as_guard', 'user_as_guard')
+      .where('user.id = :id', { id })
+      .select([
+        'user.id',
+        'user.vk_id',
+        'user.first_name',
+        'user.last_name',
+        'user.sex',
+        'user.image_path',
+        'user.birthday_date',
+        'user.money',
+        'user.last_training_time',
+        'user.last_contract_time',
+        'user.last_attack_time',
+        'user.clan_leave_time',
+        'user.status',
+        'user.registered_at',
+        'user.last_login_at',
+        'user.clan_id',
+        'user.referral_link_id',
+        'user_as_guard.strength',
+      ])
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(ug.strength), 0)', 'sum')
+            .from(UserGuard, 'ug')
+            .where('ug.user_id = user.id'),
+        'total_strength',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(ug.id)', 'count')
+            .from(UserGuard, 'ug')
+            .where('ug.user_id = user.id'),
+        'guards_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(r.id)', 'count')
+            .from(User, 'r')
+            .where('r.referrerId = user.id'),
+        'referrals_count',
+      );
 
-    if (!user) {
+    const rawData = await queryBuilder.getRawOne();
+
+    if (!rawData) {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
-    return await this.transformToUserBasicStatsResponseDto(user);
+    const user = {
+      id: rawData.user_id,
+      vk_id: rawData.user_vk_id,
+      first_name: rawData.user_first_name,
+      last_name: rawData.user_last_name,
+      sex: rawData.user_sex,
+      image_path: rawData.user_image_path,
+      birthday_date: rawData.user_birthday_date,
+      money: rawData.user_money,
+      last_training_time: rawData.user_last_training_time,
+      last_contract_time: rawData.user_last_contract_time,
+      last_attack_time: rawData.user_last_attack_time,
+      clan_leave_time: rawData.user_clan_leave_time,
+      status: rawData.user_status,
+      registered_at: rawData.user_registered_at,
+      last_login_at: rawData.user_last_login_at,
+      clan_id: rawData.user_clan_id,
+      referral_link_id: rawData.user_referral_link_id,
+    } as User;
+
+    const guardsCount = parseInt(rawData.guards_count) || 0;
+    const strength = parseFloat(rawData.total_strength) || 0;
+    const referralsCount = parseInt(rawData.referrals_count) || 0;
+    const firstGuardStrength = rawData.user_as_guard_strength
+      ? Number(rawData.user_as_guard_strength)
+      : null;
+
+    const transformed = this.transformUserForResponse(user);
+    const shieldEndTime = await this.getShieldEndTimeFromBoost(user.id);
+
+    return {
+      id: transformed.id,
+      vk_id: transformed.vk_id,
+      first_name: transformed.first_name,
+      last_name: transformed.last_name,
+      sex: transformed.sex,
+      image_path: transformed.image_path || null,
+      birthday_date: transformed.birthday_date,
+      money: transformed.money,
+      shield_end_time: shieldEndTime || undefined,
+      last_training_time: transformed.last_training_time,
+      last_contract_time: transformed.last_contract_time,
+      last_attack_time: transformed.last_attack_time,
+      clan_leave_time: transformed.clan_leave_time,
+      status: transformed.status,
+      registered_at: transformed.registered_at,
+      last_login_at: transformed.last_login_at,
+      clan_id: transformed.clan_id,
+      strength,
+      guards_count: guardsCount,
+      first_guard_strength: firstGuardStrength,
+      referral_link: transformed.referral_link,
+      referrals_count: referralsCount,
+    } as UserWithBasicStatsResponseDto;
   }
 
   async findMe(userId: number): Promise<UserMeResponseDto> {
@@ -1167,17 +1371,18 @@ export class UserService {
         .filter((user) => user.id !== userId);
 
       const filteredUserIds = filteredUsers.map((user) => user.id);
-      const usersWithReferrals = await this.userRepository
-        .createQueryBuilder('user')
-        .leftJoin('user.referrals', 'referral')
-        .where('user.id IN (:...ids)', { ids: filteredUserIds })
-        .andWhere('referral.id IS NOT NULL')
-        .select('user.id')
-        .getRawMany();
+      let userIdsWithReferrals = new Set<number>();
 
-      const userIdsWithReferrals = new Set(
-        usersWithReferrals.map((u) => u.user_id),
-      );
+      if (filteredUserIds.length > 0) {
+        const usersWithReferrals = await this.userRepository
+          .createQueryBuilder('user')
+          .innerJoin('user.referrals', 'referral')
+          .where('user.id IN (:...ids)', { ids: filteredUserIds })
+          .select('user.id', 'userId')
+          .getRawMany();
+
+        userIdsWithReferrals = new Set(usersWithReferrals.map((u) => u.userId));
+      }
 
       const finalFilteredUsers = filteredUsers.filter((user) => {
         if (this.isInitialReferrer(user.vk_id, initialReferrerVkId)) {
@@ -1475,9 +1680,10 @@ export class UserService {
         const guardToSteal = capturableGuards[0];
         const stolenGuardId = guardToSteal.id;
 
-        await this.userGuardRepository.update(stolenGuardId, {
-          user_id: attacker.id,
-        });
+        await this.userGuardRepository.manager.query(
+          'UPDATE user_guard SET user_id = $1 WHERE id = $2',
+          [attacker.id, stolenGuardId],
+        );
 
         const guardItem = this.stolenItemRepository.create({
           type: StolenItemType.GUARD,
@@ -1561,9 +1767,10 @@ export class UserService {
 
           for (const guard of guardsToCapture) {
             const guardId = guard.id;
-            await this.userGuardRepository.update(guardId, {
-              user_id: attacker.id,
-            });
+            await this.userGuardRepository.manager.query(
+              'UPDATE user_guard SET user_id = $1 WHERE id = $2',
+              [attacker.id, guardId],
+            );
 
             const guardItem = this.stolenItemRepository.create({
               type: StolenItemType.GUARD,

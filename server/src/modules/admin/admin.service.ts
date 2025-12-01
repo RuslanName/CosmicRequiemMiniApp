@@ -29,7 +29,6 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.adminRepository.findAndCount({
-      relations: ['user'],
       skip,
       take: limit,
       order: { created_at: 'DESC' },

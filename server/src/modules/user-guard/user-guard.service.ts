@@ -30,7 +30,6 @@ export class UserGuardService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.userGuardRepository.findAndCount({
-      relations: ['user'],
       skip,
       take: limit,
     });

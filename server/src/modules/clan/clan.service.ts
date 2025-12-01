@@ -181,18 +181,102 @@ export class ClanService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.clanRepository.findAndCount({
-      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
-      skip,
-      take: limit,
-    });
+    const queryBuilder = this.clanRepository
+      .createQueryBuilder('clan')
+      .leftJoin('clan.leader', 'leader')
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.created_at',
+        'clan.updated_at',
+        'clan.leader_id',
+        'leader.id',
+        'leader.vk_id',
+        'leader.first_name',
+        'leader.last_name',
+        'leader.sex',
+        'leader.image_path',
+      ])
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(member.money), 0)', 'sum')
+            .from(User, 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_money',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(guard.strength), 0)', 'sum')
+            .from(UserGuard, 'guard')
+            .innerJoin('guard.user', 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_strength',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(guard.id)', 'count')
+            .from(UserGuard, 'guard')
+            .innerJoin('guard.user', 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_guards_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(member.id)', 'count')
+            .from(User, 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_members_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(war.id)', 'count')
+            .from(ClanWar, 'war')
+            .where('war.clan_1_id = clan.id OR war.clan_2_id = clan.id'),
+        'clan_wars_count',
+      )
+      .orderBy('clan.id', 'ASC')
+      .skip(skip)
+      .take(limit);
 
-    const transformedData = data.map((clan) =>
-      this.transformClanForResponse(clan, {
-        includeReferralLink: false,
-        includeMembers: false,
-      }),
-    );
+    const [rawData, total] = await Promise.all([
+      queryBuilder.getRawMany(),
+      this.clanRepository.count(),
+    ]);
+
+    const transformedData = rawData.map((row) => {
+      return {
+        id: row.clan_id,
+        name: row.clan_name,
+        max_members: row.clan_max_members,
+        image_path: row.clan_image_path,
+        status: '',
+        created_at: row.clan_created_at,
+        updated_at: row.clan_updated_at,
+        leader_id: row.clan_leader_id,
+        leader: row.leader_id
+          ? {
+              id: row.leader_id,
+              vk_id: row.leader_vk_id,
+              first_name: row.leader_first_name,
+              last_name: row.leader_last_name,
+              sex: row.leader_sex,
+              image_path: row.leader_image_path,
+            }
+          : undefined,
+        money: parseFloat(row.clan_money) || 0,
+        strength: parseFloat(row.clan_strength) || 0,
+        guards_count: parseInt(row.clan_guards_count) || 0,
+        members_count: parseInt(row.clan_members_count) || 0,
+        wars_count: parseInt(row.clan_wars_count) || 0,
+      } as ClanWithStatsResponseDto;
+    });
 
     return {
       data: transformedData,
@@ -203,16 +287,99 @@ export class ClanService {
   }
 
   async findOne(id: number): Promise<ClanWithStatsResponseDto> {
-    const clan = await this.clanRepository.findOne({
-      where: { id },
-      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
-    });
+    const queryBuilder = this.clanRepository
+      .createQueryBuilder('clan')
+      .leftJoin('clan.leader', 'leader')
+      .where('clan.id = :id', { id })
+      .select([
+        'clan.id',
+        'clan.name',
+        'clan.max_members',
+        'clan.image_path',
+        'clan.created_at',
+        'clan.updated_at',
+        'clan.leader_id',
+        'leader.id',
+        'leader.vk_id',
+        'leader.first_name',
+        'leader.last_name',
+        'leader.sex',
+        'leader.image_path',
+      ])
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(member.money), 0)', 'sum')
+            .from(User, 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_money',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COALESCE(SUM(guard.strength), 0)', 'sum')
+            .from(UserGuard, 'guard')
+            .innerJoin('guard.user', 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_strength',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(guard.id)', 'count')
+            .from(UserGuard, 'guard')
+            .innerJoin('guard.user', 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_guards_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(member.id)', 'count')
+            .from(User, 'member')
+            .where('member.clan_id = clan.id'),
+        'clan_members_count',
+      )
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(war.id)', 'count')
+            .from(ClanWar, 'war')
+            .where('war.clan_1_id = clan.id OR war.clan_2_id = clan.id'),
+        'clan_wars_count',
+      );
 
-    if (!clan) {
+    const rawData = await queryBuilder.getRawOne();
+
+    if (!rawData) {
       throw new NotFoundException(`Клан с ID ${id} не найден`);
     }
 
-    return this.transformToClanWithStatsResponseDto(clan);
+    return {
+      id: rawData.clan_id,
+      name: rawData.clan_name,
+      max_members: rawData.clan_max_members,
+      image_path: rawData.clan_image_path,
+      status: '',
+      created_at: rawData.clan_created_at,
+      updated_at: rawData.clan_updated_at,
+      leader_id: rawData.clan_leader_id,
+      leader: rawData.leader_id
+        ? {
+            id: rawData.leader_id,
+            vk_id: rawData.leader_vk_id,
+            first_name: rawData.leader_first_name,
+            last_name: rawData.leader_last_name,
+            sex: rawData.leader_sex,
+            image_path: rawData.leader_image_path,
+          }
+        : undefined,
+      money: parseFloat(rawData.clan_money) || 0,
+      strength: parseFloat(rawData.clan_strength) || 0,
+      guards_count: parseInt(rawData.clan_guards_count) || 0,
+      members_count: parseInt(rawData.clan_members_count) || 0,
+      wars_count: parseInt(rawData.clan_wars_count) || 0,
+    } as ClanWithStatsResponseDto;
   }
 
   async searchClans(

@@ -107,7 +107,11 @@ export class UserAccessoryService {
     }
 
     for (const accessory of accessories) {
-      if (!accessory || !accessory.user || typeof accessory.user.id !== 'number') {
+      if (
+        !accessory ||
+        !accessory.user ||
+        typeof accessory.user.id !== 'number'
+      ) {
         continue;
       }
       const userId = accessory.user.id;
