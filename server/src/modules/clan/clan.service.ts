@@ -412,9 +412,94 @@ export class ClanService {
       } as UpdateClanDto;
     }
 
-    Object.assign(clan, updateClanDto);
+    if (updateClanDto.leader_id !== undefined && updateClanDto.leader_id !== clan.leader_id) {
+      const newLeader = await this.userRepository.findOne({
+        where: { id: updateClanDto.leader_id },
+      });
+
+      if (!newLeader) {
+        throw new NotFoundException('Новый лидер не найден');
+      }
+
+      if (newLeader.clan_id !== clan.id) {
+        throw new BadRequestException('Новый лидер должен состоять в этом клане');
+      }
+
+      clan.leader_id = updateClanDto.leader_id;
+    }
+
+    if (updateClanDto.member_ids !== undefined) {
+      const currentMembers = clan.members || [];
+      const currentMemberIds = currentMembers.map((m) => m.id);
+      
+      const newMemberIds = updateClanDto.member_ids;
+      
+      const finalMemberIds = [...new Set([...newMemberIds, clan.leader_id])];
+      
+      const newMembers = await this.userRepository.find({
+        where: { id: In(finalMemberIds) },
+      });
+
+      if (newMembers.length !== finalMemberIds.length) {
+        throw new NotFoundException('Один или несколько участников не найдены');
+      }
+
+      for (const member of currentMembers) {
+        if (member.id !== clan.leader_id && !finalMemberIds.includes(member.id)) {
+          member.clan_id = null;
+          await this.userRepository.save(member);
+        }
+      }
+
+      for (const member of newMembers) {
+        if (member.clan_id !== clan.id) {
+          if (member.clan_id !== null && member.clan_id !== clan.id) {
+            throw new BadRequestException(
+              `Пользователь с ID ${member.id} уже состоит в другом клане`,
+            );
+          }
+          member.clan_id = clan.id;
+          await this.userRepository.save(member);
+        }
+      }
+    }
+
+    if (updateClanDto.war_ids !== undefined) {
+      const wars = await this.clanWarRepository.find({
+        where: { id: In(updateClanDto.war_ids) },
+      });
+
+      if (wars.length !== updateClanDto.war_ids.length) {
+        throw new NotFoundException('Одна или несколько войн не найдены');
+      }
+
+      for (const war of wars) {
+        if (war.clan_1_id !== id && war.clan_2_id !== id) {
+          throw new BadRequestException(
+            `Война с ID ${war.id} не связана с этим кланом`,
+          );
+        }
+      }
+    }
+
+    if (updateClanDto.name !== undefined) {
+      clan.name = updateClanDto.name;
+    }
+    if (updateClanDto.max_members !== undefined) {
+      clan.max_members = updateClanDto.max_members;
+    }
+    if (updateClanDto.image_path !== undefined) {
+      clan.image_path = updateClanDto.image_path;
+    }
+
     const savedClan = await this.clanRepository.save(clan);
-    return this.transformToClanWithReferralResponseDto(savedClan);
+
+    const clanWithRelations = await this.clanRepository.findOne({
+      where: { id: savedClan.id },
+      relations: ['members', 'members.guards', 'leader', '_wars_1', '_wars_2'],
+    });
+
+    return this.transformToClanWithReferralResponseDto(clanWithRelations!);
   }
 
   async remove(id: number): Promise<void> {

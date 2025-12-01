@@ -10,6 +10,7 @@ import { CreateAdminDto } from './dtos/create-admin.dto';
 import { UpdateAdminDto } from './dtos/update-admin.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
+import { User } from '../user/user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -17,6 +18,8 @@ export class AdminService {
   constructor(
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async findAll(
@@ -109,7 +112,15 @@ export class AdminService {
       }
     }
 
-    if (updateAdminDto.user_id) {
+    if (updateAdminDto.user_id !== undefined && updateAdminDto.user_id !== admin.user_id) {
+      const user = await this.userRepository.findOne({
+        where: { id: updateAdminDto.user_id },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`Пользователь с ID ${updateAdminDto.user_id} не найден`);
+      }
+
       const existingAdmin = await this.adminRepository.findOne({
         where: { user_id: updateAdminDto.user_id },
       });

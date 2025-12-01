@@ -12,12 +12,15 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
+import { User } from '../user/user.entity';
 
 @Injectable()
 export class UserGuardService {
   constructor(
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async findAll(
@@ -89,6 +92,18 @@ export class UserGuardService {
 
     const { user_id, ...rest } = updateUserGuardDto;
 
+    if (user_id !== undefined && user_id !== userGuard.user_id) {
+      const user = await this.userRepository.findOne({
+        where: { id: user_id },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`Пользователь с ID ${user_id} не найден`);
+      }
+
+      userGuard.user_id = user_id;
+    }
+
     const isFirst =
       rest.is_first !== undefined ? rest.is_first : userGuard.is_first;
     const newStrength =
@@ -106,9 +121,6 @@ export class UserGuardService {
     }
 
     Object.assign(userGuard, rest);
-    if (user_id !== undefined) {
-      userGuard.user_id = user_id;
-    }
     return this.userGuardRepository.save(userGuard);
   }
 

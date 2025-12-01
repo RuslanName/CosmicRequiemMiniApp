@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, QueryFailedError } from 'typeorm';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
@@ -204,6 +204,8 @@ export class AuthService {
       expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any,
     });
 
+    await this.refreshTokenRepository.delete({ user_id: dbUser.id });
+
     const refreshTokenPayload = {
       sub: dbUser.id,
       type: 'refresh',
@@ -222,7 +224,28 @@ export class AuthService {
       user_id: dbUser.id,
       expires_at: expiresAt,
     });
-    await this.refreshTokenRepository.save(refreshTokenEntity);
+    
+    try {
+      await this.refreshTokenRepository.save(refreshTokenEntity);
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.message.includes('duplicate key')) {
+        const newRefreshToken = this.jwtService.sign(refreshTokenPayload, {
+          secret: ENV.JWT_REFRESH_SECRET,
+          expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
+        });
+        const newRefreshTokenEntity = this.refreshTokenRepository.create({
+          token: newRefreshToken,
+          user_id: dbUser.id,
+          expires_at: expiresAt,
+        });
+        await this.refreshTokenRepository.save(newRefreshTokenEntity);
+        return {
+          accessToken,
+          refreshToken: newRefreshToken,
+        };
+      }
+      throw error;
+    }
 
     return {
       accessToken,

@@ -141,11 +141,13 @@ export class ClanWarSchedulerService {
         if (!guard) continue;
 
         if (victimClanId === winnerClanId) {
-          guard.user = item.victim;
-          await this.userGuardRepository.save(guard);
+          await this.userGuardRepository.update(guardId, {
+            user_id: item.victim.id,
+          });
         } else if (thiefClanId === loserClanId) {
-          guard.user = item.victim;
-          await this.userGuardRepository.save(guard);
+          await this.userGuardRepository.update(guardId, {
+            user_id: item.victim.id,
+          });
         }
       }
     }
