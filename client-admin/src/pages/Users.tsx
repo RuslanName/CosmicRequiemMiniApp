@@ -71,7 +71,6 @@ const Users = () => {
       sex: user.sex,
       birthday_date: user.birthday_date,
       money: user.money,
-      shield_end_time: user.shield_end_time,
       last_contract_time: user.last_contract_time,
       clan_leave_time: user.clan_leave_time,
       status: user.status,

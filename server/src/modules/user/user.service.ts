@@ -79,6 +79,16 @@ export class UserService {
     );
   }
 
+  private async getShieldEndTimeFromBoost(
+    userId: number,
+  ): Promise<Date | null> {
+    const activeBoosts = await this.userBoostService.findActiveByUserId(userId);
+    const shieldBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+    return shieldBoost?.end_time || null;
+  }
+
   private transformUserForResponse(
     user: User,
   ): User & { referral_link?: string } {
@@ -167,13 +177,14 @@ export class UserService {
     }
   }
 
-  private transformToUserMeResponseDto(
+  private async transformToUserMeResponseDto(
     user: User,
     equippedAccessories: any[],
     trainingCost: number,
     contractIncome: number,
     referrerMoneyReward: number,
-  ): UserMeResponseDto {
+    shieldBoostsMap?: Map<number, Date | null>,
+  ): Promise<UserMeResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
@@ -182,6 +193,9 @@ export class UserService {
       SettingKey.ADV_DISABLE_COST_VOICES_COUNT
     ] as number;
     const referralsCount = user.referrals ? user.referrals.length : 0;
+    const shieldEndTime = shieldBoostsMap
+      ? shieldBoostsMap.get(user.id) || null
+      : await this.getShieldEndTimeFromBoost(user.id);
 
     return {
       id: transformed.id,
@@ -192,7 +206,7 @@ export class UserService {
       image_path: transformed.image_path || null,
       birthday_date: transformed.birthday_date,
       money: transformed.money,
-      shield_end_time: transformed.shield_end_time,
+      shield_end_time: shieldEndTime || undefined,
       last_training_time: transformed.last_training_time,
       last_contract_time: transformed.last_contract_time,
       last_attack_time: transformed.last_attack_time,
@@ -214,9 +228,10 @@ export class UserService {
     };
   }
 
-  private transformToUserBasicStatsResponseDto(
+  private async transformToUserBasicStatsResponseDto(
     user: User,
-  ): UserWithBasicStatsResponseDto {
+    shieldBoostsMap?: Map<number, Date | null>,
+  ): Promise<UserWithBasicStatsResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
@@ -224,6 +239,9 @@ export class UserService {
       ? Number(user.user_as_guard.strength)
       : null;
     const referralsCount = user.referrals ? user.referrals.length : 0;
+    const shieldEndTime = shieldBoostsMap
+      ? shieldBoostsMap.get(user.id) || null
+      : await this.getShieldEndTimeFromBoost(user.id);
 
     return {
       id: transformed.id,
@@ -234,7 +252,7 @@ export class UserService {
       image_path: transformed.image_path || null,
       birthday_date: transformed.birthday_date,
       money: transformed.money,
-      shield_end_time: transformed.shield_end_time,
+      shield_end_time: shieldEndTime || undefined,
       last_training_time: transformed.last_training_time,
       last_contract_time: transformed.last_contract_time,
       last_attack_time: transformed.last_attack_time,
@@ -251,12 +269,16 @@ export class UserService {
     };
   }
 
-  private transformToUserRatingResponseDto(
+  private async transformToUserRatingResponseDto(
     user: User,
     equippedAccessories?: any[],
-  ): UserRatingResponseDto {
+    shieldBoostsMap?: Map<number, Date | null>,
+  ): Promise<UserRatingResponseDto> {
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
+    const shieldEndTime = shieldBoostsMap
+      ? shieldBoostsMap.get(user.id) || null
+      : await this.getShieldEndTimeFromBoost(user.id);
 
     return {
       id: user.id,
@@ -267,7 +289,7 @@ export class UserService {
       image_path: user.image_path || null,
       birthday_date: user.birthday_date,
       money: user.money,
-      shield_end_time: user.shield_end_time,
+      shield_end_time: shieldEndTime || undefined,
       last_training_time: user.last_training_time,
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,
@@ -294,8 +316,14 @@ export class UserService {
       take: limit,
     });
 
-    const dataWithStrength = data.map((user) =>
-      this.transformToUserBasicStatsResponseDto(user),
+    const userIds = data.map((user) => user.id);
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
+    const dataWithStrength = await Promise.all(
+      data.map((user) =>
+        this.transformToUserBasicStatsResponseDto(user, shieldBoostsMap),
+      ),
     );
 
     return {
@@ -316,7 +344,7 @@ export class UserService {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
-    return this.transformToUserBasicStatsResponseDto(user);
+    return await this.transformToUserBasicStatsResponseDto(user);
   }
 
   async findMe(userId: number): Promise<UserMeResponseDto> {
@@ -339,7 +367,7 @@ export class UserService {
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
 
-    return this.transformToUserMeResponseDto(
+    return await this.transformToUserMeResponseDto(
       user,
       equippedAccessories,
       training_cost,
@@ -500,7 +528,7 @@ export class UserService {
     const referrerMoneyReward = Settings[
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
-    const userMe = this.transformToUserMeResponseDto(
+    const userMe = await this.transformToUserMeResponseDto(
       updatedUser,
       equippedAccessories,
       training_cost,
@@ -603,7 +631,7 @@ export class UserService {
     const referrerMoneyReward = Settings[
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
-    const userMe = this.transformToUserMeResponseDto(
+    const userMe = await this.transformToUserMeResponseDto(
       user,
       equippedAccessories,
       training_cost,
@@ -648,17 +676,10 @@ export class UserService {
       (user) => user.image_path && user.image_path.trim() !== '',
     );
 
-    const usersWithStrength = await Promise.all(
-      usersWithImagePath.map(async (user) => {
-        const equippedAccessories =
-          await this.userAccessoryService.findEquippedByUserId(user.id);
-        return {
-          user,
-          strength: this.calculateUserPower(user.guards || []),
-          equippedAccessories,
-        };
-      }),
-    );
+    const usersWithStrength = usersWithImagePath.map((user) => ({
+      user,
+      strength: this.calculateUserPower(user.guards || []),
+    }));
 
     usersWithStrength.sort((a, b) => {
       const scoreA = a.strength * 1000 + Number(a.user.money || 0);
@@ -670,10 +691,19 @@ export class UserService {
     const skip = (page - 1) * limit;
     const paginatedUsers = usersWithStrength.slice(skip, skip + limit);
 
-    const data = paginatedUsers.map((item) =>
-      this.transformToUserRatingResponseDto(
-        item.user,
-        item.equippedAccessories,
+    const userIds = paginatedUsers.map((item) => item.user.id);
+    const [shieldBoostsMap, accessoriesMap] = await Promise.all([
+      this.userBoostService.findActiveShieldBoostsByUserIds(userIds),
+      this.userAccessoryService.findEquippedByUserIds(userIds),
+    ]);
+
+    const data = await Promise.all(
+      paginatedUsers.map((item) =>
+        this.transformToUserRatingResponseDto(
+          item.user,
+          accessoriesMap.get(item.user.id) || [],
+          shieldBoostsMap,
+        ),
       ),
     );
 
@@ -1038,13 +1068,18 @@ export class UserService {
           return guardsCount > 1;
         });
 
+      const userIds = filteredUsers.map((user) => user.id);
+      const shieldBoostsMap =
+        await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
       const dataWithStrength = await Promise.all(
         filteredUsers.map(async (user) => {
           const equippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(user.id);
-          return this.transformToUserRatingResponseDto(
+          return await this.transformToUserRatingResponseDto(
             user,
             equippedAccessories,
+            shieldBoostsMap,
           );
         }),
       );
@@ -1137,13 +1172,18 @@ export class UserService {
           return !hasReferrals;
         });
 
+      const userIds = filteredUsers.map((user) => user.id);
+      const shieldBoostsMap =
+        await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
       const dataWithStrength = await Promise.all(
         filteredUsers.map(async (user) => {
           const equippedAccessories =
             await this.userAccessoryService.findEquippedByUserId(user.id);
-          return this.transformToUserRatingResponseDto(
+          return await this.transformToUserRatingResponseDto(
             user,
             equippedAccessories,
+            shieldBoostsMap,
           );
         }),
       );
@@ -1242,11 +1282,19 @@ export class UserService {
         return guardsCount > 1;
       });
 
+    const userIds = filteredUsers.map((user) => user.id);
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
     const dataWithStrength = await Promise.all(
       filteredUsers.map(async (user) => {
         const equippedAccessories =
           await this.userAccessoryService.findEquippedByUserId(user.id);
-        return this.transformToUserRatingResponseDto(user, equippedAccessories);
+        return await this.transformToUserRatingResponseDto(
+          user,
+          equippedAccessories,
+          shieldBoostsMap,
+        );
       }),
     );
 
@@ -1299,40 +1347,34 @@ export class UserService {
 
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
       targetUserId,
-      defender.shield_end_time || null,
     );
 
-    const defenderActiveBoosts =
-      await this.userBoostService.findActiveByUserId(targetUserId);
-    const defenderShieldBoost = defenderActiveBoosts.find(
-      (b) => b.type === UserBoostType.SHIELD,
-    );
+    const userIds = [targetUserId, userId];
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+    const defenderShieldEndTime = shieldBoostsMap.get(targetUserId);
 
-    if (defender.shield_end_time && defender.shield_end_time > new Date()) {
+    if (defenderShieldEndTime) {
       throw new BadRequestException(
         'Нельзя атаковать пользователя с активным щитом',
       );
     }
 
-    if (
-      defenderShieldBoost &&
-      (!defender.shield_end_time || defender.shield_end_time <= new Date())
-    ) {
-      await this.userBoostService.complete(defenderShieldBoost.id);
+    const attackerShieldEndTime = shieldBoostsMap.get(userId);
+
+    if (attackerShieldEndTime) {
+      const attackerActiveBoosts =
+        await this.userBoostService.findActiveByUserId(userId);
+      const attackerShieldBoost = attackerActiveBoosts.find(
+        (b) => b.type === UserBoostType.SHIELD,
+      );
+      if (attackerShieldBoost) {
+        await this.userBoostService.complete(attackerShieldBoost.id);
+      }
     }
 
     const attackerActiveBoosts =
       await this.userBoostService.findActiveByUserId(userId);
-    const attackerShieldBoost = attackerActiveBoosts.find(
-      (b) => b.type === UserBoostType.SHIELD,
-    );
-
-    if (attackerShieldBoost) {
-      await this.userBoostService.complete(attackerShieldBoost.id);
-    }
-
-    attacker.shield_end_time = undefined;
-
     const cooldownHalvingBoost = attackerActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
@@ -1590,6 +1632,36 @@ export class UserService {
       paginationDto,
     );
 
+    const opponentIds = result.data
+      .map((event) => event.opponent?.id)
+      .filter((id): id is number => id !== undefined && id !== null);
+    const shieldBoostsMap =
+      opponentIds.length > 0
+        ? await this.userBoostService.findActiveShieldBoostsByUserIds(opponentIds)
+        : new Map<number, Date | null>();
+
+    const guardIds = result.data
+      .flatMap((event) => {
+        if (!event.stolen_items) return [];
+        const relevantItems =
+          event.type === EventHistoryType.ATTACK
+            ? event.stolen_items.filter((item) => item.thief.id === userId)
+            : event.stolen_items.filter((item) => item.victim.id === userId);
+        return relevantItems
+          .filter((item) => item.type === StolenItemType.GUARD)
+          .map((item) => parseInt(item.value, 10))
+          .filter((id): id is number => !isNaN(id) && id > 0);
+      })
+      .filter((id, index, self) => self.indexOf(id) === index);
+
+    const guardsMap = new Map<number, UserGuard>();
+    if (guardIds.length > 0) {
+      const guards = await this.userGuardRepository.find({
+        where: { id: In(guardIds) },
+      });
+      guards.forEach((guard) => guardsMap.set(guard.id, guard));
+    }
+
     const transformedData = await Promise.all(
       result.data.map(async (event) => {
         const { stolen_items, ...eventWithoutStolenItems } = event;
@@ -1611,9 +1683,7 @@ export class UserService {
               stolenGuardsCount++;
               const guardId = parseInt(item.value, 10);
               if (guardId) {
-                const guard = await this.userGuardRepository.findOne({
-                  where: { id: guardId },
-                });
+                const guard = guardsMap.get(guardId);
                 if (guard) {
                   stolenStrength += Number(guard.strength) || 0;
                 }
@@ -1629,8 +1699,12 @@ export class UserService {
             await this.userAccessoryService.findEquippedByUserId(
               event.opponent.id,
             );
+          const opponentBasicStats = await this.transformToUserBasicStatsResponseDto(
+            event.opponent,
+            shieldBoostsMap,
+          );
           opponentDto = {
-            ...this.transformToUserBasicStatsResponseDto(event.opponent),
+            ...opponentBasicStats,
             equipped_accessories: equippedAccessories,
           };
         }

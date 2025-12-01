@@ -140,11 +140,17 @@ export class ClanService {
     return transformed;
   }
 
-  private transformToUserWithStatsResponseDto(
+  private async transformToUserWithStatsResponseDto(
     user: User,
-  ): UserWithStatsResponseDto {
+    shieldBoostsMap?: Map<number, Date | null>,
+  ): Promise<UserWithStatsResponseDto> {
     const guardsCount = this.getGuardsCount(user.guards || []);
     const strength = this.calculateUserPower(user.guards || []);
+    const shieldEndTime = shieldBoostsMap
+      ? shieldBoostsMap.get(user.id) || null
+      : (await this.userBoostService.findActiveByUserId(user.id)).find(
+          (b) => b.type === UserBoostType.SHIELD,
+        )?.end_time || null;
 
     return {
       id: user.id,
@@ -155,7 +161,7 @@ export class ClanService {
       image_path: user.image_path || null,
       birthday_date: user.birthday_date,
       money: user.money,
-      shield_end_time: user.shield_end_time,
+      shield_end_time: shieldEndTime || undefined,
       last_training_time: user.last_training_time,
       last_contract_time: user.last_contract_time,
       last_attack_time: user.last_attack_time,
@@ -798,8 +804,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    return members.map((member) =>
-      this.transformToUserWithStatsResponseDto(member),
+    const userIds = members.map((m) => m.id);
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
+    return await Promise.all(
+      members.map((member) =>
+        this.transformToUserWithStatsResponseDto(member, shieldBoostsMap),
+      ),
     );
   }
 
@@ -824,39 +836,33 @@ export class ClanService {
 
     await this.userBoostService.checkAndCompleteExpiredShieldBoosts(
       targetUserId,
-      defender.shield_end_time || null,
     );
 
-    const defenderActiveBoosts =
-      await this.userBoostService.findActiveByUserId(targetUserId);
-    const defenderShieldBoost = defenderActiveBoosts.find(
-      (b) => b.type === UserBoostType.SHIELD,
-    );
+    const userIds = [targetUserId, userId];
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+    const defenderShieldEndTime = shieldBoostsMap.get(targetUserId);
 
-    if (defender.shield_end_time && defender.shield_end_time > new Date()) {
+    if (defenderShieldEndTime) {
       throw new BadRequestException(
         'Нельзя атаковать пользователя с активным щитом',
       );
     }
-    if (
-      defenderShieldBoost &&
-      (!defender.shield_end_time || defender.shield_end_time <= new Date())
-    ) {
-      await this.userBoostService.complete(defenderShieldBoost.id);
+
+    const attackerShieldEndTime = shieldBoostsMap.get(userId);
+    if (attackerShieldEndTime) {
+      const attackerActiveBoosts =
+        await this.userBoostService.findActiveByUserId(userId);
+      const attackerShieldBoost = attackerActiveBoosts.find(
+        (b) => b.type === UserBoostType.SHIELD,
+      );
+      if (attackerShieldBoost) {
+        await this.userBoostService.complete(attackerShieldBoost.id);
+      }
     }
 
     const attackerActiveBoosts =
       await this.userBoostService.findActiveByUserId(userId);
-    const attackerShieldBoost = attackerActiveBoosts.find(
-      (b) => b.type === UserBoostType.SHIELD,
-    );
-
-    if (attackerShieldBoost) {
-      await this.userBoostService.complete(attackerShieldBoost.id);
-    }
-
-    attacker.shield_end_time = undefined;
-
     const cooldownHalvingBoost = attackerActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
@@ -1544,8 +1550,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    const membersWithStats = members.map((member) =>
-      this.transformToUserWithStatsResponseDto(member),
+    const userIds = members.map((m) => m.id);
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
+    const membersWithStats = await Promise.all(
+      members.map((member) =>
+        this.transformToUserWithStatsResponseDto(member, shieldBoostsMap),
+      ),
     );
 
     membersWithStats.sort((a, b) => {
@@ -1581,8 +1593,14 @@ export class ClanService {
       relations: ['guards'],
     });
 
-    const membersWithStats = members.map((member) =>
-      this.transformToUserWithStatsResponseDto(member),
+    const userIds = members.map((m) => m.id);
+    const shieldBoostsMap =
+      await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
+
+    const membersWithStats = await Promise.all(
+      members.map((member) =>
+        this.transformToUserWithStatsResponseDto(member, shieldBoostsMap),
+      ),
     );
 
     membersWithStats.sort((a, b) => {

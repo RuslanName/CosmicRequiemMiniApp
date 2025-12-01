@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -16,6 +17,8 @@ import { UserAccessory } from '../user-accessory/user-accessory.entity';
 import { UserTask } from '../task/entities/user-task.entity';
 
 @Entity()
+@Index(['clan_id'])
+@Index(['status'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -40,9 +43,6 @@ export class User {
 
   @Column({ type: 'bigint', default: 0 })
   money: number;
-
-  @Column({ type: 'timestamp', nullable: true })
-  shield_end_time?: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   last_training_time?: Date;

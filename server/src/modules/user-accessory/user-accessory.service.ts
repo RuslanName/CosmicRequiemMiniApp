@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan, In } from 'typeorm';
 import { UserAccessory } from './user-accessory.entity';
 import { UserAccessoryStatus } from './enums/user-accessory-status.enum';
 import { ItemTemplateType } from '../item-template/enums/item-template-type.enum';
@@ -84,6 +84,36 @@ export class UserAccessoryService {
     return accessories.map((accessory) =>
       this.transformToUserAccessoryResponseDto(accessory),
     );
+  }
+
+  async findEquippedByUserIds(
+    userIds: number[],
+  ): Promise<Map<number, UserAccessoryResponseDto[]>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const accessories = await this.userAccessoryRepository.find({
+      where: {
+        user: { id: In(userIds) },
+        status: UserAccessoryStatus.EQUIPPED,
+      },
+      relations: ['item_template'],
+    });
+
+    const accessoriesMap = new Map<number, UserAccessoryResponseDto[]>();
+    for (const userId of userIds) {
+      accessoriesMap.set(userId, []);
+    }
+
+    for (const accessory of accessories) {
+      const userId = accessory.user.id;
+      const userAccessories = accessoriesMap.get(userId) || [];
+      userAccessories.push(this.transformToUserAccessoryResponseDto(accessory));
+      accessoriesMap.set(userId, userAccessories);
+    }
+
+    return accessoriesMap;
   }
 
   async equip(
@@ -210,7 +240,7 @@ export class UserAccessoryService {
     const activateShieldCooldown =
       Settings[SettingKey.ACTIVATE_SHIELD_COOLDOWN];
 
-    const lastShieldBoost = await this.userBoostRepository.findOne({
+    const lastShieldBoostForCooldown = await this.userBoostRepository.findOne({
       where: {
         user: { id: userId },
         type: UserBoostType.SHIELD,
@@ -218,9 +248,9 @@ export class UserAccessoryService {
       order: { created_at: 'DESC' },
     });
 
-    if (lastShieldBoost && lastShieldBoost.created_at) {
+    if (lastShieldBoostForCooldown && lastShieldBoostForCooldown.created_at) {
       const cooldownEndTime = new Date(
-        lastShieldBoost.created_at.getTime() + activateShieldCooldown,
+        lastShieldBoostForCooldown.created_at.getTime() + activateShieldCooldown,
       );
       if (cooldownEndTime > now) {
         throw new BadRequestException({
@@ -232,14 +262,21 @@ export class UserAccessoryService {
 
     const shieldHours = parseInt(accessory.item_template.value, 10);
 
-    const shieldEndTime =
-      user.shield_end_time && user.shield_end_time > now
-        ? new Date(
-            user.shield_end_time.getTime() + shieldHours * 60 * 60 * 1000,
-          )
-        : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
+    const activeBoosts = await this.userBoostRepository.find({
+      where: {
+        user: { id: userId },
+        type: UserBoostType.SHIELD,
+        end_time: MoreThan(now),
+      },
+      order: { created_at: 'DESC' },
+    });
 
-    user.shield_end_time = shieldEndTime;
+    const activeShieldBoost = activeBoosts[0];
+    const shieldEndTime = activeShieldBoost && activeShieldBoost.end_time
+      ? new Date(
+          activeShieldBoost.end_time.getTime() + shieldHours * 60 * 60 * 1000,
+        )
+      : new Date(now.getTime() + shieldHours * 60 * 60 * 1000);
 
     const userBoost = this.userBoostRepository.create({
       type: UserBoostType.SHIELD,
@@ -249,7 +286,6 @@ export class UserAccessoryService {
     const createdBoost = await this.userBoostRepository.save(userBoost);
 
     await this.userAccessoryRepository.remove(accessory);
-    await this.userRepository.save(user);
 
     const userResponse = await this.userService.findMe(user.id);
     const boostResponse = this.transformUserBoostToResponseDto(createdBoost);

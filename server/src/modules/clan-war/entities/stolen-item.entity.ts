@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,9 @@ import { StolenItemType } from '../enums/stolen-item-type.enum';
 import { ClanWar } from './clan-war.entity';
 
 @Entity()
+@Index(['thief_id'])
+@Index(['victim_id'])
+@Index(['clan_war_id'])
 export class StolenItem {
   @PrimaryGeneratedColumn()
   id: number;
@@ -25,10 +29,18 @@ export class StolenItem {
   @Column({ type: 'varchar' })
   value: string;
 
-  @ManyToOne(() => User, { onDelete: 'SET NULL' })
-  thief: User;
+  @Column({ type: 'int', nullable: true })
+  thief_id: number | null;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'thief_id' })
+  thief: User;
+
+  @Column({ type: 'int', nullable: true })
+  victim_id: number | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'victim_id' })
   victim: User;
 
   @Column({ type: 'int', nullable: true })

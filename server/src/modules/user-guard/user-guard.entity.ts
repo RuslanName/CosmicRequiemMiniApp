@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToOne,
@@ -11,6 +12,8 @@ import {
 import { User } from '../user/user.entity';
 
 @Entity()
+@Index(['user_id'])
+@Index(['guard_as_user_id'])
 export class UserGuard {
   @PrimaryGeneratedColumn()
   id: number;

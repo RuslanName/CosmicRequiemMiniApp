@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -13,6 +14,7 @@ import { User } from '../../user/user.entity';
 import { ClanWar } from '../../clan-war/entities/clan-war.entity';
 
 @Entity()
+@Index(['leader_id'])
 export class Clan {
   @PrimaryGeneratedColumn()
   id: number;

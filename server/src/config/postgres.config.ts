@@ -15,4 +15,11 @@ export const postgresConfig: TypeOrmModuleOptions = {
   entities: [join(__dirname, '..', '**', '*.entity.js')],
   synchronize: isDev,
   ssl: false,
+  extra: {
+    max: 20,
+    min: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  },
+  logging: isDev ? ['error', 'warn', 'schema'] : ['error'],
 };

@@ -29,7 +29,6 @@ export interface UpdateUserDto {
   sex?: number;
   birthday_date?: string;
   money?: number;
-  shield_end_time?: string;
   last_contract_time?: string;
   clan_leave_time?: string;
   status?: string;

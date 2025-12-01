@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, In } from 'typeorm';
 import { UserBoost } from './user-boost.entity';
 import { CreateUserBoostDto } from './dtos/create-user-boost.dto';
 import { UpdateUserBoostDto } from './dtos/update-user-boost.dto';
@@ -33,6 +33,42 @@ export class UserBoostService {
     });
   }
 
+  async findActiveShieldBoostsByUserIds(
+    userIds: number[],
+  ): Promise<Map<number, Date | null>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const now = new Date();
+    const shieldBoosts = await this.userBoostRepository.find({
+      where: {
+        user: { id: In(userIds) },
+        type: UserBoostType.SHIELD,
+        end_time: MoreThan(now),
+      },
+      relations: ['user'],
+      order: { created_at: 'DESC' },
+    });
+
+    const shieldMap = new Map<number, Date | null>();
+    for (const userId of userIds) {
+      shieldMap.set(userId, null);
+    }
+
+    for (const boost of shieldBoosts) {
+      const userId = boost.user.id;
+      const existingEndTime = shieldMap.get(userId);
+      if (existingEndTime === null || !existingEndTime) {
+        shieldMap.set(userId, boost.end_time || null);
+      } else if (boost.end_time && boost.end_time > existingEndTime) {
+        shieldMap.set(userId, boost.end_time);
+      }
+    }
+
+    return shieldMap;
+  }
+
   async findLastByUserIdAndType(
     userId: number,
     type: UserBoostType,
@@ -48,23 +84,20 @@ export class UserBoostService {
 
   async checkAndCompleteExpiredShieldBoosts(
     userId: number,
-    shieldEndTime: Date | null,
   ): Promise<void> {
-    if (!shieldEndTime || shieldEndTime > new Date()) {
-      return;
-    }
     const now = new Date();
-    const activeShieldBoosts = await this.userBoostRepository.find({
+    const shieldBoosts = await this.userBoostRepository.find({
       where: {
         user: { id: userId },
         type: UserBoostType.SHIELD,
-        end_time: MoreThan(now),
       },
     });
 
-    for (const boost of activeShieldBoosts) {
-      boost.end_time = new Date();
-      await this.userBoostRepository.save(boost);
+    for (const boost of shieldBoosts) {
+      if (boost.end_time && boost.end_time <= now) {
+        boost.end_time = now;
+        await this.userBoostRepository.save(boost);
+      }
     }
   }
 

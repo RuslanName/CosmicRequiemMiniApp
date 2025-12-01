@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   JoinTable,
   ManyToMany,
@@ -13,6 +14,8 @@ import { EventHistoryType } from './enums/event-history-type.enum';
 import { StolenItem } from '../clan-war/entities/stolen-item.entity';
 
 @Entity()
+@Index(['user_id', 'created_at'])
+@Index(['opponent_id'])
 export class EventHistory {
   @PrimaryGeneratedColumn()
   id: number;
