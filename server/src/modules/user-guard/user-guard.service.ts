@@ -50,6 +50,7 @@ export class UserGuardService {
     const skip = (page - 1) * limit;
 
     const [userGuards, total] = await this.userGuardRepository.findAndCount({
+      order: { id: 'DESC' },
       skip,
       take: limit,
     });
@@ -67,7 +68,6 @@ export class UserGuardService {
   async findOne(id: number): Promise<UserGuardAdminResponseDto> {
     const userGuard = await this.userGuardRepository.findOne({
       where: { id },
-      relations: ['user'],
     });
 
     if (!userGuard) {
@@ -108,7 +108,6 @@ export class UserGuardService {
   ): Promise<UserGuardAdminResponseDto> {
     const userGuard = await this.userGuardRepository.findOne({
       where: { id },
-      relations: ['user'],
     });
 
     if (!userGuard) {

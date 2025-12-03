@@ -59,7 +59,6 @@ export class AdminService {
   async findOne(id: number): Promise<AdminResponseDto> {
     const admin = await this.adminRepository.findOne({
       where: { id },
-      relations: ['user'],
     });
 
     if (!admin) {
@@ -72,7 +71,6 @@ export class AdminService {
   async findByUserId(userId: number): Promise<Admin | null> {
     return await this.adminRepository.findOne({
       where: { user_id: userId },
-      relations: ['user'],
     });
   }
 
@@ -111,7 +109,6 @@ export class AdminService {
   ): Promise<AdminResponseDto> {
     const admin = await this.adminRepository.findOne({
       where: { id },
-      relations: ['user'],
     });
 
     if (!admin) {

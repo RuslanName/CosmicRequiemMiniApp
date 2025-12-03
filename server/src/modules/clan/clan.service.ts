@@ -279,7 +279,7 @@ export class ClanService {
     const skip = (page - 1) * limit;
 
     const [clans, total] = await this.clanRepository.findAndCount({
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
+      relations: ['members'],
       order: { id: 'ASC' },
       skip,
       take: limit,
@@ -357,7 +357,7 @@ export class ClanService {
   async findOneForAdmin(id: number): Promise<ClanStatsResponseDto> {
     const clan = await this.clanRepository.findOne({
       where: { id },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
+      relations: ['members'],
     });
 
     if (!clan) {
@@ -482,7 +482,7 @@ export class ClanService {
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
+      relations: ['members'],
     });
 
     return this.transformToClanReferralResponseDto(clanWithRelations!);
@@ -565,7 +565,7 @@ export class ClanService {
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
+      relations: ['members'],
     });
 
     return this.transformToClanReferralResponseDto(clanWithRelations!);
@@ -692,7 +692,7 @@ export class ClanService {
 
     const clanWithRelations = await this.clanRepository.findOne({
       where: { id: savedClan.id },
-      relations: ['members', 'members.guards', '_wars_1', '_wars_2'],
+      relations: ['members'],
     });
 
     return this.transformToClanReferralResponseDto(clanWithRelations!);
@@ -709,10 +709,11 @@ export class ClanService {
     }
 
     if (clan.members && clan.members.length > 0) {
-      for (const member of clan.members) {
-        member.clan_id = null;
-        await this.userRepository.save(member);
-      }
+      const memberIds = clan.members.map((m) => m.id);
+      await this.userRepository.update(
+        { id: In(memberIds) },
+        { clan_id: null },
+      );
     }
 
     const clanWars = await this.clanWarRepository.find({
@@ -751,10 +752,11 @@ export class ClanService {
     }
 
     if (clan.members && clan.members.length > 0) {
-      for (const member of clan.members) {
-        member.clan_id = null;
-        await this.userRepository.save(member);
-      }
+      const memberIds = clan.members.map((m) => m.id);
+      await this.userRepository.update(
+        { id: In(memberIds) },
+        { clan_id: null },
+      );
     }
 
     const clanWars = await this.clanWarRepository.find({

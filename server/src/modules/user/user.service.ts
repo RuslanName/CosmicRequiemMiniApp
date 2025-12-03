@@ -349,7 +349,7 @@ export class UserService {
     const skip = (page - 1) * limit;
 
     const [users, total] = await this.userRepository.findAndCount({
-      relations: ['guards', 'referrals'],
+      relations: ['user_as_guard'],
       order: { id: 'ASC' },
       skip,
       take: limit,
@@ -409,7 +409,7 @@ export class UserService {
   async findOne(id: number): Promise<UserBasicStatsResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['guards', 'referrals'],
+      relations: ['user_as_guard'],
     });
 
     if (!user) {
@@ -420,8 +420,8 @@ export class UserService {
     const strength = user.strength ?? 0;
     const referralsCount = user.referrals_count ?? 0;
     const firstGuardStrength = user.user_as_guard?.strength
-      ? Number(user.user_as_guard.strength)
-      : null;
+        ? Number(user.user_as_guard.strength)
+        : null;
 
     const transformed = this.transformUserForResponse(user);
     const shieldEndTime = await this.getShieldEndTimeFromBoost(user.id);

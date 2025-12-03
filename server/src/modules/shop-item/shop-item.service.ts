@@ -164,6 +164,7 @@ export class ShopItemService {
 
     const [data, total] = await this.shopItemRepository.findAndCount({
       relations: ['item_template'],
+      order: { id: 'DESC' },
       skip,
       take: limit,
     });
