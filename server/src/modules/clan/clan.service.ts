@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { In, Like, Not, Repository, DataSource } from 'typeorm';
+import { In, Like, Not, Repository, DataSource, EntityManager } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
@@ -63,8 +63,18 @@ export class ClanService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  private async updateUserGuardsStats(userId: number): Promise<void> {
-    const guards = await this.userGuardRepository.find({
+  private async updateUserGuardsStats(
+    userId: number,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const userGuardRepo = manager
+      ? manager.getRepository(UserGuard)
+      : this.userGuardRepository;
+    const userRepo = manager
+      ? manager.getRepository(User)
+      : this.userRepository;
+
+    const guards = await userGuardRepo.find({
       where: { user_id: userId },
     });
     const guardsCount = guards.length;
@@ -73,7 +83,7 @@ export class ClanService {
       0,
     );
 
-    await this.userRepository.update(userId, {
+    await userRepo.update(userId, {
       guards_count: guardsCount,
       strength: strength,
     });
@@ -84,14 +94,27 @@ export class ClanService {
     return members.reduce((sum, member) => sum + Number(member.money || 0), 0);
   }
 
-  async updateClanStats(clanId: number): Promise<void> {
-    await this.clanRepository.manager.query(
-      `UPDATE clan SET 
-        strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-        guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
-      WHERE id = $1`,
-      [clanId],
-    );
+  async updateClanStats(
+    clanId: number,
+    manager?: EntityManager,
+  ): Promise<void> {
+    if (manager) {
+      await manager.query(
+        `UPDATE clan SET 
+          strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+          guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
+        WHERE id = $1`,
+        [clanId],
+      );
+    } else {
+      await this.clanRepository.manager.query(
+        `UPDATE clan SET 
+          strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+          guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
+        WHERE id = $1`,
+        [clanId],
+      );
+    }
   }
 
   private transformClanForResponse(
@@ -1117,8 +1140,6 @@ export class ClanService {
     return await this.dataSource.transaction(async (manager) => {
       const attacker = await manager
         .createQueryBuilder(User, 'user')
-        .leftJoinAndSelect('user.clan', 'clan')
-        .leftJoinAndSelect('user.guards', 'guards')
         .where('user.id = :userId', { userId })
         .select([
           'user.id',
@@ -1128,14 +1149,21 @@ export class ClanService {
           'user.guards_count',
           'user.last_attack_time',
           'user.money',
-          'clan.id',
-          'guards',
         ])
         .setLock('pessimistic_write')
         .getOne();
 
       if (!attacker) {
         throw new NotFoundException('Атакующий не найден');
+      }
+
+      const defenderWithGuards = await manager.findOne(User, {
+        where: { id: targetUserId },
+        relations: ['guards'],
+      });
+
+      if (!defenderWithGuards) {
+        throw new NotFoundException('Защищающийся не найден');
       }
 
       if (attacker.last_attack_time) {
@@ -1155,18 +1183,21 @@ export class ClanService {
       let captured_guards = 0;
 
       if (is_win) {
-        stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
+        stolen_money = Math.round(
+          defenderWithGuards.money * 0.15 * (win_chance / 100),
+        );
 
         if (stolen_money > 0) {
-          defender.money = Number(defender.money) - stolen_money;
+          defenderWithGuards.money =
+            Number(defenderWithGuards.money) - stolen_money;
           attacker.money = Number(attacker.money) + stolen_money;
-          await manager.save(User, [defender, attacker]);
+          await manager.save(User, [defenderWithGuards, attacker]);
 
           const moneyItem = manager.create(StolenItem, {
             type: StolenItemType.MONEY,
             value: stolen_money.toString(),
             thief: attacker,
-            victim: defender,
+            victim: defenderWithGuards,
             clan_war: activeWar,
           });
           await manager.save(StolenItem, moneyItem);
@@ -1179,10 +1210,10 @@ export class ClanService {
 
         if (
           captured_guards > 0 &&
-          defender.guards &&
-          defender.guards.length > 0
+          defenderWithGuards.guards &&
+          defenderWithGuards.guards.length > 0
         ) {
-          const capturableGuards = defender.guards.filter(
+          const capturableGuards = defenderWithGuards.guards.filter(
             (guard) => !guard.is_first,
           );
           const guardsToCapture = capturableGuards.slice(0, captured_guards);
@@ -1193,16 +1224,18 @@ export class ClanService {
           await manager.save(UserGuard, guardsToCapture);
 
           await Promise.all([
-            this.updateUserGuardsStats(attacker.id),
-            this.updateUserGuardsStats(defender.id),
+            this.updateUserGuardsStats(attacker.id, manager),
+            this.updateUserGuardsStats(defenderWithGuards.id, manager),
           ]);
 
           const clanStatsUpdates: Promise<void>[] = [];
           if (attacker.clan_id) {
-            clanStatsUpdates.push(this.updateClanStats(attacker.clan_id));
+            clanStatsUpdates.push(this.updateClanStats(attacker.clan_id, manager));
           }
-          if (defender.clan_id) {
-            clanStatsUpdates.push(this.updateClanStats(defender.clan_id));
+          if (defenderWithGuards.clan_id) {
+            clanStatsUpdates.push(
+              this.updateClanStats(defenderWithGuards.clan_id, manager),
+            );
           }
           if (clanStatsUpdates.length > 0) {
             await Promise.all(clanStatsUpdates);
@@ -1213,7 +1246,7 @@ export class ClanService {
               type: StolenItemType.GUARD,
               value: guard.id.toString(),
               thief: attacker,
-              victim: defender,
+              victim: defenderWithGuards,
               clan_war: activeWar,
             }),
           );
@@ -1228,11 +1261,11 @@ export class ClanService {
           attacker.id,
           EventHistoryType.ATTACK,
           stolen_items,
-          defender.id,
+          defenderWithGuards.id,
         );
 
         await this.eventHistoryService.create(
-          defender.id,
+          defenderWithGuards.id,
           EventHistoryType.DEFENSE,
           stolen_items,
           attacker.id,
@@ -1259,11 +1292,11 @@ export class ClanService {
         attacker.id,
         EventHistoryType.ATTACK,
         [],
-        defender.id,
+        defenderWithGuards.id,
       );
 
       await this.eventHistoryService.create(
-        defender.id,
+        defenderWithGuards.id,
         EventHistoryType.DEFENSE,
         [],
         attacker.id,

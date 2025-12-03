@@ -4,7 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, In, Not, IsNull, DataSource } from 'typeorm';
+import {
+  Repository,
+  In,
+  Not,
+  IsNull,
+  DataSource,
+  EntityManager,
+} from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from './user.entity';
@@ -58,8 +65,18 @@ export class UserService {
     private readonly userTaskService: UserTaskService,
   ) {}
 
-  async updateUserGuardsStats(userId: number): Promise<void> {
-    const result = await this.userGuardRepository
+  async updateUserGuardsStats(
+    userId: number,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const userGuardRepo = manager
+      ? manager.getRepository(UserGuard)
+      : this.userGuardRepository;
+    const userRepo = manager
+      ? manager.getRepository(User)
+      : this.userRepository;
+
+    const result = await userGuardRepo
       .createQueryBuilder('guard')
       .select('COUNT(*)', 'count')
       .addSelect('COALESCE(SUM(guard.strength), 0)', 'strength')
@@ -69,18 +86,21 @@ export class UserService {
     const guardsCount = parseInt(result.count, 10) || 0;
     const strength = parseInt(result.strength, 10) || 0;
 
-    const user = await this.userRepository.findOne({
+    const user = await userRepo.findOne({
       where: { id: userId },
       select: ['id', 'clan_id'],
     });
 
-    await this.userRepository.update(userId, {
+    await userRepo.update(userId, {
       guards_count: guardsCount,
       strength: strength,
     });
 
     if (user?.clan_id) {
-      await this.userRepository.manager.query(
+      const query = manager
+        ? manager.query.bind(manager)
+        : this.userRepository.manager.query.bind(this.userRepository.manager);
+      await query(
         `UPDATE clan SET 
           strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
           guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
@@ -1613,8 +1633,8 @@ export class UserService {
           await manager.save(UserGuard, guardToSteal);
 
           await Promise.all([
-            this.updateUserGuardsStats(attacker.id),
-            this.updateUserGuardsStats(defender.id),
+            this.updateUserGuardsStats(attacker.id, manager),
+            this.updateUserGuardsStats(defender.id, manager),
           ]);
 
           const guardItem = manager.create(StolenItem, {
@@ -1703,8 +1723,8 @@ export class UserService {
             await manager.save(UserGuard, guardsToCapture);
 
             await Promise.all([
-              this.updateUserGuardsStats(attacker.id),
-              this.updateUserGuardsStats(defender.id),
+              this.updateUserGuardsStats(attacker.id, manager),
+              this.updateUserGuardsStats(defender.id, manager),
             ]);
 
             const guardItems = guardsToCapture.map((guard) =>
