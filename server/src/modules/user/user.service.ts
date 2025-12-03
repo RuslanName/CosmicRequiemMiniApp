@@ -1207,8 +1207,8 @@ export class UserService {
         limit,
       };
     } else if (filter === 'suitable') {
-      const currentStrength = currentUser.strength ?? 0;
-      const strengthRange = Math.max(currentStrength * 0.3, 50);
+      const currentStrength = Number(currentUser.strength ?? 0);
+      const strengthRange = Math.max(Math.floor(currentStrength * 0.3), 50);
 
       const initialReferrerVkId = Settings[
         SettingKey.INITIAL_REFERRER_VK_ID
@@ -1219,15 +1219,18 @@ export class UserService {
         initialReferrerVkId,
       );
 
+      const minStrength = Math.floor(currentStrength - strengthRange);
+      const maxStrength = Math.floor(currentStrength + strengthRange);
+
       const baseQueryBuilder = this.userRepository
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
         .andWhere('user.guards_count > 1')
         .andWhere('user.strength >= :minStrength', {
-          minStrength: currentStrength - strengthRange,
+          minStrength,
         })
         .andWhere('user.strength <= :maxStrength', {
-          maxStrength: currentStrength + strengthRange,
+          maxStrength,
         })
         .andWhere('user.referrals_count = 0');
 
@@ -1279,7 +1282,7 @@ export class UserService {
       sortedQueryBuilder
         .addSelect(`ABS(user.strength - :currentStrength)`, 'distance')
         .addSelect(`user.strength * 1000 + user.guards_count`, 'score')
-        .setParameter('currentStrength', currentStrength)
+        .setParameter('currentStrength', Math.floor(currentStrength))
         .orderBy('distance', 'ASC')
         .addOrderBy('score', 'DESC')
         .skip(skip)
