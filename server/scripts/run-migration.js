@@ -1,7 +1,11 @@
 const { Client } = require('pg');
 const { readFileSync } = require('fs');
-const { join } = require('path');
-require('dotenv').config({ path: join(__dirname, '..', '.env') });
+const { join, resolve } = require('path');
+
+const serverDir = resolve(__dirname, '..');
+process.chdir(serverDir);
+
+require('dotenv').config({ path: join(serverDir, '.env') });
 
 async function runMigration() {
   const client = new Client({
@@ -16,9 +20,26 @@ async function runMigration() {
     await client.connect();
     console.log('Connected to database');
 
+    const schema = process.env.POSTGRES_SCHEMA || 'public';
+    await client.query(`SET search_path TO ${schema}`);
+    console.log(`Using schema: ${schema}`);
+
+    const tablesCheck = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = $1 
+      AND table_name IN ('user', 'clan', 'user_guard')
+      ORDER BY table_name
+    `, [schema]);
+    
+    console.log('Found tables:', tablesCheck.rows.map(r => r.table_name).join(', '));
+    
+    if (tablesCheck.rows.length === 0) {
+      throw new Error(`No tables found in schema "${schema}". Please check your schema name.`);
+    }
+
     const migrationPath = join(
-        __dirname,
-        '..',
+        serverDir,
         'migrations',
         'add_user_and_clan_guards_stats.sql',
     );
