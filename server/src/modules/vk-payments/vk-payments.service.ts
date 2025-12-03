@@ -318,7 +318,6 @@ export class VKPaymentsService {
     if (originalQuery) {
       Object.keys(originalQuery).forEach((key) => {
         if (
-          key !== 'sig' &&
           originalQuery[key] !== undefined &&
           originalQuery[key] !== null
         ) {
@@ -347,18 +346,40 @@ export class VKPaymentsService {
       if (notification.item_price) {
         params.item_price = String(notification.item_price);
       }
+      params.sig = notification.sig;
     }
 
-    const queryString = Object.keys(params)
-      .filter((key) => params[key] && key !== 'sig')
+    const inputString = Object.keys(params)
       .sort()
-      .map((key) => `${key}=${params[key]}`)
+      .map((key) => `${key}=${encodeURIComponent(params[key])}`)
       .join('&');
 
-    const computedHash = createHmac('sha256', VK_APP_SECRET)
-      .update(queryString)
-      .digest('base64url');
+    const startIndex = inputString.indexOf('sig=');
+    if (startIndex === -1) {
+      return false;
+    }
 
-    return computedHash === notification.sig;
+    const endIndex = inputString.indexOf('&', startIndex);
+    const hashString =
+      endIndex === -1
+        ? inputString.substring(startIndex).trim().replace(/sig=/, '')
+        : inputString.substring(startIndex, endIndex).trim().replace(/sig=/, '');
+
+    const checkString =
+      endIndex === -1
+        ? inputString.substring(0, startIndex).trim()
+        : (
+            inputString.substring(0, startIndex) +
+            inputString.substring(endIndex + 1, inputString.length)
+          ).trim();
+
+    const digest = createHmac('sha256', VK_APP_SECRET)
+      .update(checkString)
+      .digest('base64url')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=$/, '');
+
+    return digest === hashString;
   }
 }

@@ -42,11 +42,7 @@ export class CacheInterceptor implements NestInterceptor {
         invalidateKeys.map(async (key) => {
           const builtKey = this.buildKey(key, request);
           if (builtKey.includes('*')) {
-            await this.redis.keys(builtKey).then((keys) => {
-              if (keys.length > 0) {
-                return this.redis.del(...keys);
-              }
-            });
+            await this.scanAndDelete(builtKey);
           } else {
             await this.redis.del(builtKey);
           }
@@ -140,5 +136,28 @@ export class CacheInterceptor implements NestInterceptor {
     const userStr = user.id ? `:user:${user.id}` : '';
 
     return `cache:${controller}:${handler}${userStr}${paramsStr}${queryStr}`;
+  }
+
+  private async scanAndDelete(pattern: string): Promise<void> {
+    const stream = this.redis.scanStream({
+      match: pattern,
+      count: 100,
+    });
+
+    const deletePromises: Promise<number>[] = [];
+
+    stream.on('data', (resultKeys: string[]) => {
+      if (resultKeys.length > 0) {
+        deletePromises.push(this.redis.del(...resultKeys));
+      }
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      stream.on('end', async () => {
+        await Promise.all(deletePromises);
+        resolve();
+      });
+      stream.on('error', reject);
+    });
   }
 }

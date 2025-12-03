@@ -6,7 +6,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { postgresConfig } from '../config/postgres.config';
-import { redisConfig } from '../config/redis.config';
+import { redisConfig, redisOptions } from '../config/redis.config';
 import { UserModule } from './user/user.module';
 import { UserGuardModule } from './user-guard/user-guard.module';
 import { ClanModule } from './clan/clan.module';
@@ -43,9 +43,7 @@ import { ENV } from '../config/constants';
       url: redisConfig.password
         ? `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}`
         : `redis://${redisConfig.host}:${redisConfig.port}`,
-      options: {
-        password: redisConfig.password || undefined,
-      },
+      options: redisOptions,
     }),
 
     CommonModule,

@@ -106,22 +106,6 @@ export class AuthService {
       });
       await this.userRepository.save(dbUser);
 
-      if (photoUrl) {
-        if (!this.verifyVkImageUrl(photoUrl)) {
-          throw new UnauthorizedException('Неверный URL аватара профиля');
-        }
-        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
-        dbUser = await this.userRepository.findOne({
-          where: { id: dbUser.id },
-          relations: ['clan', 'referrer'],
-        });
-        if (!dbUser) {
-          throw new UnauthorizedException(
-            'Пользователь не найден после создания',
-          );
-        }
-      }
-
       const firstGuard = this.userGuardRepository.create({
         name: `Страж #${dbUser.id}`,
         strength: Settings[
@@ -132,6 +116,42 @@ export class AuthService {
       });
       await this.userGuardRepository.save(firstGuard);
       await this.updateUserGuardsStats(dbUser.id);
+
+      if (photoUrl) {
+        try {
+          if (!this.verifyVkImageUrl(photoUrl)) {
+            console.warn(
+              `Неверный URL аватара профиля для пользователя ${dbUser.id}, пропускаем загрузку`,
+            );
+          } else {
+            await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+            const updatedUser = await this.userRepository.findOne({
+              where: { id: dbUser.id },
+              relations: ['clan', 'referrer'],
+            });
+            if (updatedUser) {
+              dbUser = updatedUser;
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Ошибка при загрузке аватара для пользователя ${dbUser.id}:`,
+            error.message,
+          );
+        }
+      }
+
+      if (!dbUser.clan || !dbUser.referrer) {
+        dbUser = await this.userRepository.findOne({
+          where: { id: dbUser.id },
+          relations: ['clan', 'referrer'],
+        });
+        if (!dbUser) {
+          throw new UnauthorizedException(
+            'Пользователь не найден после создания',
+          );
+        }
+      }
 
       await this.processReferralLink(dbUser, startParam);
 
@@ -455,17 +475,39 @@ export class AuthService {
       throw new UnauthorizedException('Неверные параметры');
     }
 
-    const queryString = Object.keys(params)
-      .filter((key) => key.startsWith('vk_'))
+    const allParams: Record<string, string> = { ...params, sign };
+    const inputString = Object.keys(allParams)
       .sort()
-      .map((key) => `${key}=${params[key]}`)
+      .map((key) => `${key}=${encodeURIComponent(allParams[key])}`)
       .join('&');
 
-    const computedHash = createHmac('sha256', VK_APP_SECRET)
-      .update(queryString)
-      .digest('base64url');
+    const startIndex = inputString.indexOf('sign=');
+    if (startIndex === -1) {
+      return false;
+    }
 
-    return computedHash === sign;
+    const endIndex = inputString.indexOf('&', startIndex);
+    const hashString =
+      endIndex === -1
+        ? inputString.substring(startIndex).trim().replace(/sign=/, '')
+        : inputString.substring(startIndex, endIndex).trim().replace(/sign=/, '');
+
+    const checkString =
+      endIndex === -1
+        ? inputString.substring(0, startIndex).trim()
+        : (
+            inputString.substring(0, startIndex) +
+            inputString.substring(endIndex + 1, inputString.length)
+          ).trim();
+
+    const digest = createHmac('sha256', VK_APP_SECRET)
+      .update(checkString)
+      .digest('base64url')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=$/, '');
+
+    return digest === hashString;
   }
 
   private verifyVkImageUrl(url: string): boolean {
