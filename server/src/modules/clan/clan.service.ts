@@ -107,13 +107,13 @@ export class ClanService {
         [clanId],
       );
     } else {
-    await this.clanRepository.manager.query(
-      `UPDATE clan SET 
+      await this.clanRepository.manager.query(
+        `UPDATE clan SET 
         strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
         guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1)
       WHERE id = $1`,
-      [clanId],
-    );
+        [clanId],
+      );
     }
   }
 
@@ -1138,19 +1138,19 @@ export class ClanService {
     const is_win = Math.random() * 100 < win_chance;
 
     return await this.dataSource.transaction(async (manager) => {
-        const attacker = await manager
-          .createQueryBuilder(User, 'user')
-          .where('user.id = :userId', { userId })
-          .select([
-            'user.id',
-            'user.vk_id',
-            'user.clan_id',
-            'user.strength',
-            'user.guards_count',
-            'user.last_attack_time',
-            'user.money',
-          ])
-          .getOne();
+      const attacker = await manager
+        .createQueryBuilder(User, 'user')
+        .where('user.id = :userId', { userId })
+        .select([
+          'user.id',
+          'user.vk_id',
+          'user.clan_id',
+          'user.strength',
+          'user.guards_count',
+          'user.last_attack_time',
+          'user.money',
+        ])
+        .getOne();
 
       if (!attacker) {
         throw new NotFoundException('Атакующий не найден');
@@ -1177,48 +1177,48 @@ export class ClanService {
         }
       }
 
-    const stolen_items: StolenItem[] = [];
+      const stolen_items: StolenItem[] = [];
       let stolen_money = 0;
       let captured_guards = 0;
 
-    if (is_win) {
+      if (is_win) {
         stolen_money = Math.round(
           defenderWithGuards.money * 0.15 * (win_chance / 100),
-      );
+        );
 
-      if (stolen_money > 0) {
+        if (stolen_money > 0) {
           defenderWithGuards.money =
             Number(defenderWithGuards.money) - stolen_money;
-        attacker.money = Number(attacker.money) + stolen_money;
+          attacker.money = Number(attacker.money) + stolen_money;
           await manager.save(User, [defenderWithGuards, attacker]);
 
           const moneyItem = manager.create(StolenItem, {
-          type: StolenItemType.MONEY,
-          value: stolen_money.toString(),
-          thief: attacker,
+            type: StolenItemType.MONEY,
+            value: stolen_money.toString(),
+            thief: attacker,
             victim: defenderWithGuards,
-          clan_war: activeWar,
-        });
+            clan_war: activeWar,
+          });
           await manager.save(StolenItem, moneyItem);
-        stolen_items.push(moneyItem);
-      }
+          stolen_items.push(moneyItem);
+        }
 
         captured_guards = Math.round(
-        defender_guards * 0.08 * (win_chance / 100),
-      );
+          defender_guards * 0.08 * (win_chance / 100),
+        );
 
-      if (
-        captured_guards > 0 &&
+        if (
+          captured_guards > 0 &&
           defenderWithGuards.guards &&
           defenderWithGuards.guards.length > 0
-      ) {
+        ) {
           const capturableGuards = defenderWithGuards.guards.filter(
-          (guard) => !guard.is_first,
-        );
-        const guardsToCapture = capturableGuards.slice(0, captured_guards);
+            (guard) => !guard.is_first,
+          );
+          const guardsToCapture = capturableGuards.slice(0, captured_guards);
 
           guardsToCapture.forEach((guard) => {
-          guard.user = attacker;
+            guard.user = attacker;
           });
           await manager.save(UserGuard, guardsToCapture);
 
@@ -1228,44 +1228,80 @@ export class ClanService {
           ]);
 
           const clanStatsUpdates: Promise<void>[] = [];
-        if (attacker.clan_id) {
-            clanStatsUpdates.push(this.updateClanStats(attacker.clan_id, manager));
-        }
+          if (attacker.clan_id) {
+            clanStatsUpdates.push(
+              this.updateClanStats(attacker.clan_id, manager),
+            );
+          }
           if (defenderWithGuards.clan_id) {
             clanStatsUpdates.push(
               this.updateClanStats(defenderWithGuards.clan_id, manager),
             );
-        }
+          }
           if (clanStatsUpdates.length > 0) {
             await Promise.all(clanStatsUpdates);
           }
 
           const guardItems = guardsToCapture.map((guard) =>
             manager.create(StolenItem, {
-            type: StolenItemType.GUARD,
-            value: guard.id.toString(),
-            thief: attacker,
+              type: StolenItemType.GUARD,
+              value: guard.id.toString(),
+              thief: attacker,
               victim: defenderWithGuards,
-            clan_war: activeWar,
+              clan_war: activeWar,
             }),
           );
           const savedGuardItems = await manager.save(StolenItem, guardItems);
           stolen_items.push(...savedGuardItems);
-      }
+        }
 
-      attacker.last_attack_time = new Date();
+        attacker.last_attack_time = new Date();
         await manager.save(User, attacker);
 
         const attackCooldownEnd = new Date(
           new Date().getTime() + attackCooldown,
         );
 
+        const result = {
+          win_chance,
+          is_win: true,
+          stolen_money: stolen_money || 0,
+          captured_guards: captured_guards || 0,
+          stolen_items,
+          attack_cooldown_end: attackCooldownEnd,
+        };
+
+        Promise.all([
+          this.eventHistoryService.create(
+            attacker.id,
+            EventHistoryType.ATTACK,
+            stolen_items,
+            defenderWithGuards.id,
+          ),
+          this.eventHistoryService.create(
+            defenderWithGuards.id,
+            EventHistoryType.DEFENSE,
+            stolen_items,
+            attacker.id,
+          ),
+        ]).catch((error) => {
+          console.error('Ошибка при создании истории событий:', error);
+        });
+
+        return result;
+      }
+
+      attacker.last_attack_time = new Date();
+      await manager.save(User, attacker);
+
+      const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
+
       const result = {
         win_chance,
-        is_win: true,
-        stolen_money: stolen_money || 0,
-        captured_guards: captured_guards || 0,
-        stolen_items,
+        is_win: false,
+        stolen_money: 0,
+        captured_guards: 0,
+        stolen_items: [],
         attack_cooldown_end: attackCooldownEnd,
       };
 
@@ -1273,13 +1309,13 @@ export class ClanService {
         this.eventHistoryService.create(
           attacker.id,
           EventHistoryType.ATTACK,
-          stolen_items,
+          [],
           defenderWithGuards.id,
         ),
         this.eventHistoryService.create(
           defenderWithGuards.id,
           EventHistoryType.DEFENSE,
-          stolen_items,
+          [],
           attacker.id,
         ),
       ]).catch((error) => {
@@ -1287,42 +1323,7 @@ export class ClanService {
       });
 
       return result;
-    }
-
-    attacker.last_attack_time = new Date();
-      await manager.save(User, attacker);
-
-    const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
-
-    const result = {
-      win_chance,
-      is_win: false,
-      stolen_money: 0,
-      captured_guards: 0,
-      stolen_items: [],
-      attack_cooldown_end: attackCooldownEnd,
-    };
-
-    Promise.all([
-      this.eventHistoryService.create(
-        attacker.id,
-        EventHistoryType.ATTACK,
-        [],
-        defenderWithGuards.id,
-      ),
-      this.eventHistoryService.create(
-        defenderWithGuards.id,
-        EventHistoryType.DEFENSE,
-        [],
-        attacker.id,
-      ),
-    ]).catch((error) => {
-      console.error('Ошибка при создании истории событий:', error);
     });
-
-    return result;
-      },
-    );
   }
 
   async leaveClan(userId: number): Promise<LeaveClanResponseDto> {
@@ -1891,25 +1892,30 @@ export class ClanService {
 
     const clanIds = allClans.map((clan) => clan.id);
 
-    const warStats1 = await this.clanWarRepository
-      .createQueryBuilder('war')
-      .select('war.clan_1_id', 'clan_id')
-      .addSelect('war.status', 'status')
-      .addSelect('COUNT(*)', 'count')
-      .where('war.clan_1_id IN (:...clanIds)', { clanIds })
-      .groupBy('war.clan_1_id')
-      .addGroupBy('war.status')
-      .getRawMany();
+    let warStats1: any[] = [];
+    let warStats2: any[] = [];
 
-    const warStats2 = await this.clanWarRepository
-      .createQueryBuilder('war')
-      .select('war.clan_2_id', 'clan_id')
-      .addSelect('war.status', 'status')
-      .addSelect('COUNT(*)', 'count')
-      .where('war.clan_2_id IN (:...clanIds)', { clanIds })
-      .groupBy('war.clan_2_id')
-      .addGroupBy('war.status')
-      .getRawMany();
+    if (clanIds.length > 0) {
+      warStats1 = await this.clanWarRepository
+        .createQueryBuilder('war')
+        .select('war.clan_1_id', 'clan_id')
+        .addSelect('war.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .where('war.clan_1_id IN (:...clanIds)', { clanIds })
+        .groupBy('war.clan_1_id')
+        .addGroupBy('war.status')
+        .getRawMany();
+
+      warStats2 = await this.clanWarRepository
+        .createQueryBuilder('war')
+        .select('war.clan_2_id', 'clan_id')
+        .addSelect('war.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .where('war.clan_2_id IN (:...clanIds)', { clanIds })
+        .groupBy('war.clan_2_id')
+        .addGroupBy('war.status')
+        .getRawMany();
+    }
 
     const statsMap = new Map<number, { wins: number; losses: number }>();
     for (const clanId of clanIds) {

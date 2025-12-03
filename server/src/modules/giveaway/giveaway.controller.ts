@@ -27,7 +27,7 @@ import { GiveawayResponseDto } from './dtos/responses/giveaway-response.dto';
 import { CreateGiveawayDto } from './dtos/create-giveaway.dto';
 import { UpdateGiveawayDto } from './dtos/update-giveaway.dto';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VKSessionGuard } from '../auth/guards/vk-session.guard';
 
 @ApiTags('Giveaways')
 @Controller()
@@ -35,7 +35,7 @@ export class GiveawayController {
   constructor(private readonly giveawayService: GiveawayService) {}
 
   @Get('available-giveaway')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить доступный конкурс (Для Mini App)',

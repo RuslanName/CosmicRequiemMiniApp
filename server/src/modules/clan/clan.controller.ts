@@ -32,7 +32,7 @@ import { CreateClanDto } from './dtos/create-clan.dto';
 import { UpdateClanDto } from './dtos/update-clan.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VKSessionGuard } from '../auth/guards/vk-session.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { DeclareWarDto } from './dtos/declare-war.dto';
 import { AttackEnemyDto } from './dtos/attack-enemy.dto';
@@ -79,7 +79,7 @@ export class ClanController {
   }
 
   @Get('list')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:public-list:page::page:limit::limit')
@@ -99,7 +99,7 @@ export class ClanController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:me::user')
@@ -123,7 +123,7 @@ export class ClanController {
   }
 
   @Get('me/wars')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('clan:me:wars::user')
@@ -148,7 +148,7 @@ export class ClanController {
   }
 
   @Get('me/members')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить всех участников своего клана (Для Mini App)',
@@ -171,7 +171,7 @@ export class ClanController {
   }
 
   @Get('me/enemy-clans')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('clan:me:enemy-clans::user')
@@ -195,7 +195,7 @@ export class ClanController {
   }
 
   @Get('me/enemy-clans/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('clan:me:enemy-clan::user::id')
@@ -232,7 +232,7 @@ export class ClanController {
   }
 
   @Get('me/enemy-clans/:id/members')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('clan:me:enemy-clan:members::user::id')
@@ -268,7 +268,7 @@ export class ClanController {
   }
 
   @Get('rating')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:rating')
@@ -293,7 +293,7 @@ export class ClanController {
   }
 
   @Get(':id/find')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:find:id::id:query::query')
@@ -342,7 +342,7 @@ export class ClanController {
   }
 
   @Get(':id/find/members')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('clan:find:members:id::id')
@@ -361,7 +361,7 @@ export class ClanController {
   }
 
   @Get('wars/available')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить доступные кланы для объявления войны (Для Mini App)',
@@ -389,7 +389,7 @@ export class ClanController {
   }
 
   @Post('me/declare-war')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Объявить войну целевому клану (Для Mini App)',
@@ -423,7 +423,7 @@ export class ClanController {
   }
 
   @Post('me/enemy-clans/:id/attack')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Атаковать противника из вражеского клана (Для Mini App)',
@@ -465,7 +465,7 @@ export class ClanController {
 
   @Post('me/leave')
   @HttpCode(200)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Покинуть текущий клан (Для Mini App)' })
   @ApiResponse({
@@ -487,7 +487,7 @@ export class ClanController {
 
   @Post('me/members/:id/kick')
   @HttpCode(200)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @InvalidateCache('clan:me::user*', 'clan:list:*')
   @ApiOperation({ summary: 'Исключить участника из клана (Для Mini App)' })
@@ -519,7 +519,7 @@ export class ClanController {
   }
 
   @Post('application')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Создать заявку на вступление в клан (Для Mini App)',
@@ -547,7 +547,7 @@ export class ClanController {
   }
 
   @Get('application')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить список заявок на вступление в клан (Для Mini App)',
@@ -571,7 +571,7 @@ export class ClanController {
   }
 
   @Post('application/:id/accept')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Принять заявку на вступление в клан (Для Mini App)',
@@ -599,7 +599,7 @@ export class ClanController {
   }
 
   @Post('application/:id/reject')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Отклонить заявку на вступление в клан (Для Mini App)',
@@ -627,7 +627,7 @@ export class ClanController {
   }
 
   @Post('me/create')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Создать клан из сообщества VK (Для Mini App)',
@@ -654,7 +654,7 @@ export class ClanController {
   }
 
   @Delete('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @InvalidateCache('clan:me::user*', 'clan:list:*')
   @ApiOperation({ summary: 'Удалить клан (Для Mini App)' })
@@ -758,7 +758,7 @@ export class ClanController {
   }
 
   @Get('me/notifications')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить уведомления текущего клана (Для Mini App)',

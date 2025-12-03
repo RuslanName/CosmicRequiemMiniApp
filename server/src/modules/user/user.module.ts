@@ -9,6 +9,7 @@ import { UserBoostModule } from '../user-boost/user-boost.module';
 import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
 import { EventHistoryModule } from '../event-history/event-history.module';
 import { TaskModule } from '../task/task.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TaskModule } from '../task/task.module';
     forwardRef(() => UserAccessoryModule),
     EventHistoryModule,
     TaskModule,
+    AuthModule,
   ],
   controllers: [UserController],
   providers: [UserService],

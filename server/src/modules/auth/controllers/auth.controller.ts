@@ -3,7 +3,6 @@ import { Request as ExpressRequest, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { AuthDto } from '../dtos/auth.dto';
-import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { AuthLoginResponseDto } from '../dtos/responses/auth-login-response.dto';
 import { LogoutResponseDto } from '../dtos/responses/logout-response.dto';
 import { ENV } from '../../../config/constants';
@@ -15,8 +14,7 @@ export class AuthController {
 
   @Post()
   @ApiOperation({
-    summary:
-      'Аутентификация пользователя и получение JWT токенов (Для Mini App)',
+    summary: 'Аутентификация пользователя и получение сессии (Для Mini App)',
   })
   @ApiBody({ type: AuthDto })
   @ApiResponse({
@@ -34,20 +32,12 @@ export class AuthController {
   ): Promise<AuthLoginResponseDto> {
     const headerStartParam =
       startParam || (req.headers['start-param'] as string | undefined);
-    const { accessToken, refreshToken } = await this.authService.validateAuth(
+    const { sessionId } = await this.authService.validateAuth(
       authDto,
       headerStartParam,
     );
 
-    res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
-
-    res.cookie('refresh_token', refreshToken, {
+    res.cookie('session_id', sessionId, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
@@ -56,78 +46,31 @@ export class AuthController {
     });
 
     return {
-      accessToken,
-      refreshToken,
-    };
-  }
-
-  @Post('refresh')
-  @ApiOperation({
-    summary: 'Обновление access token с помощью refresh token (Для Mini App)',
-  })
-  @ApiBody({ type: RefreshTokenDto })
-  @ApiResponse({
-    status: 200,
-    type: AuthLoginResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Неверный или истекший refresh токен',
-  })
-  async refresh(
-    @Body() refreshTokenDto: RefreshTokenDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<AuthLoginResponseDto> {
-    const { accessToken, refreshToken } = await this.authService.refreshTokens(
-      refreshTokenDto.refreshToken,
-    );
-
-    res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: ENV.MODE === 'production',
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
-
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: ENV.MODE === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
-
-    return {
-      accessToken,
-      refreshToken,
+      sessionId,
     };
   }
 
   @Post('logout')
   @ApiOperation({
-    summary: 'Выход из системы и отзыв refresh token (Для Mini App)',
+    summary: 'Выход из системы и отзыв сессии (Для Mini App)',
   })
-  @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({
     status: 200,
     type: LogoutResponseDto,
     description: 'Выход выполнен успешно',
   })
   async logout(
-    @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() req: ExpressRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LogoutResponseDto> {
-    await this.authService.revokeRefreshToken(refreshTokenDto.refreshToken);
+    const sessionId =
+      req.cookies?.session_id || (req.headers['x-session-id'] as string);
 
-    res.clearCookie('access_token', {
-      httpOnly: true,
-      secure: ENV.MODE === 'production',
-      sameSite: 'strict',
-      path: '/',
-    });
+    if (sessionId) {
+      await this.authService.revokeSession(sessionId);
+    }
 
-    res.clearCookie('refresh_token', {
+    res.clearCookie('session_id', {
       httpOnly: true,
       secure: ENV.MODE === 'production',
       sameSite: 'strict',

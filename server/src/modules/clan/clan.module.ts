@@ -11,6 +11,7 @@ import { ClanApplication } from './entities/clan-application.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
 import { EventHistoryModule } from '../event-history/event-history.module';
 import { NotificationModule } from '../notification/notification.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationModule } from '../notification/notification.module';
     UserBoostModule,
     EventHistoryModule,
     NotificationModule,
+    AuthModule,
   ],
   controllers: [ClanController],
   providers: [ClanService],

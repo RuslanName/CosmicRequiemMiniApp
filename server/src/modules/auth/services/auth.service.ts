@@ -1,10 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, QueryFailedError } from 'typeorm';
+import { Repository } from 'typeorm';
 import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
-import { RefreshToken } from '../entities/refresh-token.entity';
 import { createHmac, randomUUID } from 'crypto';
 import { AuthDto } from '../dtos/auth.dto';
 import { ENV } from '../../../config/constants';
@@ -12,20 +10,19 @@ import { Settings } from '../../../config/setting.config';
 import { SettingKey } from '../../setting/enums/setting-key.enum';
 import { UserTaskService } from '../../task/services/user-task.service';
 import { TaskType } from '../../task/enums/task-type.enum';
+import { SessionService } from './session.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
-    @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly userTaskService: UserTaskService,
+    private readonly sessionService: SessionService,
   ) {}
 
   private async updateUserReferralsCount(referrerId: number): Promise<void> {
@@ -58,8 +55,7 @@ export class AuthService {
     dto: AuthDto,
     startParam?: string,
   ): Promise<{
-    accessToken: string;
-    refreshToken: string;
+    sessionId: string;
   }> {
     const { user, sign, vk_params } = dto;
 
@@ -248,139 +244,21 @@ export class AuthService {
       await this.userTaskService.initializeTasksForUser(dbUser.id);
     }
 
-    const payload = { sub: dbUser.id };
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any,
-    });
+    await this.sessionService.revokeAllUserSessions(dbUser.id);
 
-    await this.refreshTokenRepository.delete({ user_id: dbUser.id });
-
-    const refreshTokenPayload = {
-      sub: dbUser.id,
-      type: 'refresh',
-    };
-    const refreshToken = this.jwtService.sign(refreshTokenPayload, {
-      secret: ENV.JWT_REFRESH_SECRET,
-      expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
-    });
-
-    const expiresAt = new Date();
-    const refreshExpiresIn = this.parseExpiresIn(ENV.JWT_REFRESH_EXPIRES_IN);
-    expiresAt.setSeconds(expiresAt.getSeconds() + refreshExpiresIn);
-
-    const refreshTokenEntity = this.refreshTokenRepository.create({
-      token: refreshToken,
-      user_id: dbUser.id,
-      expires_at: expiresAt,
-    });
-
-    try {
-      await this.refreshTokenRepository.save(refreshTokenEntity);
-    } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        error.message.includes('duplicate key')
-      ) {
-        const newRefreshToken = this.jwtService.sign(refreshTokenPayload, {
-          secret: ENV.JWT_REFRESH_SECRET,
-          expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
-        });
-        const newRefreshTokenEntity = this.refreshTokenRepository.create({
-          token: newRefreshToken,
-          user_id: dbUser.id,
-          expires_at: expiresAt,
-        });
-        await this.refreshTokenRepository.save(newRefreshTokenEntity);
-        return {
-          accessToken,
-          refreshToken: newRefreshToken,
-        };
-      }
-      throw error;
-    }
+    const sessionExpiresIn = this.parseExpiresIn(ENV.JWT_ACCESS_EXPIRES_IN);
+    const sessionId = await this.sessionService.createSession(
+      dbUser.id,
+      sessionExpiresIn,
+    );
 
     return {
-      accessToken,
-      refreshToken,
+      sessionId,
     };
   }
 
-  async refreshTokens(refreshToken: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-  }> {
-    try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: ENV.JWT_REFRESH_SECRET,
-      });
-
-      if (payload.type !== 'refresh') {
-        throw new UnauthorizedException('Неверный тип токена');
-      }
-
-      const tokenEntity = await this.refreshTokenRepository.findOne({
-        where: { token: refreshToken },
-        relations: ['user'],
-      });
-
-      if (!tokenEntity || tokenEntity.expires_at < new Date()) {
-        throw new UnauthorizedException(
-          'Refresh токен истек или недействителен',
-        );
-      }
-
-      const user = await this.userRepository.findOne({
-        where: { id: payload.sub },
-      });
-
-      if (!user) {
-        throw new UnauthorizedException('Пользователь не найден');
-      }
-
-      await this.refreshTokenRepository.remove(tokenEntity);
-
-      const newPayload = { sub: user.id };
-      const newAccessToken = this.jwtService.sign(newPayload, {
-        expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any,
-      });
-
-      const newRefreshTokenPayload = {
-        sub: user.id,
-        type: 'refresh',
-      };
-      const newRefreshToken = this.jwtService.sign(newRefreshTokenPayload, {
-        secret: ENV.JWT_REFRESH_SECRET,
-        expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
-      });
-
-      const expiresAt = new Date();
-      const refreshExpiresIn = this.parseExpiresIn(ENV.JWT_REFRESH_EXPIRES_IN);
-      expiresAt.setSeconds(expiresAt.getSeconds() + refreshExpiresIn);
-
-      const newRefreshTokenEntity = this.refreshTokenRepository.create({
-        token: newRefreshToken,
-        user_id: user.id,
-        expires_at: expiresAt,
-      });
-      await this.refreshTokenRepository.save(newRefreshTokenEntity);
-
-      return {
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      };
-    } catch (error) {
-      throw new UnauthorizedException('Неверный refresh токен');
-    }
-  }
-
-  async revokeRefreshToken(refreshToken: string): Promise<void> {
-    const tokenEntity = await this.refreshTokenRepository.findOne({
-      where: { token: refreshToken },
-    });
-
-    if (tokenEntity) {
-      await this.refreshTokenRepository.remove(tokenEntity);
-    }
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.sessionService.revokeSession(sessionId);
   }
 
   private async processReferralLink(
@@ -490,7 +368,10 @@ export class AuthService {
     const hashString =
       endIndex === -1
         ? inputString.substring(startIndex).trim().replace(/sign=/, '')
-        : inputString.substring(startIndex, endIndex).trim().replace(/sign=/, '');
+        : inputString
+            .substring(startIndex, endIndex)
+            .trim()
+            .replace(/sign=/, '');
 
     const checkString =
       endIndex === -1

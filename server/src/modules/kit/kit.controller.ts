@@ -29,7 +29,7 @@ import { PaginationDto } from '../../common/dtos/pagination.dto';
 import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { KitPurchaseResponseDto } from './dtos/responses/kit-purchase-response.dto';
 import { PurchaseKitDto } from './dtos/purchase-kit.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VKSessionGuard } from '../auth/guards/vk-session.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
@@ -57,7 +57,7 @@ export class KitController {
   }
 
   @Get('list')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('kit:public-list:page::page:limit::limit')
@@ -152,7 +152,7 @@ export class KitController {
   }
 
   @Post('purchase')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Купить набор (Для Mini App)',

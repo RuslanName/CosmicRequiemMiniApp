@@ -30,7 +30,7 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { ShopItemsListResponseDto } from './dtos/responses/shop-items-list-response.dto';
 import { ShopItemPurchaseResponseDto } from './dtos/responses/shop-item-purchase-response.dto';
 import { PurchaseShopItemDto } from './dtos/purchase-shop-item.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VKSessionGuard } from '../auth/guards/vk-session.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { CacheTTL, CacheKey } from '../../common/decorators/cache.decorator';
 
@@ -58,7 +58,7 @@ export class ShopItemController {
   }
 
   @Get('list')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('shop-item:public-list')
@@ -180,7 +180,7 @@ export class ShopItemController {
   }
 
   @Post('purchase')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Купить товар за виртуальную валюту (Для Mini App)',

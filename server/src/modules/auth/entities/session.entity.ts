@@ -10,13 +10,15 @@ import {
 import { User } from '../../user/user.entity';
 
 @Entity()
-@Index(['token'], { unique: true })
-export class RefreshToken {
+@Index(['session_id'], { unique: true })
+@Index(['user_id'])
+@Index(['expires_at'])
+export class Session {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'text' })
-  token: string;
+  @Column({ type: 'varchar', length: 64 })
+  session_id: string;
 
   @Column({ type: 'int' })
   user_id: number;
@@ -30,4 +32,7 @@ export class RefreshToken {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_used_at: Date | null;
 }

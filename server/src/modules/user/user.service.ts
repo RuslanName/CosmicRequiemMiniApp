@@ -226,6 +226,8 @@ export class UserService {
     contractIncome: number,
     referrerMoneyReward: number,
     shieldBoostsMap?: Map<number, Date | null>,
+    activeBoosts?: any[],
+    shieldEndTime?: Date | null,
   ): Promise<CurrentUserResponseDto> {
     const transformed = this.transformUserForResponse(user);
     const guardsCount = user.guards_count ?? 0;
@@ -235,14 +237,17 @@ export class UserService {
       SettingKey.ADV_DISABLE_COST_VOICES_COUNT
     ] as number;
     const referralsCount = user.referrals_count ?? 0;
-    const shieldEndTime = shieldBoostsMap
-      ? shieldBoostsMap.get(user.id) || null
-      : await this.getShieldEndTimeFromBoost(user.id);
 
-    const activeBoosts = await this.userBoostService.findActiveByUserId(
-      user.id,
-    );
-    const cooldownHalvingBoost = activeBoosts.find(
+    const finalShieldEndTime =
+      shieldEndTime !== undefined
+        ? shieldEndTime
+        : shieldBoostsMap
+          ? shieldBoostsMap.get(user.id) || null
+          : await this.getShieldEndTimeFromBoost(user.id);
+
+    const finalActiveBoosts =
+      activeBoosts || (await this.userBoostService.findActiveByUserId(user.id));
+    const cooldownHalvingBoost = finalActiveBoosts.find(
       (b) => b.type === UserBoostType.COOLDOWN_HALVING,
     );
 
@@ -276,7 +281,7 @@ export class UserService {
       last_name: transformed.last_name,
       image_path: transformed.image_path || null,
       money: transformed.money,
-      shield_end_time: shieldEndTime || undefined,
+      shield_end_time: finalShieldEndTime || undefined,
       clan_id: transformed.clan_id,
       strength,
       guards_count: guardsCount,
@@ -473,24 +478,46 @@ export class UserService {
   }
 
   async findMe(userId: number): Promise<CurrentUserResponseDto> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['guards', 'referrals'],
-    });
+    const [user, equippedAccessories, activeBoosts] = await Promise.all([
+      this.userRepository.findOne({
+        where: { id: userId },
+        select: [
+          'id',
+          'vk_id',
+          'first_name',
+          'last_name',
+          'image_path',
+          'money',
+          'clan_id',
+          'strength',
+          'guards_count',
+          'referrals_count',
+          'referral_link_id',
+          'last_training_time',
+          'last_contract_time',
+          'last_attack_time',
+          'adv_disable_end_time',
+        ],
+      }),
+      this.userAccessoryService.findEquippedByUserId(userId),
+      this.userBoostService.findActiveByUserId(userId),
+    ]);
 
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    const equippedAccessories =
-      await this.userAccessoryService.findEquippedByUserId(user.id);
     const currentPower = user.strength ?? 0;
-
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
     const referrerMoneyReward = Settings[
       SettingKey.REFERRER_MONEY_REWARD
     ] as number;
+
+    const shieldBoost = activeBoosts.find(
+      (b) => b.type === UserBoostType.SHIELD,
+    );
+    const shieldEndTime = shieldBoost?.end_time || null;
 
     return await this.transformToCurrentUserResponseDto(
       user,
@@ -498,6 +525,9 @@ export class UserService {
       training_cost,
       contract_income,
       referrerMoneyReward,
+      undefined,
+      activeBoosts,
+      shieldEndTime,
     );
   }
 
@@ -600,7 +630,9 @@ export class UserService {
     }
 
     const total_power_increase = Math.round(base_power_increase + random_bonus);
-    const baseIncreasePerGuard = Math.floor(total_power_increase / guards_count);
+    const baseIncreasePerGuard = Math.floor(
+      total_power_increase / guards_count,
+    );
     const remainder = total_power_increase % guards_count;
 
     const maxStrengthFirstGuard = Settings[
@@ -793,46 +825,50 @@ export class UserService {
     paginationDto: PaginationDto,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
-
-    const allUsers = await this.userRepository.find({
-      relations: ['guards'],
-      where: {
-        image_path: Not(IsNull()),
-      },
-    });
-
-    const usersWithImagePath = allUsers.filter(
-      (user) => user.image_path && user.image_path.trim() !== '',
-    );
-
-    const usersWithStrength = usersWithImagePath.map((user) => ({
-      user,
-      strength: user.strength ?? 0,
-    }));
-
-    usersWithStrength.sort((a, b) => {
-      const scoreA = a.strength * 1000 + Number(a.user.money || 0);
-      const scoreB = b.strength * 1000 + Number(b.user.money || 0);
-      return scoreB - scoreA;
-    });
-
-    const total = usersWithStrength.length;
     const skip = (page - 1) * limit;
-    const paginatedUsers = usersWithStrength.slice(skip, skip + limit);
 
-    const userIds = paginatedUsers.map((item) => item.user.id);
+    const totalQuery = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.image_path IS NOT NULL')
+      .andWhere("user.image_path != ''");
+
+    const total = await totalQuery.getCount();
+
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.vk_id',
+        'user.first_name',
+        'user.last_name',
+        'user.image_path',
+        'user.strength',
+        'user.guards_count',
+        'user.money',
+      ])
+      .where('user.image_path IS NOT NULL')
+      .andWhere("user.image_path != ''")
+      .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
+      .addOrderBy('user.id', 'ASC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    const userIds = users.map((user) => user.id);
     const [shieldBoostsMap, accessoriesMap] = await Promise.all([
-      this.userBoostService.findActiveShieldBoostsByUserIds(userIds),
-      this.userAccessoryService.findEquippedByUserIds(userIds),
+      userIds.length > 0
+        ? this.userBoostService.findActiveShieldBoostsByUserIds(userIds)
+        : Promise.resolve(new Map<number, Date | null>()),
+      userIds.length > 0
+        ? this.userAccessoryService.findEquippedByUserIds(userIds)
+        : Promise.resolve(new Map<number, any[]>()),
     ]);
 
-    const data = await Promise.all(
-      paginatedUsers.map((item) =>
-        this.transformToUserRatingResponseDto(
-          item.user,
-          accessoriesMap.get(item.user.id) || [],
-          shieldBoostsMap,
-        ),
+    const data = users.map((user) =>
+      this.transformToUserRatingResponseDto(
+        user,
+        accessoriesMap.get(user.id) || [],
+        shieldBoostsMap,
       ),
     );
 
@@ -1529,19 +1565,19 @@ export class UserService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
-        const attacker = await manager
-          .createQueryBuilder(User, 'user')
-          .where('user.id = :userId', { userId })
-          .select([
-            'user.id',
-            'user.vk_id',
-            'user.clan_id',
-            'user.strength',
-            'user.guards_count',
-            'user.last_attack_time',
-            'user.money',
-          ])
-          .getOne();
+      const attacker = await manager
+        .createQueryBuilder(User, 'user')
+        .where('user.id = :userId', { userId })
+        .select([
+          'user.id',
+          'user.vk_id',
+          'user.clan_id',
+          'user.strength',
+          'user.guards_count',
+          'user.last_attack_time',
+          'user.money',
+        ])
+        .getOne();
 
       if (!attacker) {
         throw new NotFoundException('Атакующий не найден');
@@ -1555,82 +1591,82 @@ export class UserService {
         throw new BadRequestException(
           'Нельзя атаковать участника своего клана',
         );
-    }
-
-    if (attacker.last_attack_time) {
-      const cooldownEndTime = new Date(
-        attacker.last_attack_time.getTime() + attackCooldown,
-      );
-      if (cooldownEndTime > new Date()) {
-        throw new BadRequestException({
-          message: 'Кулдаун атаки все еще активен',
-          cooldown_end: cooldownEndTime,
-        });
       }
-    }
 
-    const attacker_power = attacker.strength ?? 0;
-    const attacker_guards = attacker.guards_count ?? 0;
-    const defender_power = defender.strength ?? 0;
-    const capturableDefenderGuards = defender.guards
-      ? defender.guards.filter((guard) => !guard.is_first)
-      : [];
-    const defender_guards = capturableDefenderGuards.length;
+      if (attacker.last_attack_time) {
+        const cooldownEndTime = new Date(
+          attacker.last_attack_time.getTime() + attackCooldown,
+        );
+        if (cooldownEndTime > new Date()) {
+          throw new BadRequestException({
+            message: 'Кулдаун атаки все еще активен',
+            cooldown_end: cooldownEndTime,
+          });
+        }
+      }
 
-    if (
-      attacker_guards === 0 ||
-      !defender.guards ||
-      defender.guards.length === 0
-    ) {
-      throw new BadRequestException(
-        'У атакующего или защищающегося нет стражей',
+      const attacker_power = attacker.strength ?? 0;
+      const attacker_guards = attacker.guards_count ?? 0;
+      const defender_power = defender.strength ?? 0;
+      const capturableDefenderGuards = defender.guards
+        ? defender.guards.filter((guard) => !guard.is_first)
+        : [];
+      const defender_guards = capturableDefenderGuards.length;
+
+      if (
+        attacker_guards === 0 ||
+        !defender.guards ||
+        defender.guards.length === 0
+      ) {
+        throw new BadRequestException(
+          'У атакующего или защищающегося нет стражей',
+        );
+      }
+
+      if (defender_guards === 0) {
+        throw new BadRequestException(
+          'У защищающегося нет захватываемых стражей',
+        );
+      }
+
+      const initialReferrerVkId = Settings[
+        SettingKey.INITIAL_REFERRER_VK_ID
+      ] as number;
+
+      const isAttackingInitialReferrer =
+        initialReferrerVkId &&
+        initialReferrerVkId > 0 &&
+        Number(defender.vk_id) === Number(initialReferrerVkId);
+
+      const win_chance = Math.min(
+        75,
+        Math.max(
+          25,
+          ((attacker_power * attacker_guards) /
+            (defender_power * defender_guards)) *
+            100,
+        ),
       );
-    }
+      const is_win =
+        isAttackingInitialReferrer || Math.random() * 100 < win_chance;
+      const stolen_items: StolenItem[] = [];
 
-    if (defender_guards === 0) {
-      throw new BadRequestException(
-        'У защищающегося нет захватываемых стражей',
-      );
-    }
+      let initialReferrerGuardStolen = false;
 
-    const initialReferrerVkId = Settings[
-      SettingKey.INITIAL_REFERRER_VK_ID
-    ] as number;
+      if (
+        isAttackingInitialReferrer &&
+        defender.guards &&
+        defender.guards.length > 0
+      ) {
+        const capturableGuards = defender.guards.filter(
+          (guard) => !guard.is_first,
+        );
 
-    const isAttackingInitialReferrer =
-      initialReferrerVkId &&
-      initialReferrerVkId > 0 &&
-      Number(defender.vk_id) === Number(initialReferrerVkId);
+        if (capturableGuards.length > 0) {
+          const guardToSteal = capturableGuards[0];
+          const stolenGuardId = guardToSteal.id;
 
-    const win_chance = Math.min(
-      75,
-      Math.max(
-        25,
-        ((attacker_power * attacker_guards) /
-          (defender_power * defender_guards)) *
-          100,
-      ),
-    );
-    const is_win =
-      isAttackingInitialReferrer || Math.random() * 100 < win_chance;
-    const stolen_items: StolenItem[] = [];
-
-    let initialReferrerGuardStolen = false;
-
-    if (
-      isAttackingInitialReferrer &&
-      defender.guards &&
-      defender.guards.length > 0
-    ) {
-      const capturableGuards = defender.guards.filter(
-        (guard) => !guard.is_first,
-      );
-
-      if (capturableGuards.length > 0) {
-        const guardToSteal = capturableGuards[0];
-        const stolenGuardId = guardToSteal.id;
-
-        guardToSteal.user = attacker;
+          guardToSteal.user = attacker;
           await manager.save(UserGuard, guardToSteal);
 
           await Promise.all([
@@ -1639,92 +1675,92 @@ export class UserService {
           ]);
 
           const guardItem = manager.create(StolenItem, {
-          type: StolenItemType.GUARD,
-          value: stolenGuardId.toString(),
-          thief: attacker,
-          victim: defender,
-          clan_war_id: null,
-        });
-          await manager.save(StolenItem, guardItem);
-        stolen_items.push(guardItem);
-        initialReferrerGuardStolen = true;
-      }
-    }
-
-    if (isAttackingInitialReferrer) {
-        await manager.update(User, attacker.id, {
-        last_attack_time: new Date(),
-      });
-
-      const result = {
-        win_chance: 100,
-        is_win: true,
-        stolen_money: 0,
-        captured_guards: initialReferrerGuardStolen ? 1 : 0,
-        attack_cooldown_end: new Date(new Date().getTime() + attackCooldown),
-      };
-
-      if (stolen_items.length > 0) {
-        Promise.all([
-          this.eventHistoryService.create(
-            attacker.id,
-            EventHistoryType.ATTACK,
-            stolen_items,
-            defender.id,
-          ),
-          this.eventHistoryService.create(
-            defender.id,
-            EventHistoryType.DEFENSE,
-            stolen_items,
-            attacker.id,
-          ),
-        ]).catch((error) => {
-          console.error('Ошибка при создании истории событий:', error);
-        });
-      }
-
-      return result;
-    }
-
-    if (is_win) {
-      let stolen_money = 0;
-      let captured_guards = 0;
-
-      if (!isAttackingInitialReferrer) {
-        stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
-
-        if (stolen_money > 0) {
-          defender.money = Number(defender.money) - stolen_money;
-          attacker.money = Number(attacker.money) + stolen_money;
-            await manager.save(User, [defender, attacker]);
-
-            const moneyItem = manager.create(StolenItem, {
-            type: StolenItemType.MONEY,
-            value: stolen_money.toString(),
+            type: StolenItemType.GUARD,
+            value: stolenGuardId.toString(),
             thief: attacker,
             victim: defender,
             clan_war_id: null,
           });
-            await manager.save(StolenItem, moneyItem);
-          stolen_items.push(moneyItem);
+          await manager.save(StolenItem, guardItem);
+          stolen_items.push(guardItem);
+          initialReferrerGuardStolen = true;
+        }
+      }
+
+      if (isAttackingInitialReferrer) {
+        await manager.update(User, attacker.id, {
+          last_attack_time: new Date(),
+        });
+
+        const result = {
+          win_chance: 100,
+          is_win: true,
+          stolen_money: 0,
+          captured_guards: initialReferrerGuardStolen ? 1 : 0,
+          attack_cooldown_end: new Date(new Date().getTime() + attackCooldown),
+        };
+
+        if (stolen_items.length > 0) {
+          Promise.all([
+            this.eventHistoryService.create(
+              attacker.id,
+              EventHistoryType.ATTACK,
+              stolen_items,
+              defender.id,
+            ),
+            this.eventHistoryService.create(
+              defender.id,
+              EventHistoryType.DEFENSE,
+              stolen_items,
+              attacker.id,
+            ),
+          ]).catch((error) => {
+            console.error('Ошибка при создании истории событий:', error);
+          });
         }
 
-        captured_guards = Math.round(
-          defender_guards * 0.08 * (win_chance / 100),
-        );
+        return result;
+      }
 
-        if (
-          captured_guards > 0 &&
-          defender.guards &&
-          defender.guards.length > 0
-        ) {
-          const capturableGuards = defender.guards.filter(
-            (guard) => !guard.is_first,
+      if (is_win) {
+        let stolen_money = 0;
+        let captured_guards = 0;
+
+        if (!isAttackingInitialReferrer) {
+          stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
+
+          if (stolen_money > 0) {
+            defender.money = Number(defender.money) - stolen_money;
+            attacker.money = Number(attacker.money) + stolen_money;
+            await manager.save(User, [defender, attacker]);
+
+            const moneyItem = manager.create(StolenItem, {
+              type: StolenItemType.MONEY,
+              value: stolen_money.toString(),
+              thief: attacker,
+              victim: defender,
+              clan_war_id: null,
+            });
+            await manager.save(StolenItem, moneyItem);
+            stolen_items.push(moneyItem);
+          }
+
+          captured_guards = Math.round(
+            defender_guards * 0.08 * (win_chance / 100),
           );
-          const guardsToCapture = capturableGuards.slice(0, captured_guards);
+
+          if (
+            captured_guards > 0 &&
+            defender.guards &&
+            defender.guards.length > 0
+          ) {
+            const capturableGuards = defender.guards.filter(
+              (guard) => !guard.is_first,
+            );
+            const guardsToCapture = capturableGuards.slice(0, captured_guards);
 
             guardsToCapture.forEach((guard) => {
-            guard.user = attacker;
+              guard.user = attacker;
             });
             await manager.save(UserGuard, guardsToCapture);
 
@@ -1735,89 +1771,88 @@ export class UserService {
 
             const guardItems = guardsToCapture.map((guard) =>
               manager.create(StolenItem, {
-              type: StolenItemType.GUARD,
+                type: StolenItemType.GUARD,
                 value: guard.id.toString(),
-              thief: attacker,
-              victim: defender,
-              clan_war_id: null,
+                thief: attacker,
+                victim: defender,
+                clan_war_id: null,
               }),
             );
             const savedGuardItems = await manager.save(StolenItem, guardItems);
             stolen_items.push(...savedGuardItems);
+          }
         }
-      }
 
-      attacker.last_attack_time = new Date();
+        attacker.last_attack_time = new Date();
         await manager.save(User, attacker);
 
         const attackCooldownEnd = new Date(
           new Date().getTime() + attackCooldown,
         );
 
+        const result = {
+          win_chance: isAttackingInitialReferrer ? 100 : win_chance,
+          is_win: true,
+          stolen_money: stolen_money || 0,
+          captured_guards:
+            captured_guards || (initialReferrerGuardStolen ? 1 : 0),
+          attack_cooldown_end: attackCooldownEnd,
+        };
+
+        if (stolen_items.length > 0) {
+          Promise.all([
+            this.eventHistoryService.create(
+              attacker.id,
+              EventHistoryType.ATTACK,
+              stolen_items,
+              defender.id,
+            ),
+            this.eventHistoryService.create(
+              defender.id,
+              EventHistoryType.DEFENSE,
+              stolen_items,
+              attacker.id,
+            ),
+          ]).catch((error) => {
+            console.error('Ошибка при создании истории событий:', error);
+          });
+        }
+
+        return result;
+      }
+
+      attacker.last_attack_time = new Date();
+      await manager.save(User, attacker);
+
+      const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
+
       const result = {
-        win_chance: isAttackingInitialReferrer ? 100 : win_chance,
-        is_win: true,
-        stolen_money: stolen_money || 0,
-        captured_guards:
-          captured_guards || (initialReferrerGuardStolen ? 1 : 0),
+        win_chance,
+        is_win: false,
+        stolen_money: 0,
+        captured_guards: 0,
         attack_cooldown_end: attackCooldownEnd,
       };
 
-      if (stolen_items.length > 0) {
-        Promise.all([
-          this.eventHistoryService.create(
-            attacker.id,
-            EventHistoryType.ATTACK,
-            stolen_items,
-            defender.id,
-          ),
-          this.eventHistoryService.create(
-            defender.id,
-            EventHistoryType.DEFENSE,
-            stolen_items,
-            attacker.id,
-          ),
-        ]).catch((error) => {
-          console.error('Ошибка при создании истории событий:', error);
-        });
-      }
+      Promise.all([
+        this.eventHistoryService.create(
+          attacker.id,
+          EventHistoryType.ATTACK,
+          stolen_items,
+          defender.id,
+        ),
+        this.eventHistoryService.create(
+          defender.id,
+          EventHistoryType.DEFENSE,
+          stolen_items,
+          attacker.id,
+        ),
+      ]).catch((error) => {
+        console.error('Ошибка при создании истории событий:', error);
+      });
 
       return result;
-    }
-
-    attacker.last_attack_time = new Date();
-      await manager.save(User, attacker);
-
-    const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
-
-    const result = {
-      win_chance,
-      is_win: false,
-      stolen_money: 0,
-      captured_guards: 0,
-      attack_cooldown_end: attackCooldownEnd,
-    };
-
-    Promise.all([
-      this.eventHistoryService.create(
-        attacker.id,
-        EventHistoryType.ATTACK,
-        stolen_items,
-        defender.id,
-      ),
-      this.eventHistoryService.create(
-        defender.id,
-        EventHistoryType.DEFENSE,
-        stolen_items,
-        attacker.id,
-      ),
-    ]).catch((error) => {
-      console.error('Ошибка при создании истории событий:', error);
     });
-
-    return result;
-      },
-    );
   }
 
   async getEventHistory(

@@ -317,10 +317,7 @@ export class VKPaymentsService {
 
     if (originalQuery) {
       Object.keys(originalQuery).forEach((key) => {
-        if (
-          originalQuery[key] !== undefined &&
-          originalQuery[key] !== null
-        ) {
+        if (originalQuery[key] !== undefined && originalQuery[key] !== null) {
           params[key] = String(originalQuery[key]);
         }
       });
@@ -363,7 +360,10 @@ export class VKPaymentsService {
     const hashString =
       endIndex === -1
         ? inputString.substring(startIndex).trim().replace(/sig=/, '')
-        : inputString.substring(startIndex, endIndex).trim().replace(/sig=/, '');
+        : inputString
+            .substring(startIndex, endIndex)
+            .trim()
+            .replace(/sig=/, '');
 
     const checkString =
       endIndex === -1

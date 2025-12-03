@@ -11,6 +11,7 @@ import { UserBoost } from '../user-boost/user-boost.entity';
 import { UserBoostModule } from '../user-boost/user-boost.module';
 import { UserModule } from '../user/user.module';
 import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UserAccessoryModule } from '../user-accessory/user-accessory.module';
     UserBoostModule,
     UserModule,
     UserAccessoryModule,
+    AuthModule,
   ],
   controllers: [ShopItemController],
   providers: [ShopItemService],

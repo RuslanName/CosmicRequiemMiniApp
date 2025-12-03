@@ -11,13 +11,13 @@ import { UserGuard } from '../user-guard/user-guard.entity';
 import { Admin } from '../admin/admin.entity';
 import { Clan } from '../clan/entities/clan.entity';
 import { ClanApplication } from '../clan/entities/clan-application.entity';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { AdminRefreshToken } from './entities/admin-refresh-token.entity';
+import { Session } from './entities/session.entity';
 import { ENV } from '../../config/constants';
-import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
+import { SessionService } from './services/session.service';
+import { VKSessionGuard } from './guards/vk-session.guard';
 import { TaskModule } from '../task/task.module';
-import { ClanModule } from '../clan/clan.module';
 
 @Module({
   imports: [
@@ -27,11 +27,10 @@ import { ClanModule } from '../clan/clan.module';
       Admin,
       Clan,
       ClanApplication,
-      RefreshToken,
       AdminRefreshToken,
+      Session,
     ]),
     TaskModule,
-    ClanModule,
     PassportModule,
     JwtModule.register({
       secret: ENV.JWT_ACCESS_SECRET,
@@ -40,7 +39,13 @@ import { ClanModule } from '../clan/clan.module';
     }),
   ],
   controllers: [AuthController, AdminAuthController],
-  providers: [AuthService, AdminAuthService, JwtStrategy, AdminJwtStrategy],
-  exports: [JwtModule, AdminAuthService],
+  providers: [
+    AuthService,
+    AdminAuthService,
+    AdminJwtStrategy,
+    SessionService,
+    VKSessionGuard,
+  ],
+  exports: [JwtModule, AdminAuthService, SessionService, VKSessionGuard],
 })
 export class AuthModule {}

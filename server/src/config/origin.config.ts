@@ -12,7 +12,12 @@ export const setupCors = (app: INestApplication): void => {
     origin: ENV.ALLOWED_ORIGINS.length > 0 ? ENV.ALLOWED_ORIGINS : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'start-param'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'start-param',
+      'X-Session-Id',
+    ],
     exposedHeaders: ['Set-Cookie'],
   });
 };

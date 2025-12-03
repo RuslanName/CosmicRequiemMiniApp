@@ -22,7 +22,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VKSessionGuard } from '../auth/guards/vk-session.guard';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { PaginationDto } from '../../common/dtos/pagination.dto';
@@ -75,7 +75,7 @@ export class UserController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -94,7 +94,7 @@ export class UserController {
   }
 
   @Post('training')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Тренировка стражей пользователя (Для Mini App)',
@@ -121,7 +121,7 @@ export class UserController {
   }
 
   @Post('contract')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Выполнить контракт для заработка денег (Для Mini App)',
@@ -147,7 +147,7 @@ export class UserController {
   }
 
   @Get('rating')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('user:rating')
@@ -172,7 +172,7 @@ export class UserController {
   }
 
   @Get('attackable')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
   @CacheKey('user:attackable::user')
@@ -220,7 +220,7 @@ export class UserController {
   }
 
   @Post('attackable/friends')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить список друзей для атаки по VK ID (Для Mini App)',
@@ -295,7 +295,7 @@ export class UserController {
   }
 
   @Get('me/inventory')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -342,7 +342,7 @@ export class UserController {
   }
 
   @Get('me/guards')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить стражей текущего пользователя (Для Mini App)',
@@ -367,7 +367,7 @@ export class UserController {
   }
 
   @Post('equip-accessory')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Надеть аксессуар (Для Mini App)' })
   @ApiBody({ type: EquipAccessoryDto })
@@ -393,7 +393,7 @@ export class UserController {
   }
 
   @Post('unequip-accessory/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Снять аксессуар (Для Mini App)' })
   @ApiParam({
@@ -420,7 +420,7 @@ export class UserController {
   }
 
   @Post('attack')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Атаковать игрока (Для Mini App)' })
   @ApiBody({ type: AttackPlayerDto })
@@ -447,7 +447,7 @@ export class UserController {
   }
 
   @Get('me/event-history')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(30)
   @CacheKey('user:event-history::user')
@@ -470,7 +470,7 @@ export class UserController {
   }
 
   @Post('me/activate-shield')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Активировать щит из инвентаря (Для Mini App)' })
   @ApiBody({ type: ActivateShieldDto })
@@ -496,7 +496,7 @@ export class UserController {
   }
 
   @Get('me/tasks')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Получить задания текущего пользователя (Для Mini App)',
@@ -513,7 +513,7 @@ export class UserController {
   }
 
   @Post('me/check-community-subscribe')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
