@@ -235,16 +235,13 @@ export class UserService {
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<CurrentUserResponseDto> {
     const transformed = this.transformUserForResponse(user);
-    const guardsCount =
-      user.guards_count ?? this.getGuardsCount(user.guards || []);
-    const strength =
-      user.strength ?? this.calculateUserPower(user.guards || []);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
     const showAdv = this.getShowAdv(user);
     const advDisableCost = Settings[
       SettingKey.ADV_DISABLE_COST_VOICES_COUNT
     ] as number;
-    const referralsCount =
-      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
+    const referralsCount = user.referrals_count ?? 0;
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : await this.getShieldEndTimeFromBoost(user.id);
@@ -276,15 +273,12 @@ export class UserService {
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<UserBasicStatsResponseDto> {
     const transformed = this.transformUserForResponse(user);
-    const guardsCount =
-      user.guards_count ?? this.getGuardsCount(user.guards || []);
-    const strength =
-      user.strength ?? this.calculateUserPower(user.guards || []);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
     const guardAsUserStrength = user.user_as_guard
       ? Number(user.user_as_guard.strength)
       : null;
-    const referralsCount =
-      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
+    const referralsCount = user.referrals_count ?? 0;
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : await this.getShieldEndTimeFromBoost(user.id);
@@ -320,10 +314,8 @@ export class UserService {
     equippedAccessories?: any[],
     shieldBoostsMap?: Map<number, Date | null>,
   ): UserRatingResponseDto {
-    const guardsCount =
-      user.guards_count ?? this.getGuardsCount(user.guards || []);
-    const strength =
-      user.strength ?? this.calculateUserPower(user.guards || []);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
 
     return {
       id: user.id,
@@ -355,10 +347,9 @@ export class UserService {
       await this.userBoostService.findActiveShieldBoostsByUserIds(userIds);
 
     const dataWithStrength = users.map((user) => {
-      const guardsCount = this.getGuardsCount(user.guards || []);
-      const strength = this.calculateUserPower(user.guards || []);
-      const referralsCount =
-        user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
+      const guardsCount = user.guards_count ?? 0;
+      const strength = user.strength ?? 0;
+      const referralsCount = user.referrals_count ?? 0;
       const firstGuardStrength = user.user_as_guard?.strength
         ? Number(user.user_as_guard.strength)
         : null;
@@ -412,10 +403,9 @@ export class UserService {
       throw new NotFoundException(`Пользователь с ID ${id} не найден`);
     }
 
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
-    const referralsCount =
-      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
+    const referralsCount = user.referrals_count ?? 0;
     const firstGuardStrength = user.user_as_guard?.strength
       ? Number(user.user_as_guard.strength)
       : null;
@@ -461,7 +451,7 @@ export class UserService {
 
     const equippedAccessories =
       await this.userAccessoryService.findEquippedByUserId(user.id);
-    const currentPower = this.calculateUserPower(user.guards || []);
+    const currentPower = user.strength ?? 0;
 
     const training_cost = Math.round(10 * Math.pow(1 + currentPower, 1.2));
     const contract_income = Math.max(Math.round(training_cost * 0.55), 6);
@@ -550,8 +540,8 @@ export class UserService {
       throw new BadRequestException('У пользователя нет стражей');
     }
 
-    const current_power = this.calculateUserPower(user.guards);
-    const guards_count = this.getGuardsCount(user.guards);
+    const current_power = user.strength ?? 0;
+    const guards_count = user.guards_count ?? 0;
 
     const training_cost = Math.round(10 * Math.pow(1 + current_power, 1.2));
 
@@ -620,7 +610,7 @@ export class UserService {
       );
     }
 
-    const new_power = this.calculateUserPower(updatedUser.guards);
+    const new_power = updatedUser.strength ?? 0;
 
     const trainingCooldownEnd = new Date(
       new Date().getTime() + trainingCooldown,
@@ -702,7 +692,7 @@ export class UserService {
       }
     }
 
-    const current_power = this.calculateUserPower(user.guards || []);
+    const current_power = user.strength ?? 0;
 
     const training_cost = Math.round(10 * Math.pow(1 + current_power, 1.2));
 
@@ -782,7 +772,7 @@ export class UserService {
 
     const usersWithStrength = usersWithImagePath.map((user) => ({
       user,
-      strength: this.calculateUserPower(user.guards || []),
+      strength: user.strength ?? 0,
     }));
 
     usersWithStrength.sort((a, b) => {
@@ -1173,7 +1163,6 @@ export class UserService {
         );
       }
 
-
       total = await queryBuilder.getCount();
 
       users = await queryBuilder
@@ -1204,9 +1193,7 @@ export class UserService {
         limit,
       };
     } else if (filter === 'suitable') {
-      const currentStrength =
-        currentUser.strength ??
-        this.calculateUserPower(currentUser.guards || []);
+      const currentStrength = currentUser.strength ?? 0;
       const strengthRange = Math.max(currentStrength * 0.3, 50);
 
       const initialReferrerVkId = Settings[
@@ -1372,10 +1359,7 @@ export class UserService {
       .filter(
         (user) => !currentUserClanId || user.clan?.id !== currentUserClanId,
       )
-      .filter((user) => {
-        const guardsCount = this.getGuardsCount(user.guards || []);
-        return guardsCount > 1;
-      });
+      .filter((user) => (user.guards_count ?? 0) > 1);
 
     const userIds = filteredUsers.map((user) => user.id);
     const shieldBoostsMap =
@@ -1494,9 +1478,9 @@ export class UserService {
       }
     }
 
-    const attacker_power = this.calculateUserPower(attacker.guards || []);
-    const attacker_guards = this.getGuardsCount(attacker.guards || []);
-    const defender_power = this.calculateUserPower(defender.guards || []);
+    const attacker_power = attacker.strength ?? 0;
+    const attacker_guards = attacker.guards_count ?? 0;
+    const defender_power = defender.strength ?? 0;
     const capturableDefenderGuards = defender.guards
       ? defender.guards.filter((guard) => !guard.is_first)
       : [];

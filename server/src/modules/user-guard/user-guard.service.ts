@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +16,7 @@ import { PaginatedResponseDto } from '../../common/dtos/paginated-response.dto';
 import { Settings } from '../../config/setting.config';
 import { SettingKey } from '../setting/enums/setting-key.enum';
 import { User } from '../user/user.entity';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class UserGuardService {
@@ -22,23 +25,9 @@ export class UserGuardService {
     private readonly userGuardRepository: Repository<UserGuard>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Inject(forwardRef(() => UserService))
+    private readonly userService: UserService,
   ) {}
-
-  private async updateUserGuardsStats(userId: number): Promise<void> {
-    const guards = await this.userGuardRepository.find({
-      where: { user_id: userId },
-    });
-    const guardsCount = guards.length;
-    const strength = guards.reduce(
-      (sum, guard) => sum + Number(guard.strength),
-      0,
-    );
-
-    await this.userRepository.update(userId, {
-      guards_count: guardsCount,
-      strength: strength,
-    });
-  }
 
   private transformToUserGuardAdminResponseDto(
     userGuard: UserGuard,
@@ -109,7 +98,7 @@ export class UserGuardService {
       user: { id: user_id } as any,
     });
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
-    await this.updateUserGuardsStats(user_id);
+    await this.userService.updateUserGuardsStats(user_id);
     return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
 
@@ -158,9 +147,9 @@ export class UserGuardService {
 
     Object.assign(userGuard, rest);
     const savedUserGuard = await this.userGuardRepository.save(userGuard);
-    await this.updateUserGuardsStats(userGuard.user_id);
+    await this.userService.updateUserGuardsStats(userGuard.user_id);
     if (user_id !== undefined && user_id !== userGuard.user_id) {
-      await this.updateUserGuardsStats(user_id);
+      await this.userService.updateUserGuardsStats(user_id);
     }
     return this.transformToUserGuardAdminResponseDto(savedUserGuard);
   }
@@ -174,6 +163,6 @@ export class UserGuardService {
 
     const userId = userGuard.user_id;
     await this.userGuardRepository.remove(userGuard);
-    await this.updateUserGuardsStats(userId);
+    await this.userService.updateUserGuardsStats(userId);
   }
 }

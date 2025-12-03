@@ -96,18 +96,14 @@ export class ClanService {
   private calculateClanStrength(members: User[]): number {
     if (!members || members.length === 0) return 0;
     return members.reduce((sum, member) => {
-      const userStrength =
-        member.strength ?? this.calculateUserPower(member.guards || []);
-      return sum + userStrength;
+      return sum + (member.strength ?? 0);
     }, 0);
   }
 
   private calculateClanGuardsCount(members: User[]): number {
     if (!members || members.length === 0) return 0;
     return members.reduce((sum, member) => {
-      const guardsCount =
-        member.guards_count ?? this.getGuardsCount(member.guards || []);
-      return sum + guardsCount;
+      return sum + (member.guards_count ?? 0);
     }, 0);
   }
 
@@ -137,10 +133,8 @@ export class ClanService {
 
     if (clan.members) {
       transformed.money = this.calculateClanMoney(clan.members);
-      transformed.strength =
-        clan.strength ?? this.calculateClanStrength(clan.members);
-      transformed.guards_count =
-        clan.guards_count ?? this.calculateClanGuardsCount(clan.members);
+      transformed.strength = clan.strength ?? 0;
+      transformed.guards_count = clan.guards_count ?? 0;
       transformed.members_count = clan.members.length;
     }
 
@@ -187,8 +181,8 @@ export class ClanService {
     user: User,
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<UserStatsResponseDto> {
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : (await this.userBoostService.findActiveByUserId(user.id)).find(
@@ -222,13 +216,12 @@ export class ClanService {
     user: User,
     shieldBoostsMap?: Map<number, Date | null>,
   ): Promise<UserBasicStatsResponseDto> {
-    const guardsCount = this.getGuardsCount(user.guards || []);
-    const strength = this.calculateUserPower(user.guards || []);
+    const guardsCount = user.guards_count ?? 0;
+    const strength = user.strength ?? 0;
     const guardAsUserStrength = user.user_as_guard
       ? Number(user.user_as_guard.strength)
       : null;
-    const referralsCount =
-      user.referrals_count ?? (user.referrals ? user.referrals.length : 0);
+    const referralsCount = user.referrals_count ?? 0;
     const shieldEndTime = shieldBoostsMap
       ? shieldBoostsMap.get(user.id) || null
       : (await this.userBoostService.findActiveByUserId(user.id)).find(
@@ -287,19 +280,15 @@ export class ClanService {
             registered_at: application.user.registered_at,
             last_login_at: application.user.last_login_at,
             clan_id: application.user.clan_id,
-            strength: this.calculateUserPower(application.user.guards || []),
-            guards_count: this.getGuardsCount(application.user.guards || []),
+            strength: application.user.strength ?? 0,
+            guards_count: application.user.guards_count ?? 0,
             first_guard_strength: application.user.user_as_guard
               ? Number(application.user.user_as_guard.strength)
               : null,
             referral_link: application.user.referral_link_id
               ? `${ENV.VK_APP_URL}#ref_${application.user.referral_link_id}`
               : undefined,
-            referrals_count:
-              application.user.referrals_count ??
-              (application.user.referrals
-                ? application.user.referrals.length
-                : 0),
+            referrals_count: application.user.referrals_count ?? 0,
           }
         : undefined,
       created_at: application.created_at,
@@ -340,8 +329,7 @@ export class ClanService {
     activeWarsCount?: number,
     warEndTime?: Date,
   ): Promise<ClanDetailResponseDto> {
-    const strength =
-      clan.strength ?? this.calculateClanStrength(clan.members || []);
+    const strength = clan.strength ?? 0;
     const membersCount = clan.members?.length || 0;
     const hasActiveWars =
       activeWarsCount !== undefined ? activeWarsCount > 0 : false;
@@ -1161,9 +1149,9 @@ export class ClanService {
       }
     }
 
-    const attacker_power = this.calculateUserPower(attacker.guards || []);
-    const attacker_guards = this.getGuardsCount(attacker.guards || []);
-    const defender_power = this.calculateUserPower(defender.guards || []);
+    const attacker_power = attacker.strength ?? 0;
+    const attacker_guards = attacker.guards_count ?? 0;
+    const defender_power = defender.strength ?? 0;
     const capturableDefenderGuards = defender.guards
       ? defender.guards.filter((guard) => !guard.is_first)
       : [];
@@ -1949,10 +1937,8 @@ export class ClanService {
 
     const clansWithRating = allClans.map((clan) => {
       const stats = statsMap.get(clan.id) || { wins: 0, losses: 0 };
-      const guardsCount =
-        clan.guards_count ?? this.calculateClanGuardsCount(clan.members || []);
-      const strength =
-        clan.strength ?? this.calculateClanStrength(clan.members || []);
+      const guardsCount = clan.guards_count ?? 0;
+      const strength = clan.strength ?? 0;
 
       return {
         id: clan.id,

@@ -10,6 +10,8 @@ import { User } from '../../user/user.entity';
 import { UserGuard } from '../../user-guard/user-guard.entity';
 import { NotificationService } from '../../notification/notification.service';
 import { NotificationType } from '../../notification/enums/notification-type.enum';
+import { UserService } from '../../user/user.service';
+import { ClanService } from '../../clan/clan.service';
 
 @Injectable()
 export class ClanWarSchedulerService {
@@ -23,6 +25,8 @@ export class ClanWarSchedulerService {
     @InjectRepository(UserGuard)
     private readonly userGuardRepository: Repository<UserGuard>,
     private readonly notificationService: NotificationService,
+    private readonly userService: UserService,
+    private readonly clanService: ClanService,
   ) {}
 
   @Cron('0 */5 * * * *')
@@ -146,10 +150,26 @@ export class ClanWarSchedulerService {
           await this.userGuardRepository.update(guardId, {
             user_id: item.victim.id,
           });
+          await this.userService.updateUserGuardsStats(item.thief.id);
+          await this.userService.updateUserGuardsStats(item.victim.id);
+          if (thiefClanId) {
+            await this.clanService.updateClanStats(thiefClanId);
+          }
+          if (victimClanId) {
+            await this.clanService.updateClanStats(victimClanId);
+          }
         } else if (thiefClanId === loserClanId) {
           await this.userGuardRepository.update(guardId, {
             user_id: item.victim.id,
           });
+          await this.userService.updateUserGuardsStats(item.thief.id);
+          await this.userService.updateUserGuardsStats(item.victim.id);
+          if (thiefClanId) {
+            await this.clanService.updateClanStats(thiefClanId);
+          }
+          if (victimClanId) {
+            await this.clanService.updateClanStats(victimClanId);
+          }
         }
       }
     }

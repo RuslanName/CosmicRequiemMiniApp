@@ -9,11 +9,15 @@ import { User } from '../user/user.entity';
 import { UserGuard } from '../user-guard/user-guard.entity';
 import { Clan } from '../clan/entities/clan.entity';
 import { NotificationModule } from '../notification/notification.module';
+import { UserModule } from '../user/user.module';
+import { ClanModule } from '../clan/clan.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ClanWar, StolenItem, User, UserGuard, Clan]),
     NotificationModule,
+    UserModule,
+    ClanModule,
   ],
   controllers: [ClanWarController],
   providers: [ClanWarService, ClanWarSchedulerService],
