@@ -325,6 +325,7 @@ export class UserService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<UserBasicStatsResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -353,10 +354,17 @@ export class UserService {
         'user.referral_link_id',
         'user.referrals_count',
         'user_as_guard.strength',
-      ])
-      .orderBy('user.id', 'ASC')
-      .skip(skip)
-      .take(limit);
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where(
+        "(user.first_name ILIKE :query OR user.last_name ILIKE :query OR CONCAT(user.first_name, ' ', COALESCE(user.last_name, '')) ILIKE :query)",
+        { query: searchQuery },
+      );
+    }
+
+    queryBuilder.orderBy('user.id', 'ASC').skip(skip).take(limit);
 
     const [users, total] = await queryBuilder.getManyAndCount();
 
@@ -638,6 +646,9 @@ export class UserService {
     );
     const remainder = total_power_increase % guards_count;
 
+    const maxStrengthGuard = Settings[
+      SettingKey.MAX_STRENGTH_USER_GUARD
+    ] as number;
     const maxStrengthFirstGuard = Settings[
       SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
     ] as number;
@@ -646,14 +657,17 @@ export class UserService {
       const guard = user.guards[i];
       const extraIncrease = i < remainder ? 1 : 0;
       const powerIncreasePerGuard = baseIncreasePerGuard + extraIncrease;
-      const newStrength = Number(guard.strength) + powerIncreasePerGuard;
+      let newStrength = Number(guard.strength) + powerIncreasePerGuard;
 
-      if (guard.is_first && newStrength > maxStrengthFirstGuard) {
-        guard.strength = maxStrengthFirstGuard;
-      } else {
-        guard.strength = newStrength;
+      if (newStrength > maxStrengthGuard) {
+        newStrength = maxStrengthGuard;
       }
 
+      if (guard.is_first && newStrength > maxStrengthFirstGuard) {
+        newStrength = maxStrengthFirstGuard;
+      }
+
+      guard.strength = newStrength;
       await this.userGuardRepository.save(guard);
     }
 
@@ -831,8 +845,14 @@ export class UserService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const allUsers = await this.userRepository
+    const baseQuery = this.userRepository
       .createQueryBuilder('user')
+      .where('user.image_path IS NOT NULL')
+      .andWhere("user.image_path != ''");
+
+    const total = await baseQuery.getCount();
+
+    const allUsers = await baseQuery
       .select([
         'user.id',
         'user.vk_id',
@@ -843,13 +863,9 @@ export class UserService {
         'user.guards_count',
         'user.money',
       ])
-      .where('user.image_path IS NOT NULL')
-      .andWhere("user.image_path != ''")
       .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
       .addOrderBy('user.id', 'ASC')
       .getMany();
-
-    const total = allUsers.length;
 
     const users = allUsers.slice(skip, skip + limit);
 
@@ -1676,17 +1692,24 @@ export class UserService {
         initialReferrerVkId > 0 &&
         Number(defender.vk_id) === Number(initialReferrerVkId);
 
-      const win_chance = Math.min(
-        75,
-        Math.max(
-          25,
-          ((attacker_power * attacker_guards) /
-            (defender_power * defender_guards)) *
-            100,
-        ),
-      );
-      const is_win =
-        isAttackingInitialReferrer || Math.random() * 100 < win_chance;
+      const defender_total_power = defender_power * defender_guards;
+      let win_chance = 50;
+
+      if (defender_total_power > 0) {
+        win_chance = Math.min(
+          75,
+          Math.max(
+            25,
+            ((attacker_power * attacker_guards) / defender_total_power) * 100,
+          ),
+        );
+      } else {
+        win_chance = 75;
+      }
+
+      const randomValue = Math.random() * 100;
+      const is_win = isAttackingInitialReferrer || randomValue < win_chance;
+
       const stolen_items: StolenItem[] = [];
 
       let initialReferrerGuardStolen = false;

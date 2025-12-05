@@ -154,6 +154,7 @@ export class ShopItemService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<ShopItemResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -174,10 +175,14 @@ export class ShopItemService {
         'item_template.image_path',
         'item_template.quantity',
         'item_template.name_in_kit',
-      ])
-      .orderBy('shop_item.id', 'DESC')
-      .skip(skip)
-      .take(limit);
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where('shop_item.name ILIKE :query', { query: searchQuery });
+    }
+
+    queryBuilder.orderBy('shop_item.id', 'DESC').skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
 

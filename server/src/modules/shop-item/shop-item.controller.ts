@@ -45,6 +45,12 @@ export class ShopItemController {
   @ApiOperation({ summary: 'Получить все товары магазина с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Поиск по названию',
+  })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<ShopItemResponseDto>,
@@ -53,8 +59,9 @@ export class ShopItemController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('query') query?: string,
   ): Promise<PaginatedResponseDto<ShopItemResponseDto>> {
-    return this.shopItemService.findAll(paginationDto);
+    return this.shopItemService.findAll(paginationDto, query);
   }
 
   @Get('list')

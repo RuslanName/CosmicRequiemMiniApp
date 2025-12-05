@@ -34,6 +34,12 @@ export class SettingController {
   @ApiOperation({ summary: 'Получить все настройки с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Поиск по ID',
+  })
   @ApiResponse({
     status: 200,
     description: 'Возвращает список настроек с пагинацией',
@@ -42,8 +48,9 @@ export class SettingController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('query') query?: string,
   ): Promise<PaginatedResponseDto<SettingResponseDto>> {
-    return this.settingService.findAll(paginationDto);
+    return this.settingService.findAll(paginationDto, query);
   }
 
   @Get('key/:key')

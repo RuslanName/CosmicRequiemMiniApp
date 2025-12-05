@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, Setting, UpdateSettingDto } f
 export type { Setting, UpdateSettingDto };
 
 export const settingsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Setting>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<Setting>> => {
     const response = await api.get('/settings', { params });
     return response.data;
   },

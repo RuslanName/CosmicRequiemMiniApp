@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import { getAllowedOrigins } from './origin.config';
+import * as process from 'node:process';
 
 dotenv.config();
 
@@ -14,23 +15,10 @@ export const ENV = {
   VK_APP_SECRET: process.env.VK_APP_SECRET!,
   VK_APP_URL: process.env.VK_APP_URL!,
   VK_SERVICE_TOKEN: process.env.VK_SERVICE_TOKEN || '',
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET!,
-  JWT_REFRESH_SECRET:
-    process.env.JWT_REFRESH_SECRET ||
-    (process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET!) + '_refresh',
-  JWT_ADMIN_ACCESS_SECRET:
-    process.env.JWT_ADMIN_ACCESS_SECRET ||
-    process.env.JWT_ADMIN_SECRET ||
-    process.env.JWT_ACCESS_SECRET ||
-    process.env.JWT_SECRET!,
+  JWT_ADMIN_ACCESS_SECRET: process.env.JWT_ADMIN_ACCESS_SECRET,
+  SESSION_EXPIRES_IN: process.env.SESSION_EXPIRES_IN || '4h',
   JWT_ADMIN_REFRESH_SECRET:
-    process.env.JWT_ADMIN_REFRESH_SECRET ||
-    (process.env.JWT_ADMIN_ACCESS_SECRET ||
-      process.env.JWT_ADMIN_SECRET ||
-      process.env.JWT_ACCESS_SECRET ||
-      process.env.JWT_SECRET!) + '_admin_refresh',
-  JWT_ACCESS_EXPIRES_IN: String(process.env.JWT_ACCESS_EXPIRES_IN || '15m'),
-  JWT_REFRESH_EXPIRES_IN: String(process.env.JWT_REFRESH_EXPIRES_IN || '30d'),
+    process.env.JWT_ADMIN_REFRESH_SECRET + '_admin_refresh',
   JWT_ADMIN_ACCESS_EXPIRES_IN: String(
     process.env.JWT_ADMIN_ACCESS_EXPIRES_IN || '15m',
   ),

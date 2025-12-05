@@ -247,7 +247,7 @@ export class AuthService {
 
     await this.sessionService.revokeAllUserSessions(dbUser.id);
 
-    const sessionExpiresIn = this.parseExpiresIn(ENV.JWT_ACCESS_EXPIRES_IN);
+    const sessionExpiresIn = this.parseExpiresIn(ENV.SESSION_EXPIRES_IN);
     const sessionId = await this.sessionService.createSession(
       dbUser.id,
       sessionExpiresIn,

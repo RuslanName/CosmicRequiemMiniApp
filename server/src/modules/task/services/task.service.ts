@@ -17,6 +17,7 @@ export class TaskService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<TaskResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -29,10 +30,16 @@ export class TaskService {
         'task.type',
         'task.value',
         'task.money_reward',
-      ])
-      .orderBy('task.created_at', 'DESC')
-      .skip(skip)
-      .take(limit);
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where('task.description ILIKE :query', {
+        query: searchQuery,
+      });
+    }
+
+    queryBuilder.orderBy('task.created_at', 'DESC').skip(skip).take(limit);
 
     const [tasks, total] = await queryBuilder.getManyAndCount();
 

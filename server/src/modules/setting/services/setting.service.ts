@@ -22,12 +22,13 @@ export class SettingService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<SettingResponseDto>> {
     const page = Number(paginationDto.page) || 1;
     const limit = Number(paginationDto.limit) || 10;
     const skip = (page - 1) * limit;
 
-    if (page === 1 && limit >= 1000) {
+    if (page === 1 && limit >= 1000 && !query) {
       const cached = await this.redis.get(this.SETTINGS_CACHE_KEY);
       if (cached) {
         const allSettings: Setting[] = JSON.parse(cached);
@@ -46,9 +47,19 @@ export class SettingService {
 
     const queryBuilder = this.settingRepository
       .createQueryBuilder('setting')
-      .select(['setting.id', 'setting.key', 'setting.value'])
-      .skip(skip)
-      .take(limit);
+      .select(['setting.id', 'setting.key', 'setting.value']);
+
+    if (query && query.trim()) {
+      const searchQuery = query.trim();
+      const id = parseInt(searchQuery, 10);
+      if (!isNaN(id)) {
+        queryBuilder.where('setting.id = :id', { id });
+      } else {
+        queryBuilder.where('setting.id = :id', { id: -1 });
+      }
+    }
+
+    queryBuilder.skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
 

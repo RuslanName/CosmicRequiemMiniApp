@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, ShopItem, CreateShopItemDto, 
 export type { ShopItem, CreateShopItemDto, UpdateShopItemDto };
 
 export const shopItemsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<ShopItem>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<ShopItem>> => {
     const response = await api.get('/shop-items', { params });
     return response.data;
   },

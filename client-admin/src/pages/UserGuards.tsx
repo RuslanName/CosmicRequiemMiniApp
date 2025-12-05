@@ -15,38 +15,24 @@ const UserGuards = () => {
   const [editingGuard, setEditingGuard] = useState<UserGuard | null>(null);
   const [formData, setFormData] = useState<CreateUserGuardDto | UpdateUserGuardDto>({});
   const [error, setError] = useState<string>('');
-  const [searchId, setSearchId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchId) {
+    if (!searchQuery) {
       loadGuards();
     }
   }, [page]);
 
-  const loadGuards = async (searchIdValue?: string) => {
+  const loadGuards = async (searchQueryValue?: string) => {
     try {
       setLoading(true);
-      if (searchIdValue) {
-        const id = parseInt(searchIdValue);
-        if (!isNaN(id)) {
-          const guard = await userGuardsApi.getById(id);
-          setGuards([guard]);
-          setTotal(1);
-          return;
-        }
-      }
-      const response = await userGuardsApi.getAll({ page, limit });
+      const response = await userGuardsApi.getAll({ page, limit, query: searchQueryValue || undefined });
       setGuards(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchIdValue) {
-        setGuards([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки стражей');
-        setGuards([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки стражей');
+      setGuards([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -54,11 +40,11 @@ const UserGuards = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadGuards(searchId);
+    loadGuards(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchId(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadGuards();
     }
@@ -135,16 +121,16 @@ const UserGuards = () => {
             <input
               type="text"
               className="search-input"
-              placeholder="Поиск по ID..."
-              value={searchId}
+              placeholder="Поиск по названию..."
+              value={searchQuery}
               onChange={handleSearchChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button className="btn btn-primary" onClick={handleSearch}>
               Найти
             </button>
-            {searchId && (
-              <button className="btn btn-secondary" onClick={() => { setSearchId(''); loadGuards(); }}>
+            {searchQuery && (
+              <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadGuards(); }}>
                 Сбросить
               </button>
             )}

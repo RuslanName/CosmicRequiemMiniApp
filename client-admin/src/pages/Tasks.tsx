@@ -15,38 +15,24 @@ const Tasks = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<CreateTaskDto | UpdateTaskDto>({});
   const [error, setError] = useState<string>('');
-  const [searchId, setSearchId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchId) {
+    if (!searchQuery) {
       loadTasks();
     }
   }, [page]);
 
-  const loadTasks = async (searchIdValue?: string) => {
+  const loadTasks = async (searchQueryValue?: string) => {
     try {
       setLoading(true);
-      if (searchIdValue) {
-        const id = parseInt(searchIdValue);
-        if (!isNaN(id)) {
-          const task = await tasksApi.getById(id);
-          setTasks([task]);
-          setTotal(1);
-          return;
-        }
-      }
-      const response = await tasksApi.getAll({ page, limit });
+      const response = await tasksApi.getAll({ page, limit, query: searchQueryValue || undefined });
       setTasks(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchIdValue) {
-        setTasks([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки заданий');
-        setTasks([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки заданий');
+      setTasks([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -54,11 +40,11 @@ const Tasks = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadTasks(searchId);
+    loadTasks(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchId(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadTasks();
     }
@@ -135,16 +121,16 @@ const Tasks = () => {
             <input
               type="text"
               className="search-input"
-              placeholder="Поиск по ID..."
-              value={searchId}
+              placeholder="Поиск по описанию..."
+              value={searchQuery}
               onChange={handleSearchChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button className="btn btn-primary" onClick={handleSearch}>
               Найти
             </button>
-            {searchId && (
-              <button className="btn btn-secondary" onClick={() => { setSearchId(''); loadTasks(); }}>
+            {searchQuery && (
+              <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadTasks(); }}>
                 Сбросить
               </button>
             )}

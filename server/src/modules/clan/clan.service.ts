@@ -306,6 +306,7 @@ export class ClanService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<ClanStatsResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -322,8 +323,16 @@ export class ClanService {
         'clan.guards_count',
         'clan.members_count',
         'clan.referral_link_id',
-      ])
-      .orderBy('clan.id', 'ASC')
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where('clan.name ILIKE :query', { query: searchQuery });
+    }
+
+    queryBuilder
+      .orderBy('(clan.strength * 1000 + clan.guards_count)', 'DESC')
+      .addOrderBy('clan.id', 'ASC')
       .skip(skip)
       .take(limit);
 
@@ -531,6 +540,8 @@ export class ClanService {
         'clan.referral_link_id',
       ])
       .where('clan.name LIKE :query', { query: `%${query.trim()}%` })
+      .orderBy('(clan.strength * 1000 + clan.guards_count)', 'DESC')
+      .addOrderBy('clan.id', 'ASC')
       .skip(skip)
       .take(limit);
 
@@ -2069,11 +2080,14 @@ export class ClanService {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
 
-    const allClans = await this.clanRepository
+    const baseQuery = this.clanRepository
       .createQueryBuilder('clan')
       .where('clan.image_path IS NOT NULL')
-      .andWhere("clan.image_path != ''")
-      .getMany();
+      .andWhere("clan.image_path != ''");
+
+    const total = await baseQuery.getCount();
+
+    const allClans = await baseQuery.getMany();
 
     const clanIds = allClans.map((clan) => clan.id);
 
@@ -2172,7 +2186,6 @@ export class ClanService {
       }
     }
 
-    const total = clansWithRating.length;
     const clanIndexMap = new Map<number, number>();
     clansWithRating.forEach((clan, index) => {
       clanIndexMap.set(clan.id, index + 1);

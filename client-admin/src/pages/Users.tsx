@@ -13,38 +13,24 @@ const Users = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UpdateUserDto>({});
   const [error, setError] = useState<string>('');
-  const [searchId, setSearchId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchId) {
+    if (!searchQuery) {
       loadUsers();
     }
   }, [page]);
 
-  const loadUsers = async (searchIdValue?: string) => {
+  const loadUsers = async (searchQuery?: string) => {
     try {
       setLoading(true);
-      if (searchIdValue) {
-        const id = parseInt(searchIdValue);
-        if (!isNaN(id)) {
-          const user = await usersApi.getById(id);
-          setUsers([user]);
-          setTotal(1);
-          return;
-        }
-      }
-      const response = await usersApi.getAll({ page, limit });
+      const response = await usersApi.getAll({ page, limit, query: searchQuery || undefined });
       setUsers(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchIdValue) {
-        setUsers([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки пользователей');
-        setUsers([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки пользователей');
+      setUsers([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -52,11 +38,11 @@ const Users = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadUsers(searchId);
+    loadUsers(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchId(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadUsers();
     }
@@ -112,16 +98,16 @@ const Users = () => {
           <input
             type="text"
             className="search-input"
-            placeholder="Поиск по ID..."
-            value={searchId}
+            placeholder="Поиск по ФИО..."
+            value={searchQuery}
             onChange={handleSearchChange}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button className="btn btn-primary" onClick={handleSearch}>
             Найти
           </button>
-          {searchId && (
-            <button className="btn btn-secondary" onClick={() => { setSearchId(''); loadUsers(); }}>
+          {searchQuery && (
+            <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadUsers(); }}>
               Сбросить
             </button>
           )}

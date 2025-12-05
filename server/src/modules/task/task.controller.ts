@@ -37,6 +37,12 @@ export class TaskController {
   @ApiOperation({ summary: 'Получить все задания с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Поиск по описанию',
+  })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<TaskResponseDto>,
@@ -45,8 +51,9 @@ export class TaskController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('query') query?: string,
   ): Promise<PaginatedResponseDto<TaskResponseDto>> {
-    return this.taskService.findAll(paginationDto);
+    return this.taskService.findAll(paginationDto, query);
   }
 
   @Get(':id')

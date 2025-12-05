@@ -31,6 +31,7 @@ export class UserGuardService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<UserGuardAdminResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -43,10 +44,14 @@ export class UserGuardService {
         'guard.strength',
         'guard.is_first',
         'guard.user_id',
-      ])
-      .orderBy('guard.id', 'DESC')
-      .skip(skip)
-      .take(limit);
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where('guard.name ILIKE :query', { query: searchQuery });
+    }
+
+    queryBuilder.orderBy('guard.id', 'DESC').skip(skip).take(limit);
 
     const [userGuards, total] = await queryBuilder.getManyAndCount();
 
@@ -95,14 +100,25 @@ export class UserGuardService {
   ): Promise<UserGuardAdminResponseDto> {
     const { user_id, ...rest } = createUserGuardDto;
 
-    if (rest.is_first && rest.strength !== undefined) {
-      const maxStrengthFirstGuard = Settings[
-        SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+    if (rest.strength !== undefined) {
+      const maxStrengthGuard = Settings[
+        SettingKey.MAX_STRENGTH_USER_GUARD
       ] as number;
-      if (rest.strength > maxStrengthFirstGuard) {
+      if (rest.strength > maxStrengthGuard) {
         throw new BadRequestException(
-          `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
+          `Сила стража не может превышать ${maxStrengthGuard}`,
         );
+      }
+
+      if (rest.is_first) {
+        const maxStrengthFirstGuard = Settings[
+          SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+        ] as number;
+        if (rest.strength > maxStrengthFirstGuard) {
+          throw new BadRequestException(
+            `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
+          );
+        }
       }
     }
 
@@ -156,14 +172,25 @@ export class UserGuardService {
     const newStrength =
       rest.strength !== undefined ? rest.strength : userGuard.strength;
 
-    if (isFirst && newStrength !== undefined) {
-      const maxStrengthFirstGuard = Settings[
-        SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+    if (newStrength !== undefined) {
+      const maxStrengthGuard = Settings[
+        SettingKey.MAX_STRENGTH_USER_GUARD
       ] as number;
-      if (newStrength > maxStrengthFirstGuard) {
+      if (newStrength > maxStrengthGuard) {
         throw new BadRequestException(
-          `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
+          `Сила стража не может превышать ${maxStrengthGuard}`,
         );
+      }
+
+      if (isFirst) {
+        const maxStrengthFirstGuard = Settings[
+          SettingKey.MAX_STRENGTH_FIRST_USER_GUARD
+        ] as number;
+        if (newStrength > maxStrengthFirstGuard) {
+          throw new BadRequestException(
+            `Сила первого стража не может превышать ${maxStrengthFirstGuard}`,
+          );
+        }
       }
     }
 

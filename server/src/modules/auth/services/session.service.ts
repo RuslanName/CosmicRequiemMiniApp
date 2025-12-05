@@ -14,7 +14,7 @@ export class SessionService {
 
   async createSession(
     userId: number,
-    expiresInSeconds: number = 30 * 24 * 60 * 60,
+    expiresInSeconds: number,
   ): Promise<string> {
     const sessionId = randomBytes(32).toString('hex');
     const expiresAt = new Date();

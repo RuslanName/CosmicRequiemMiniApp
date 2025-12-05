@@ -37,6 +37,12 @@ export class UserGuardController {
   @ApiOperation({ summary: 'Получить всех стражей с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Поиск по названию',
+  })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<UserGuardAdminResponseDto>,
@@ -45,8 +51,9 @@ export class UserGuardController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('query') query?: string,
   ): Promise<PaginatedResponseDto<UserGuardAdminResponseDto>> {
-    return this.userGuardService.findAll(paginationDto);
+    return this.userGuardService.findAll(paginationDto, query);
   }
 
   @Get(':id')
@@ -67,7 +74,7 @@ export class UserGuardController {
   @ApiOperation({
     summary: 'Создать нового стража',
     description:
-      'Создает нового стража. Если is_first=true и strength превышает max_strength_first_user_guard, будет установлено максимальное значение.',
+      'Создает нового стража. Если strength превышает max_strength_user_guard, будет выброшена ошибка. Если is_first=true и strength превышает max_strength_first_user_guard, будет выброшена ошибка.',
   })
   @ApiBody({ type: CreateUserGuardDto })
   @ApiResponse({
@@ -91,7 +98,7 @@ export class UserGuardController {
   @ApiOperation({
     summary: 'Обновить стража',
     description:
-      'Обновляет информацию о страже. Если is_first=true и strength превышает max_strength_first_user_guard, будет установлено максимальное значение.',
+      'Обновляет информацию о страже. Если strength превышает max_strength_user_guard, будет выброшена ошибка. Если is_first=true и strength превышает max_strength_first_user_guard, будет выброшена ошибка.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID стража' })
   @ApiBody({ type: UpdateUserGuardDto })

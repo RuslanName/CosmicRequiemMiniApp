@@ -17,38 +17,24 @@ const ShopItems = () => {
   const [editingAccessory, setEditingAccessory] = useState<ShopItem | null>(null);
   const [formData, setFormData] = useState<CreateShopItemDto | UpdateShopItemDto>({});
   const [error, setError] = useState<string>('');
-  const [searchId, setSearchId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchId) {
+    if (!searchQuery) {
       loadAccessories();
     }
   }, [page]);
 
-  const loadAccessories = async (searchIdValue?: string) => {
+  const loadAccessories = async (searchQueryValue?: string) => {
     try {
       setLoading(true);
-      if (searchIdValue) {
-        const id = parseInt(searchIdValue);
-        if (!isNaN(id)) {
-          const accessory = await shopItemsApi.getById(id);
-          setAccessories([accessory]);
-          setTotal(1);
-          return;
-        }
-      }
-      const response = await shopItemsApi.getAll({ page, limit });
+      const response = await shopItemsApi.getAll({ page, limit, query: searchQueryValue || undefined });
       setAccessories(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchIdValue) {
-        setAccessories([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки товаров магазина');
-        setAccessories([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки товаров магазина');
+      setAccessories([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -56,11 +42,11 @@ const ShopItems = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadAccessories(searchId);
+    loadAccessories(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchId(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadAccessories();
     }
@@ -138,16 +124,16 @@ const ShopItems = () => {
             <input
               type="text"
               className="search-input"
-              placeholder="Поиск по ID..."
-              value={searchId}
+              placeholder="Поиск по названию..."
+              value={searchQuery}
               onChange={handleSearchChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button className="btn btn-primary" onClick={handleSearch}>
               Найти
             </button>
-            {searchId && (
-              <button className="btn btn-secondary" onClick={() => { setSearchId(''); loadAccessories(); }}>
+            {searchQuery && (
+              <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadAccessories(); }}>
                 Сбросить
               </button>
             )}

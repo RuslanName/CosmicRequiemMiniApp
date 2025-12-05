@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, UserGuard, CreateUserGuardDto
 export type { UserGuard, CreateUserGuardDto, UpdateUserGuardDto };
 
 export const userGuardsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<UserGuard>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<UserGuard>> => {
     const response = await api.get('/user-guards', { params });
     return response.data;
   },

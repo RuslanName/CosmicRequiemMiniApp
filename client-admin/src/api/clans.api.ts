@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, Clan, CreateClanDto, UpdateCl
 export type { Clan, CreateClanDto, UpdateClanDto };
 
 export const clansApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Clan>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<Clan>> => {
     const response = await api.get('/clans', { params });
     return response.data;
   },

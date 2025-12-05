@@ -12,6 +12,29 @@ import { ENV } from '../../../config/constants';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private parseExpiresIn(expiresIn: string): number {
+    const match = expiresIn.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      return 30 * 24 * 60 * 60;
+    }
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    switch (unit) {
+      case 's':
+        return value;
+      case 'm':
+        return value * 60;
+      case 'h':
+        return value * 60 * 60;
+      case 'd':
+        return value * 24 * 60 * 60;
+      default:
+        return 30 * 24 * 60 * 60;
+    }
+  }
+
   @Post()
   @ApiOperation({
     summary: 'Аутентификация пользователя и получение сессии (Для Mini App)',
@@ -37,11 +60,12 @@ export class AuthController {
       headerStartParam,
     );
 
+    const sessionExpiresInSeconds = this.parseExpiresIn(ENV.SESSION_EXPIRES_IN);
     res.cookie('session_id', sessionId, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
+      maxAge: sessionExpiresInSeconds * 1000,
       path: '/',
     });
 

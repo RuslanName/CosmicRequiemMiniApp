@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, User, UpdateUserDto } from '.
 export type { User, UpdateUserDto };
 
 export const usersApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<User>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<User>> => {
     const response = await api.get('/users', { params });
     return response.data;
   },

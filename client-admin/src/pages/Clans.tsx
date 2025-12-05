@@ -17,38 +17,24 @@ const Clans = () => {
   const [formData, setFormData] = useState<CreateClanDto | UpdateClanDto>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
-  const [searchId, setSearchId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchId) {
+    if (!searchQuery) {
       loadClans();
     }
   }, [page]);
 
-  const loadClans = async (searchIdValue?: string) => {
+  const loadClans = async (searchQueryValue?: string) => {
     try {
       setLoading(true);
-      if (searchIdValue) {
-        const id = parseInt(searchIdValue);
-        if (!isNaN(id)) {
-          const clan = await clansApi.getById(id);
-          setClans([clan]);
-          setTotal(1);
-          return;
-        }
-      }
-      const response = await clansApi.getAll({ page, limit });
+      const response = await clansApi.getAll({ page, limit, query: searchQueryValue || undefined });
       setClans(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchIdValue) {
-        setClans([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки кланов');
-        setClans([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки кланов');
+      setClans([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -56,11 +42,11 @@ const Clans = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadClans(searchId);
+    loadClans(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchId(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadClans();
     }
@@ -140,16 +126,16 @@ const Clans = () => {
             <input
               type="text"
               className="search-input"
-              placeholder="Поиск по ID..."
-              value={searchId}
+              placeholder="Поиск по названию..."
+              value={searchQuery}
               onChange={handleSearchChange}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button className="btn btn-primary" onClick={handleSearch}>
               Найти
             </button>
-            {searchId && (
-              <button className="btn btn-secondary" onClick={() => { setSearchId(''); loadClans(); }}>
+            {searchQuery && (
+              <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadClans(); }}>
                 Сбросить
               </button>
             )}

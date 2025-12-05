@@ -26,7 +26,7 @@ export interface UpdateTaskDto {
 }
 
 export const tasksApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Task>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<Task>> => {
     const response = await api.get('/tasks', { params });
     return response.data;
   },

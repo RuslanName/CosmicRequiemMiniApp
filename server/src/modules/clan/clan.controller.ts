@@ -67,6 +67,12 @@ export class ClanController {
   @ApiOperation({ summary: 'Получить все кланы с пагинацией' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Поиск по названию',
+  })
   @ApiResponse({
     status: 200,
     type: PaginatedResponseDto<ClanStatsResponseDto>,
@@ -75,8 +81,9 @@ export class ClanController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async findAll(
     @Query() paginationDto: PaginationDto,
+    @Query('query') query?: string,
   ): Promise<PaginatedResponseDto<ClanStatsResponseDto>> {
-    return this.clanService.findAll(paginationDto);
+    return this.clanService.findAll(paginationDto, query);
   }
 
   @Get('list')

@@ -135,6 +135,7 @@ export class KitService {
 
   async findAll(
     paginationDto: PaginationDto,
+    query?: string,
   ): Promise<PaginatedResponseDto<KitResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
@@ -156,9 +157,14 @@ export class KitService {
         'item_templates.image_path',
         'item_templates.quantity',
         'item_templates.name_in_kit',
-      ])
-      .skip(skip)
-      .take(limit);
+      ]);
+
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim()}%`;
+      queryBuilder.where('kit.name ILIKE :query', { query: searchQuery });
+    }
+
+    queryBuilder.skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
 

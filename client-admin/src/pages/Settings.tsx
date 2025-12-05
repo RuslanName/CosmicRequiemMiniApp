@@ -14,40 +14,24 @@ const Settings = () => {
   const [editingSetting, setEditingSetting] = useState<Setting | null>(null);
   const [formData, setFormData] = useState<UpdateSettingDto>({});
   const [error, setError] = useState<string>('');
-  const [searchKey, setSearchKey] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (!searchKey) {
+    if (!searchQuery) {
       loadSettings();
     }
   }, [page]);
 
-  const loadSettings = async (searchKeyValue?: string) => {
+  const loadSettings = async (searchQueryValue?: string) => {
     try {
       setLoading(true);
-      if (searchKeyValue) {
-        const setting = await settingsApi.getByKey(searchKeyValue);
-        if (setting) {
-          setSettings([setting]);
-          setTotal(1);
-        } else {
-          setSettings([]);
-          setTotal(0);
-        }
-        return;
-      }
-      const response = await settingsApi.getAll({ page, limit });
+      const response = await settingsApi.getAll({ page, limit, query: searchQueryValue || undefined });
       setSettings(response?.data || []);
       setTotal(response?.total || 0);
     } catch (err: any) {
-      if (err.response?.status === 404 && searchKeyValue) {
-        setSettings([]);
-        setTotal(0);
-      } else {
-        setError(err.response?.data?.message || 'Ошибка загрузки настроек');
-        setSettings([]);
-        setTotal(0);
-      }
+      setError(err.response?.data?.message || 'Ошибка загрузки настроек');
+      setSettings([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -55,11 +39,11 @@ const Settings = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadSettings(searchKey);
+    loadSettings(searchQuery);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchKey(e.target.value);
+    setSearchQuery(e.target.value);
     if (!e.target.value) {
       loadSettings();
     }
@@ -109,16 +93,16 @@ const Settings = () => {
           <input
             type="text"
             className="search-input"
-            placeholder="Поиск по ключу..."
-            value={searchKey}
+            placeholder="Поиск по ID..."
+            value={searchQuery}
             onChange={handleSearchChange}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button className="btn btn-primary" onClick={handleSearch}>
             Найти
           </button>
-          {searchKey && (
-            <button className="btn btn-secondary" onClick={() => { setSearchKey(''); loadSettings(); }}>
+          {searchQuery && (
+            <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); loadSettings(); }}>
               Сбросить
             </button>
           )}

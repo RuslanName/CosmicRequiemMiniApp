@@ -4,7 +4,7 @@ import type { PaginationParams, PaginatedResponse, Kit, CreateKitDto, UpdateKitD
 export type { Kit, CreateKitDto, UpdateKitDto };
 
 export const kitsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Kit>> => {
+  getAll: async (params?: PaginationParams & { query?: string }): Promise<PaginatedResponse<Kit>> => {
     const response = await api.get('/kits', { params });
     return response.data;
   },
