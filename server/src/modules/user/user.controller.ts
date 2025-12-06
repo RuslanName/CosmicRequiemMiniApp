@@ -158,7 +158,7 @@ export class UserController {
   @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
-  @CacheKey('user:rating')
+  @CacheKey('user:rating:page::page:limit::limit')
   @ApiOperation({
     summary: 'Получить рейтинг пользователей (Для Mini App)',
     description:

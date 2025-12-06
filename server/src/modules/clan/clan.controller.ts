@@ -279,7 +279,7 @@ export class ClanController {
   @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @CacheTTL(60)
-  @CacheKey('clan:rating')
+  @CacheKey('clan:rating:page::page:limit::limit')
   @ApiOperation({
     summary: 'Получить рейтинг кланов (Для Mini App)',
     description:
