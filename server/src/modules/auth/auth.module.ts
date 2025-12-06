@@ -33,8 +33,8 @@ import { TaskModule } from '../task/task.module';
     TaskModule,
     PassportModule,
     JwtModule.register({
-      secret: ENV.JWT_ACCESS_SECRET,
-      signOptions: { expiresIn: ENV.JWT_ACCESS_EXPIRES_IN as any },
+      secret: ENV.JWT_ADMIN_ACCESS_SECRET,
+      signOptions: { expiresIn: ENV.JWT_ADMIN_ACCESS_EXPIRES_IN as any },
       global: true,
     }),
   ],

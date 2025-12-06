@@ -15,7 +15,7 @@ export const ENV = {
   VK_APP_SECRET: process.env.VK_APP_SECRET!,
   VK_APP_URL: process.env.VK_APP_URL!,
   VK_SERVICE_TOKEN: process.env.VK_SERVICE_TOKEN || '',
-  JWT_ADMIN_ACCESS_SECRET: process.env.JWT_ADMIN_ACCESS_SECRET,
+  JWT_ADMIN_ACCESS_SECRET: process.env.JWT_ADMIN_ACCESS_SECRET || '',
   SESSION_EXPIRES_IN: process.env.SESSION_EXPIRES_IN || '4h',
   JWT_ADMIN_REFRESH_SECRET:
     process.env.JWT_ADMIN_REFRESH_SECRET + '_admin_refresh',
