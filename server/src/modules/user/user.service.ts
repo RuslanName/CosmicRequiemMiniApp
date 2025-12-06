@@ -890,13 +890,30 @@ export class UserService {
         : Promise.resolve(new Map<number, any[]>()),
     ]);
 
-    const data = users.map((user) => {
-      return this.transformToUserRatingResponseDto(
-        user,
-        accessoriesMap.get(user.id) || [],
-        shieldBoostsMap,
-      );
-    });
+    const data = await Promise.all(
+      users.map(async (user) => {
+        const userScore =
+          (user.strength || 0) * 1000 + (Number(user.money) || 0);
+        const ratingPlaceQuery = this.userRepository
+          .createQueryBuilder('u')
+          .where('u.image_path IS NOT NULL')
+          .andWhere("u.image_path != ''")
+          .andWhere(
+            '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
+            { userScore, userId: user.id },
+          );
+        const ratingPlace = (await ratingPlaceQuery.getCount()) + 1;
+
+        return {
+          ...this.transformToUserRatingResponseDto(
+            user,
+            accessoriesMap.get(user.id) || [],
+            shieldBoostsMap,
+          ),
+          rating_place: ratingPlace,
+        };
+      }),
+    );
 
     return {
       data,
