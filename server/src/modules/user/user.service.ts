@@ -493,27 +493,28 @@ export class UserService {
 
   async findMe(userId: number): Promise<CurrentUserResponseDto> {
     const [user, equippedAccessories, activeBoosts] = await Promise.all([
-      this.userRepository.findOne({
-        where: { id: userId },
-        select: [
-          'id',
-          'vk_id',
-          'first_name',
-          'last_name',
-          'image_path',
-          'money',
-          'clan_id',
-          'strength',
-          'guards_count',
-          'referrals_count',
-          'referral_link_id',
-          'last_training_time',
-          'last_contract_time',
-          'last_attack_time',
-          'adv_disable_end_time',
-        ],
-        cache: false,
-      }),
+      this.userRepository
+        .createQueryBuilder('user')
+        .where('user.id = :userId', { userId })
+        .select([
+          'user.id',
+          'user.vk_id',
+          'user.first_name',
+          'user.last_name',
+          'user.image_path',
+          'user.money',
+          'user.clan_id',
+          'user.strength',
+          'user.guards_count',
+          'user.referrals_count',
+          'user.referral_link_id',
+          'user.last_training_time',
+          'user.last_contract_time',
+          'user.last_attack_time',
+          'user.adv_disable_end_time',
+        ])
+        .cache(false)
+        .getOne(),
       this.userAccessoryService.findEquippedByUserId(userId),
       this.userBoostService.findActiveByUserId(userId),
     ]);
@@ -925,10 +926,17 @@ export class UserService {
   }
 
   async getUserRatingPlace(userId: number): Promise<number | null> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'strength', 'guards_count', 'image_path'],
-    });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.id = :userId', { userId })
+      .select([
+        'user.id',
+        'user.strength',
+        'user.guards_count',
+        'user.image_path',
+      ])
+      .cache(false)
+      .getOne();
 
     if (!user || !user.image_path) {
       return null;
@@ -1879,9 +1887,12 @@ export class UserService {
           stolen_money = Math.round(defender.money * 0.15 * (win_chance / 100));
 
           if (stolen_money > 0) {
-            defender.money = Number(defender.money) - stolen_money;
-            attacker.money = Number(attacker.money) + stolen_money;
-            await manager.save(User, [defender, attacker]);
+            const newDefenderMoney = Number(defender.money) - stolen_money;
+            const newAttackerMoney = Number(attacker.money) + stolen_money;
+            await Promise.all([
+              manager.update(User, defender.id, { money: newDefenderMoney }),
+              manager.update(User, attacker.id, { money: newAttackerMoney }),
+            ]);
 
             const moneyItem = manager.create(StolenItem, {
               type: StolenItemType.MONEY,
@@ -1941,8 +1952,9 @@ export class UserService {
 
         await Promise.all(statsUpdates);
 
-        attacker.last_attack_time = new Date();
-        await manager.save(User, attacker);
+        await manager.update(User, attacker.id, {
+          last_attack_time: new Date(),
+        });
 
         const attackCooldownEnd = new Date(
           new Date().getTime() + attackCooldown,
@@ -1997,8 +2009,9 @@ export class UserService {
 
       await Promise.all(statsUpdates);
 
-      attacker.last_attack_time = new Date();
-      await manager.save(User, attacker);
+      await manager.update(User, attacker.id, {
+        last_attack_time: new Date(),
+      });
 
       const attackCooldownEnd = new Date(new Date().getTime() + attackCooldown);
 

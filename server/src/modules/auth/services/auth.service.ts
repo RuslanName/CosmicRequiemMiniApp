@@ -207,23 +207,16 @@ export class AuthService {
         if (!this.verifyVkImageUrl(photoUrl)) {
           throw new UnauthorizedException('Неверный URL аватара профиля');
         }
-        const needsUpdate =
-          !dbUser.image_path ||
-          dbUser.image_path.startsWith('http') ||
-          (dbUser.image_path &&
-            !fs.existsSync(path.join(process.cwd(), dbUser.image_path)));
 
-        if (needsUpdate) {
-          await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
-          dbUser = await this.userRepository.findOne({
-            where: { id: dbUser.id },
-            relations: ['clan', 'referrer'],
-          });
-          if (!dbUser) {
-            throw new UnauthorizedException(
-              'Пользователь не найден после обновления аватара',
-            );
-          }
+        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+        dbUser = await this.userRepository.findOne({
+          where: { id: dbUser.id },
+          relations: ['clan', 'referrer'],
+        });
+        if (!dbUser) {
+          throw new UnauthorizedException(
+            'Пользователь не найден после обновления аватара',
+          );
         }
       }
 
