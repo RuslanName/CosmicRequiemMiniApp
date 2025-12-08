@@ -1589,8 +1589,16 @@ export class UserService {
           throw new BadRequestException(
             `Ошибка VK API при получении друзей: ${data.error.error_msg || data.error.error_code}`,
           );
-        } else if (data.response && data.response.items) {
-          finalFriendVkIds = data.response.items;
+        }
+        
+        if (data.response) {
+          if (Array.isArray(data.response)) {
+            finalFriendVkIds = data.response;
+          } else if (data.response.items && Array.isArray(data.response.items)) {
+            finalFriendVkIds = data.response.items;
+          } else if (data.response.count !== undefined) {
+            finalFriendVkIds = [];
+          }
         }
       } catch (error) {
         if (error instanceof BadRequestException) {

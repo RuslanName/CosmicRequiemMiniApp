@@ -682,7 +682,7 @@ export class ClanService {
     let groupName = createClanByUserDto.name;
     let groupImageUrl = createClanByUserDto.image_url;
 
-    if (createClanByUserDto.vk_access_token && (!groupName || !groupImageUrl)) {
+    if (createClanByUserDto.vk_access_token) {
       try {
         const vkApiUrl = 'https://api.vk.com/method/groups.getById';
         const vkApiParams = new URLSearchParams({
@@ -696,19 +696,23 @@ export class ClanService {
         const data = await response.json();
 
         if (data.error) {
+          console.error('VK API error in groups.getById:', data.error);
           throw new BadRequestException(
             `Ошибка VK API при получении данных группы: ${data.error.error_msg || data.error.error_code}`,
           );
         }
 
-        if (data.response && data.response[0]) {
+        if (data.response && Array.isArray(data.response) && data.response.length > 0) {
           const group = data.response[0];
-          if (!groupName) {
+          if (!groupName || !groupName.trim()) {
             groupName = group.name;
           }
-          if (!groupImageUrl) {
+          if (!groupImageUrl || !groupImageUrl.trim()) {
             groupImageUrl = group.photo_200 || '';
           }
+        } else {
+          console.error('VK API groups.getById: пустой ответ или группа не найдена', data);
+          throw new BadRequestException('Группа не найдена или недоступна');
         }
       } catch (error) {
         if (error instanceof BadRequestException) {
