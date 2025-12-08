@@ -15,9 +15,4 @@ export class CreateClanByUserDto {
   @IsOptional()
   @IsString()
   image_url?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  vk_access_token?: string;
 }

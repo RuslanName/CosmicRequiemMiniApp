@@ -1590,11 +1590,14 @@ export class UserService {
             `Ошибка VK API при получении друзей: ${data.error.error_msg || data.error.error_code}`,
           );
         }
-        
+
         if (data.response) {
           if (Array.isArray(data.response)) {
             finalFriendVkIds = data.response;
-          } else if (data.response.items && Array.isArray(data.response.items)) {
+          } else if (
+            data.response.items &&
+            Array.isArray(data.response.items)
+          ) {
             finalFriendVkIds = data.response.items;
           } else if (data.response.count !== undefined) {
             finalFriendVkIds = [];

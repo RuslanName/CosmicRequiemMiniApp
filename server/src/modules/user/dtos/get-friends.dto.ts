@@ -26,4 +26,3 @@ export class GetFriendsDto {
   @IsString()
   vk_access_token?: string;
 }
-
