@@ -4,14 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import {
-  In,
-  Not,
-  IsNull,
-  Repository,
-  DataSource,
-  EntityManager,
-} from 'typeorm';
+import { In, Not, Repository, DataSource, EntityManager } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { CreateClanDto } from './dtos/create-clan.dto';
 import { CreateClanByUserDto } from './dtos/create-clan-by-user.dto';
@@ -334,7 +327,8 @@ export class ClanService {
     }
 
     queryBuilder
-      .orderBy('(clan.strength * 1000 + clan.guards_count)', 'DESC')
+      .orderBy('clan.strength', 'DESC')
+      .addOrderBy('clan.guards_count', 'DESC')
       .addOrderBy('clan.id', 'ASC')
       .skip(skip)
       .take(limit);
@@ -543,7 +537,8 @@ export class ClanService {
         'clan.referral_link_id',
       ])
       .where('clan.name LIKE :query', { query: `%${query.trim()}%` })
-      .orderBy('(clan.strength * 1000 + clan.guards_count)', 'DESC')
+      .orderBy('clan.strength', 'DESC')
+      .addOrderBy('clan.guards_count', 'DESC')
       .addOrderBy('clan.id', 'ASC')
       .skip(skip)
       .take(limit);
@@ -2043,9 +2038,18 @@ export class ClanService {
         return 1;
       }
 
-      const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
-      const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
-      return scoreB - scoreA;
+      const strengthA = a.strength || 0;
+      const strengthB = b.strength || 0;
+      const guardsA = a.guards_count || 0;
+      const guardsB = b.guards_count || 0;
+
+      if (strengthB !== strengthA) {
+        return strengthB - strengthA;
+      }
+      if (guardsB !== guardsA) {
+        return guardsB - guardsA;
+      }
+      return 0;
     });
 
     return membersWithStats;
@@ -2086,9 +2090,18 @@ export class ClanService {
         return 1;
       }
 
-      const scoreA = (a.strength || 0) * 1000 + (a.money || 0);
-      const scoreB = (b.strength || 0) * 1000 + (b.money || 0);
-      return scoreB - scoreA;
+      const strengthA = a.strength || 0;
+      const strengthB = b.strength || 0;
+      const guardsA = a.guards_count || 0;
+      const guardsB = b.guards_count || 0;
+
+      if (strengthB !== strengthA) {
+        return strengthB - strengthA;
+      }
+      if (guardsB !== guardsA) {
+        return guardsB - guardsA;
+      }
+      return 0;
     });
 
     return membersWithStats;
@@ -2109,10 +2122,8 @@ export class ClanService {
     const total = await baseQuery.getCount();
 
     const clans = await baseQuery
-      .orderBy(
-        '(clan.strength * 1000 + COALESCE(clan.guards_count, 0))',
-        'DESC',
-      )
+      .orderBy('clan.strength', 'DESC')
+      .addOrderBy('clan.guards_count', 'DESC')
       .addOrderBy('clan.id', 'ASC')
       .skip(skip)
       .take(actualLimit)

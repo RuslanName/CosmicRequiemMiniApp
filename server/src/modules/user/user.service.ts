@@ -47,7 +47,6 @@ import { UserAccessoryResponseDto } from '../user-accessory/dtos/responses/user-
 import { UserAttackPlayerResponseDto } from './dtos/responses/attack-player-response.dto';
 import { UserTaskService } from '../task/services/user-task.service';
 import { TaskType } from '../task/enums/task-type.enum';
-import { UserTaskStatus } from '../task/enums/user-task-status.enum';
 import { UserTasksResponseDto } from './dtos/responses/user-tasks-response.dto';
 import { UserTaskResponseDto } from '../task/dtos/responses/user-task-response.dto';
 
@@ -95,6 +94,20 @@ export class UserService {
         strength: strength,
       });
     }
+  }
+
+  private async updateClanStatsInTransaction(
+    clanId: number,
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.query(
+      `UPDATE clan SET 
+        strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
+        guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
+        members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
+      WHERE id = $1`,
+      [clanId],
+    );
   }
 
   private isInitialReferrer(
@@ -499,6 +512,7 @@ export class UserService {
           'last_attack_time',
           'adv_disable_end_time',
         ],
+        cache: false,
       }),
       this.userAccessoryService.findEquippedByUserId(userId),
       this.userBoostService.findActiveByUserId(userId),
@@ -860,7 +874,8 @@ export class UserService {
         'user.guards_count',
         'user.money',
       ])
-      .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
+      .orderBy('user.strength', 'DESC')
+      .addOrderBy('user.guards_count', 'DESC')
       .addOrderBy('user.id', 'ASC')
       .skip(skip)
       .take(actualLimit)
@@ -878,15 +893,15 @@ export class UserService {
 
     const data = await Promise.all(
       users.map(async (user) => {
-        const userScore =
-          (user.strength || 0) * 1000 + (Number(user.money) || 0);
+        const userStrength = user.strength || 0;
+        const userGuardsCount = user.guards_count || 0;
         const ratingPlaceQuery = this.userRepository
           .createQueryBuilder('u')
           .where('u.image_path IS NOT NULL')
           .andWhere("u.image_path != ''")
           .andWhere(
-            '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
-            { userScore, userId: user.id },
+            '(u.strength > :userStrength OR (u.strength = :userStrength AND u.guards_count > :userGuardsCount) OR (u.strength = :userStrength AND u.guards_count = :userGuardsCount AND u.id < :userId))',
+            { userStrength, userGuardsCount, userId: user.id },
           );
         const ratingPlace = (await ratingPlaceQuery.getCount()) + 1;
 
@@ -912,21 +927,22 @@ export class UserService {
   async getUserRatingPlace(userId: number): Promise<number | null> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'strength', 'money', 'image_path'],
+      select: ['id', 'strength', 'guards_count', 'image_path'],
     });
 
     if (!user || !user.image_path) {
       return null;
     }
 
-    const userScore = (user.strength || 0) * 1000 + (Number(user.money) || 0);
+    const userStrength = user.strength || 0;
+    const userGuardsCount = user.guards_count || 0;
     const ratingPlaceQuery = this.userRepository
       .createQueryBuilder('u')
       .where('u.image_path IS NOT NULL')
       .andWhere("u.image_path != ''")
       .andWhere(
-        '(u.strength * 1000 + COALESCE(u.money, 0)) > :userScore OR ((u.strength * 1000 + COALESCE(u.money, 0)) = :userScore AND u.id < :userId)',
-        { userScore, userId: user.id },
+        '(u.strength > :userStrength OR (u.strength = :userStrength AND u.guards_count > :userGuardsCount) OR (u.strength = :userStrength AND u.guards_count = :userGuardsCount AND u.id < :userId))',
+        { userStrength, userGuardsCount, userId: user.id },
       );
     return (await ratingPlaceQuery.getCount()) + 1;
   }
@@ -957,15 +973,16 @@ export class UserService {
       return null;
     }
 
-    const clanScore = (clan.strength || 0) * 1000 + (clan.guards_count || 0);
+    const clanStrength = clan.strength || 0;
+    const clanGuardsCount = clan.guards_count || 0;
     const ratingPlaceQuery = this.dataSource
       .getRepository(Clan)
       .createQueryBuilder('c')
       .where('c.image_path IS NOT NULL')
       .andWhere("c.image_path != ''")
       .andWhere(
-        '(c.strength * 1000 + COALESCE(c.guards_count, 0)) > :clanScore OR ((c.strength * 1000 + COALESCE(c.guards_count, 0)) = :clanScore AND c.id < :clanId)',
-        { clanScore, clanId: clan.id },
+        '(c.strength > :clanStrength OR (c.strength = :clanStrength AND c.guards_count > :clanGuardsCount) OR (c.strength = :clanStrength AND c.guards_count = :clanGuardsCount AND c.id < :clanId))',
+        { clanStrength, clanGuardsCount, clanId: clan.id },
       );
     return (await ratingPlaceQuery.getCount()) + 1;
   }
@@ -1323,7 +1340,8 @@ export class UserService {
       total = await queryBuilder.getCount();
 
       users = await queryBuilder
-        .orderBy('(user.strength * 1000 + COALESCE(user.money, 0))', 'DESC')
+        .orderBy('user.strength', 'DESC')
+        .addOrderBy('user.guards_count', 'DESC')
         .addOrderBy('user.id', 'ASC')
         .skip(skip)
         .take(limit)
@@ -1433,10 +1451,10 @@ export class UserService {
 
       sortedQueryBuilder
         .addSelect(`ABS(user.strength - :currentStrength)`, 'distance')
-        .addSelect(`user.strength * 1000 + COALESCE(user.money, 0)`, 'score')
         .setParameter('currentStrength', Math.floor(currentStrength))
         .orderBy('distance', 'ASC')
-        .addOrderBy('score', 'DESC')
+        .addOrderBy('user.strength', 'DESC')
+        .addOrderBy('user.guards_count', 'DESC')
         .addOrderBy('user.id', 'ASC')
         .skip(skip)
         .take(limit);
@@ -1569,10 +1587,16 @@ export class UserService {
       .filter((user) => user.image_path && user.image_path !== '');
 
     filteredUsers.sort((a, b) => {
-      const scoreA = (a.strength ?? 0) * 1000 + (Number(a.money) || 0);
-      const scoreB = (b.strength ?? 0) * 1000 + (Number(b.money) || 0);
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA;
+      const strengthA = a.strength ?? 0;
+      const strengthB = b.strength ?? 0;
+      const guardsA = a.guards_count ?? 0;
+      const guardsB = b.guards_count ?? 0;
+
+      if (strengthB !== strengthA) {
+        return strengthB - strengthA;
+      }
+      if (guardsB !== guardsA) {
+        return guardsB - guardsA;
       }
       return a.id - b.id;
     });
@@ -1775,26 +1799,12 @@ export class UserService {
 
         if (attacker.clan_id) {
           statsUpdates.push(
-            manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [attacker.clan_id],
-            ),
+            this.updateClanStatsInTransaction(attacker.clan_id, manager),
           );
         }
         if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
           statsUpdates.push(
-            manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [defender.clan_id],
-            ),
+            this.updateClanStatsInTransaction(defender.clan_id, manager),
           );
         }
 
@@ -1820,24 +1830,10 @@ export class UserService {
           ]);
 
           if (attacker.clan_id) {
-            await manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [attacker.clan_id],
-            );
+            await this.updateClanStatsInTransaction(attacker.clan_id, manager);
           }
           if (defender.clan_id) {
-            await manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [defender.clan_id],
-            );
+            await this.updateClanStatsInTransaction(defender.clan_id, manager);
           }
         }
 
@@ -1934,26 +1930,12 @@ export class UserService {
 
         if (attacker.clan_id) {
           statsUpdates.push(
-            manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [attacker.clan_id],
-            ),
+            this.updateClanStatsInTransaction(attacker.clan_id, manager),
           );
         }
         if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
           statsUpdates.push(
-            manager.query(
-              `UPDATE clan SET 
-                strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-                guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-                members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-              WHERE id = $1`,
-              [defender.clan_id],
-            ),
+            this.updateClanStatsInTransaction(defender.clan_id, manager),
           );
         }
 
@@ -2004,26 +1986,12 @@ export class UserService {
 
       if (attacker.clan_id) {
         statsUpdates.push(
-          manager.query(
-            `UPDATE clan SET 
-              strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-              guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-              members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-            WHERE id = $1`,
-            [attacker.clan_id],
-          ),
+          this.updateClanStatsInTransaction(attacker.clan_id, manager),
         );
       }
       if (defender.clan_id && defender.clan_id !== attacker.clan_id) {
         statsUpdates.push(
-          manager.query(
-            `UPDATE clan SET 
-              strength = (SELECT COALESCE(SUM(strength), 0) FROM "user" WHERE clan_id = $1),
-              guards_count = (SELECT COALESCE(SUM(guards_count), 0) FROM "user" WHERE clan_id = $1),
-              members_count = (SELECT COUNT(*) FROM "user" WHERE clan_id = $1)
-            WHERE id = $1`,
-            [defender.clan_id],
-          ),
+          this.updateClanStatsInTransaction(defender.clan_id, manager),
         );
       }
 

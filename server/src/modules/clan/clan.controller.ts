@@ -45,7 +45,6 @@ import {
 import { ClanStatsResponseDto } from './dtos/responses/clan-with-stats-response.dto';
 import { ClanReferralResponseDto } from './dtos/responses/clan-with-referral-response.dto';
 import { ClanRatingResponseDto } from './dtos/responses/clan-rating-response.dto';
-import { ClanRatingPaginatedResponseDto } from './dtos/responses/clan-rating-paginated-response.dto';
 import { UserStatsResponseDto } from './dtos/responses/user-with-stats-response.dto';
 import { ClanAttackEnemyResponseDto } from './dtos/responses/attack-enemy-response.dto';
 import { ClanWarResponseDto } from '../clan-war/dtos/responses/clan-war-response.dto';
@@ -161,7 +160,7 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить всех участников своего клана (Для Mini App)',
     description:
-      'Возвращает список участников клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength * 1000 + money, от самых крутых к менее крутым)',
+      'Возвращает список участников клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength DESC, guards_count DESC, от самых крутых к менее крутым)',
   })
   @ApiResponse({
     status: 200,
@@ -247,7 +246,7 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить участников вражеского клана (Для Mini App)',
     description:
-      'Возвращает список участников вражеского клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength * 1000 + money, от самых крутых к менее крутым)',
+      'Возвращает список участников вражеского клана. Лидер всегда первый в списке, остальные отсортированы по рейтингу (strength DESC, guards_count DESC, от самых крутых к менее крутым)',
   })
   @ApiParam({
     name: 'id',
@@ -283,7 +282,7 @@ export class ClanController {
   @ApiOperation({
     summary: 'Получить рейтинг кланов (Для Mini App)',
     description:
-      'Возвращает рейтинг кланов, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money, затем по рейтингу (wins)',
+      'Возвращает рейтинг кланов, отсортированных по силе и стражам (от самых крутых к менее крутым). Сортировка: strength DESC, guards_count DESC',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

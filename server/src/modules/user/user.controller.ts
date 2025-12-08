@@ -161,7 +161,7 @@ export class UserController {
   @ApiOperation({
     summary: 'Получить рейтинг пользователей (Для Mini App)',
     description:
-      'Возвращает рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым). Сортировка: strength * 1000 + money',
+      'Возвращает рейтинг пользователей, отсортированных по силе и стражам (от самых крутых к менее крутым). Сортировка: strength DESC, guards_count DESC',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -169,7 +169,7 @@ export class UserController {
     status: 200,
     type: PaginatedResponseDto<UserRatingResponseDto>,
     description:
-      'Рейтинг пользователей, отсортированных по силе и деньгам (от самых крутых к менее крутым)',
+      'Рейтинг пользователей, отсортированных по силе и стражам (от самых крутых к менее крутым)',
   })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   async getRating(
@@ -186,7 +186,7 @@ export class UserController {
   @ApiOperation({
     summary: 'Получить список пользователей для атаки (Для Mini App)',
     description:
-      'Возвращает список пользователей для атаки. Фильтры: top - все пользователи, suitable - подходящие по силе, friends - друзья из VK, зарегистрированные в системе. Сортировка: strength * 1000 + money (от самых крутых к менее крутым). Для suitable сначала сортировка по близости к текущей силе, затем по силе и деньгам.',
+      'Возвращает список пользователей для атаки. Фильтры: top - все пользователи, suitable - подходящие по силе, friends - друзья из VK, зарегистрированные в системе. Сортировка: strength DESC, guards_count DESC (от самых крутых к менее крутым). Для suitable сначала сортировка по близости к текущей силе, затем по силе и стражам.',
   })
   @ApiQuery({
     name: 'filter',
