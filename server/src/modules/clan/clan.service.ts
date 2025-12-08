@@ -696,7 +696,6 @@ export class ClanService {
         const data = await response.json();
 
         if (data.error) {
-          console.error('VK API error in groups.getById:', data.error);
           throw new BadRequestException(
             `Ошибка VK API при получении данных группы: ${data.error.error_msg || data.error.error_code}`,
           );
@@ -715,10 +714,6 @@ export class ClanService {
             groupImageUrl = group.photo_200 || '';
           }
         } else {
-          console.error(
-            'VK API groups.getById: пустой ответ или группа не найдена',
-            data,
-          );
           throw new BadRequestException('Группа не найдена или недоступна');
         }
       } catch (error) {

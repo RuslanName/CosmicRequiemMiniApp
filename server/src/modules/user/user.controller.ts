@@ -210,7 +210,6 @@ export class UserController {
   async getAttackableUsers(
     @Request() req: AuthenticatedRequest,
     @Query('filter') filter?: 'top' | 'suitable' | 'friends',
-    @Query('vk_access_token') vkAccessToken?: string,
     @Query() paginationDto?: PaginationDto,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     if (filter && !['top', 'suitable', 'friends'].includes(filter)) {
@@ -222,7 +221,6 @@ export class UserController {
       req.user.id,
       filter,
       paginationDto,
-      vkAccessToken,
     );
   }
 
@@ -232,7 +230,7 @@ export class UserController {
   @ApiOperation({
     summary: 'Получить список друзей для атаки (Для Mini App)',
     description:
-      'Получает список друзей через VK API (если передан vk_access_token) или использует переданный список friend_vk_ids. Возвращает только тех, кто зарегистрирован в системе и доступен для атаки.',
+      'Принимает список friend_vk_ids, полученных через VK Bridge на клиенте. Возвращает только тех, кто зарегистрирован в системе и доступен для атаки.',
   })
   @ApiResponse({
     status: 200,
@@ -249,7 +247,6 @@ export class UserController {
       req.user.id,
       getFriendsDto.friend_vk_ids,
       paginationDto,
-      getFriendsDto.vk_access_token,
     );
   }
 

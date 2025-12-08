@@ -1311,7 +1311,6 @@ export class UserService {
     userId: number,
     filter?: 'top' | 'suitable' | 'friends',
     paginationDto?: PaginationDto,
-    vkAccessToken?: string,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
@@ -1498,53 +1497,12 @@ export class UserService {
         limit,
       };
     } else if (filter === 'friends') {
-      const currentUser = await this.userRepository.findOne({
-        where: { id: userId },
-        select: ['id', 'vk_id'],
-      });
-
-      if (!currentUser) {
-        throw new NotFoundException('Пользователь не найден');
-      }
-
-      let friendVkIds: number[] = [];
-
-      if (vkAccessToken) {
-        try {
-          const vkApiUrl = 'https://api.vk.com/method/friends.get';
-          const vkApiParams = new URLSearchParams({
-            user_id: currentUser.vk_id.toString(),
-            access_token: vkAccessToken,
-            v: '5.131',
-          });
-
-          const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-          const data = await response.json();
-
-          if (data.error) {
-            console.error('VK API error in friends.get:', data.error);
-          } else if (data.response && data.response.items) {
-            friendVkIds = data.response.items;
-          }
-        } catch (error) {
-          console.error('Error fetching friends from VK API:', error);
-        }
-      }
-
-      if (friendVkIds.length === 0) {
-        return {
-          data: [],
-          total: 0,
-          page,
-          limit,
-        };
-      }
-
-      return this.getAttackableFriendsByVkIds(
-        userId,
-        friendVkIds,
-        paginationDto,
-      );
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+      };
     }
 
     throw new BadRequestException('Неверный параметр фильтра');
@@ -1554,7 +1512,6 @@ export class UserService {
     userId: number,
     friendVkIds: number[] | undefined,
     paginationDto?: PaginationDto,
-    vkAccessToken?: string,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
     const { page = 1, limit = 10 } = paginationDto || {};
     const skip = (page - 1) * limit;
@@ -1570,49 +1527,7 @@ export class UserService {
 
     const currentUserClanId = currentUser.clan_id;
 
-    let finalFriendVkIds = friendVkIds || [];
-
-    if (finalFriendVkIds.length === 0 && vkAccessToken) {
-      try {
-        const vkApiUrl = 'https://api.vk.com/method/friends.get';
-        const vkApiParams = new URLSearchParams({
-          user_id: currentUser.vk_id.toString(),
-          access_token: vkAccessToken,
-          v: '5.131',
-        });
-
-        const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
-        const data = await response.json();
-
-        if (data.error) {
-          console.error('VK API error in friends.get:', data.error);
-          throw new BadRequestException(
-            `Ошибка VK API при получении друзей: ${data.error.error_msg || data.error.error_code}`,
-          );
-        }
-
-        if (data.response) {
-          if (Array.isArray(data.response)) {
-            finalFriendVkIds = data.response;
-          } else if (
-            data.response.items &&
-            Array.isArray(data.response.items)
-          ) {
-            finalFriendVkIds = data.response.items;
-          } else if (data.response.count !== undefined) {
-            finalFriendVkIds = [];
-          }
-        }
-      } catch (error) {
-        if (error instanceof BadRequestException) {
-          throw error;
-        }
-        console.error('Error fetching friends from VK API:', error);
-        throw new BadRequestException(
-          `Не удалось получить список друзей через VK API: ${error.message}`,
-        );
-      }
-    }
+    const finalFriendVkIds = friendVkIds || [];
 
     if (finalFriendVkIds.length === 0) {
       return {
