@@ -679,26 +679,62 @@ export class ClanService {
       throw new BadRequestException('Клан для этого сообщества уже существует');
     }
 
-    if (!createClanByUserDto.name || !createClanByUserDto.name.trim()) {
+    let groupName = createClanByUserDto.name;
+    let groupImageUrl = createClanByUserDto.image_url;
+
+    if (createClanByUserDto.vk_access_token && (!groupName || !groupImageUrl)) {
+      try {
+        const vkApiUrl = 'https://api.vk.com/method/groups.getById';
+        const vkApiParams = new URLSearchParams({
+          group_id: createClanByUserDto.vk_group_id.toString(),
+          fields: 'photo_200',
+          access_token: createClanByUserDto.vk_access_token,
+          v: '5.131',
+        });
+
+        const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+        const data = await response.json();
+
+        if (data.error) {
+          throw new BadRequestException(
+            `Ошибка VK API при получении данных группы: ${data.error.error_msg || data.error.error_code}`,
+          );
+        }
+
+        if (data.response && data.response[0]) {
+          const group = data.response[0];
+          if (!groupName) {
+            groupName = group.name;
+          }
+          if (!groupImageUrl) {
+            groupImageUrl = group.photo_200 || '';
+          }
+        }
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        throw new BadRequestException(
+          `Не удалось получить данные группы через VK API: ${error.message}`,
+        );
+      }
+    }
+
+    if (!groupName || !groupName.trim()) {
       throw new BadRequestException('Название клана обязательно');
     }
 
-    if (
-      !createClanByUserDto.image_url ||
-      !createClanByUserDto.image_url.trim()
-    ) {
+    if (!groupImageUrl || !groupImageUrl.trim()) {
       throw new BadRequestException('URL изображения обязателен');
     }
 
-    if (!this.verifyVkImageUrl(createClanByUserDto.image_url)) {
+    if (!this.verifyVkImageUrl(groupImageUrl)) {
       throw new BadRequestException('Неверный URL изображения сообщества');
     }
 
     let imagePath = '';
     try {
-      imagePath = await this.downloadAndSaveGroupImage(
-        createClanByUserDto.image_url,
-      );
+      imagePath = await this.downloadAndSaveGroupImage(groupImageUrl);
     } catch (error) {
       throw new BadRequestException(
         `Не удалось скачать и сохранить изображение: ${error.message}`,
@@ -710,7 +746,7 @@ export class ClanService {
     }
 
     const clan = this.clanRepository.create({
-      name: createClanByUserDto.name.trim(),
+      name: groupName.trim(),
       leader_id: userId,
       image_path: imagePath,
       referral_link_id: randomUUID(),

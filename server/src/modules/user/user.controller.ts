@@ -230,9 +230,9 @@ export class UserController {
   @UseGuards(VKSessionGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Получить список друзей для атаки по VK ID (Для Mini App)',
+    summary: 'Получить список друзей для атаки (Для Mini App)',
     description:
-      'Принимает список VK ID друзей, полученных через VK Bridge, и возвращает только тех, кто зарегистрирован в системе и доступен для атаки.',
+      'Получает список друзей через VK API (если передан vk_access_token) или использует переданный список friend_vk_ids. Возвращает только тех, кто зарегистрирован в системе и доступен для атаки.',
   })
   @ApiResponse({
     status: 200,

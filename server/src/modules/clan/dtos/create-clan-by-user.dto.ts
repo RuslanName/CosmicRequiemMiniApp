@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsString, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateClanByUserDto {
@@ -6,11 +6,18 @@ export class CreateClanByUserDto {
   @IsNumber()
   vk_group_id: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  image_url: string;
+  image_url?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  vk_access_token?: string;
 }

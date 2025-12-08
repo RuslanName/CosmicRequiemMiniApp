@@ -639,7 +639,7 @@ export class ClanController {
   @ApiOperation({
     summary: 'Создать клан из сообщества VK (Для Mini App)',
     description:
-      'Создает новый клан из сообщества VK. Требуется ID сообщества (vk_group_id), название клана (name) и URL изображения (image_url). Изображение скачивается и сохраняется автоматически.',
+      'Создает новый клан из сообщества VK. Требуется ID сообщества (vk_group_id). Если передан vk_access_token, данные группы (название и изображение) получаются автоматически через VK API. В противном случае требуется указать name и image_url.',
   })
   @ApiBody({ type: CreateClanByUserDto })
   @ApiResponse({

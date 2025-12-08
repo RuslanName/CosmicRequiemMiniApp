@@ -1552,7 +1552,7 @@ export class UserService {
 
   async getAttackableFriendsByVkIds(
     userId: number,
-    friendVkIds: number[],
+    friendVkIds: number[] | undefined,
     paginationDto?: PaginationDto,
     vkAccessToken?: string,
   ): Promise<PaginatedResponseDto<UserRatingResponseDto>> {
@@ -1561,7 +1561,7 @@ export class UserService {
 
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'clan_id'],
+      select: ['id', 'clan_id', 'vk_id'],
     });
 
     if (!currentUser) {
@@ -1570,7 +1570,40 @@ export class UserService {
 
     const currentUserClanId = currentUser.clan_id;
 
-    if (friendVkIds.length === 0) {
+    let finalFriendVkIds = friendVkIds || [];
+
+    if (finalFriendVkIds.length === 0 && vkAccessToken) {
+      try {
+        const vkApiUrl = 'https://api.vk.com/method/friends.get';
+        const vkApiParams = new URLSearchParams({
+          user_id: currentUser.vk_id.toString(),
+          access_token: vkAccessToken,
+          v: '5.131',
+        });
+
+        const response = await fetch(`${vkApiUrl}?${vkApiParams}`);
+        const data = await response.json();
+
+        if (data.error) {
+          console.error('VK API error in friends.get:', data.error);
+          throw new BadRequestException(
+            `Ошибка VK API при получении друзей: ${data.error.error_msg || data.error.error_code}`,
+          );
+        } else if (data.response && data.response.items) {
+          finalFriendVkIds = data.response.items;
+        }
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        console.error('Error fetching friends from VK API:', error);
+        throw new BadRequestException(
+          `Не удалось получить список друзей через VK API: ${error.message}`,
+        );
+      }
+    }
+
+    if (finalFriendVkIds.length === 0) {
       return {
         data: [],
         total: 0,
@@ -1581,7 +1614,7 @@ export class UserService {
 
     const users = await this.userRepository.find({
       where: {
-        vk_id: In(friendVkIds),
+        vk_id: In(finalFriendVkIds),
       },
       relations: ['clan', 'guards'],
     });
