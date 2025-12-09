@@ -228,10 +228,19 @@ export class AuthService {
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
         if (!this.verifyVkImageUrl(photoUrl)) {
-          throw new UnauthorizedException('Неверный URL аватара профиля');
+                                                                                                                                                                                                                                                                                                                                                                                                                            console.warn(
+            `Неверный URL аватара профиля для пользователя ${dbUser.id}, пропускаем загрузку`,
+          );
+        } else {
+          try {
+            await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+          } catch (error) {
+            console.error(
+              `Ошибка при загрузке аватара для пользователя ${dbUser.id}:`,
+              error.message,
+            );
+          }
         }
-
-        await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
         dbUser = await this.userRepository.findOne({
           where: { id: dbUser.id },
           relations: ['clan', 'referrer'],
