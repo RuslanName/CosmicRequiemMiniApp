@@ -79,15 +79,16 @@ export class UserService {
       ? manager.getRepository(UserGuard)
       : this.userGuardRepository;
 
-    const result = await userGuardRepo
-      .createQueryBuilder('guard')
-      .select('COUNT(guard.id)', 'count')
-      .addSelect('COALESCE(SUM(guard.strength), 0)', 'strength')
-      .where('guard.user_id = :userId', { userId })
-      .getRawOne();
+    const guards = await userGuardRepo.find({
+      where: { user_id: userId },
+      select: ['strength'],
+    });
 
-    const guardsCount = parseInt(result.count, 10) || 0;
-    const strength = parseInt(result.strength, 10) || 0;
+    const guardsCount = guards.length;
+    const strength = guards.reduce(
+      (sum, guard) => sum + Number(guard.strength),
+      0,
+    );
 
     if (manager) {
       await manager.update(User, userId, {
