@@ -81,7 +81,7 @@ export class UserService {
 
     const result = await userGuardRepo
       .createQueryBuilder('guard')
-      .select('COUNT(*)', 'count')
+      .select('COUNT(guard.id)', 'count')
       .addSelect('COALESCE(SUM(guard.strength), 0)', 'strength')
       .where('guard.user_id = :userId', { userId })
       .getRawOne();
