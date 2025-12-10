@@ -11,6 +11,7 @@ import { SettingKey } from '../../setting/enums/setting-key.enum';
 import { UserTaskService } from '../../task/services/user-task.service';
 import { TaskType } from '../../task/enums/task-type.enum';
 import { SessionService } from './session.service';
+import { CacheService } from '../../../common/services/cache.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly userTaskService: UserTaskService,
     private readonly sessionService: SessionService,
+    private readonly cacheService: CacheService,
   ) {}
 
   private async updateUserReferralsCount(referrerId: number): Promise<void> {
@@ -138,19 +140,13 @@ export class AuthService {
 
       if (photoUrl) {
         try {
-          if (!this.verifyVkImageUrl(photoUrl)) {
-            console.warn(
-              `Неверный URL аватара профиля для пользователя ${dbUser.id}, пропускаем загрузку`,
-            );
-          } else {
-            await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
-            const updatedUser = await this.userRepository.findOne({
-              where: { id: dbUser.id },
-              relations: ['clan', 'referrer'],
-            });
-            if (updatedUser) {
-              dbUser = updatedUser;
-            }
+          await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+          const updatedUser = await this.userRepository.findOne({
+            where: { id: dbUser.id },
+            relations: ['clan', 'referrer'],
+          });
+          if (updatedUser) {
+            dbUser = updatedUser;
           }
         } catch (error) {
           console.error(
@@ -227,19 +223,13 @@ export class AuthService {
 
       const photoUrl = user.photo_max_orig || user.photo_200 || null;
       if (photoUrl) {
-        if (!this.verifyVkImageUrl(photoUrl)) {
-          console.warn(
-            `Неверный URL аватара профиля для пользователя ${dbUser.id}, пропускаем загрузку`,
+        try {
+          await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
+        } catch (error) {
+          console.error(
+            `Ошибка при загрузке аватара для пользователя ${dbUser.id}:`,
+            error.message,
           );
-        } else {
-          try {
-            await this.downloadAndSaveUserAvatar(photoUrl, dbUser.id);
-          } catch (error) {
-            console.error(
-              `Ошибка при загрузке аватара для пользователя ${dbUser.id}:`,
-              error.message,
-            );
-          }
         }
         dbUser = await this.userRepository.findOne({
           where: { id: dbUser.id },
@@ -379,33 +369,17 @@ export class AuthService {
       throw new UnauthorizedException('Неверные параметры');
     }
 
-    const allParams: Record<string, string> = { ...params, sign };
-    const inputString = Object.keys(allParams)
+    const vkParams: Record<string, string> = {};
+    Object.keys(params).forEach((key) => {
+      if (key.startsWith('vk_')) {
+        vkParams[key] = params[key];
+      }
+    });
+
+    const checkString = Object.keys(vkParams)
       .sort()
-      .map((key) => `${key}=${encodeURIComponent(allParams[key])}`)
+      .map((key) => `${key}=${encodeURIComponent(vkParams[key])}`)
       .join('&');
-
-    const startIndex = inputString.indexOf('sign=');
-    if (startIndex === -1) {
-      return false;
-    }
-
-    const endIndex = inputString.indexOf('&', startIndex);
-    const hashString =
-      endIndex === -1
-        ? inputString.substring(startIndex).trim().replace(/sign=/, '')
-        : inputString
-            .substring(startIndex, endIndex)
-            .trim()
-            .replace(/sign=/, '');
-
-    const checkString =
-      endIndex === -1
-        ? inputString.substring(0, startIndex).trim()
-        : (
-            inputString.substring(0, startIndex) +
-            inputString.substring(endIndex + 1, inputString.length)
-          ).trim();
 
     const digest = createHmac('sha256', VK_APP_SECRET)
       .update(checkString)
@@ -414,18 +388,7 @@ export class AuthService {
       .replace(/\//g, '_')
       .replace(/=$/, '');
 
-    return digest === hashString;
-  }
-
-  private verifyVkImageUrl(url: string): boolean {
-    if (!url || typeof url !== 'string') {
-      return false;
-    }
-
-    const vkImageUrlPattern =
-      /^https?:\/\/(?:[a-z0-9-]+\.)?(?:vk\.com|userapi\.com|vk-cdn\.net|vkuser\.net|vk\.me|vkuseraudio\.net|vk-cdn\.org)\/.+$/i;
-
-    return vkImageUrlPattern.test(url);
+    return digest === sign;
   }
 
   private formatBirthday(bdate?: string, visibility?: number): string | null {
@@ -486,6 +449,9 @@ export class AuthService {
           console.error(
             `Failed to save image_path for user ${userId}. Expected: ${imagePath}, Got: ${savedUser?.image_path}`,
           );
+        } else {
+          await this.cacheService.invalidateUserCaches(userId);
+          await this.cacheService.invalidateClanCaches(undefined, userId);
         }
 
         if (oldImagePath && !oldImagePath.startsWith('http')) {

@@ -16,7 +16,6 @@ export class UserBoostService {
   async findByUserId(userId: number): Promise<UserBoost[]> {
     return this.userBoostRepository
       .createQueryBuilder('boost')
-      .leftJoin('boost.user', 'user')
       .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
       .where('boost.user_id = :userId', { userId })
       .orderBy('boost.created_at', 'DESC')
@@ -27,7 +26,6 @@ export class UserBoostService {
     const now = new Date();
     return this.userBoostRepository
       .createQueryBuilder('boost')
-      .leftJoin('boost.user', 'user')
       .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
       .where('boost.user_id = :userId', { userId })
       .andWhere('boost.end_time > :now', { now })
@@ -45,7 +43,6 @@ export class UserBoostService {
     const now = new Date();
     const shieldBoosts = await this.userBoostRepository
       .createQueryBuilder('boost')
-      .leftJoin('boost.user', 'user')
       .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
       .where('boost.user_id IN (:...userIds)', { userIds })
       .andWhere('boost.type = :type', { type: UserBoostType.SHIELD })
@@ -81,7 +78,6 @@ export class UserBoostService {
     const now = new Date();
     const boosts = await this.userBoostRepository
       .createQueryBuilder('boost')
-      .leftJoin('boost.user', 'user')
       .select(['boost.id', 'boost.type', 'boost.end_time', 'boost.user_id'])
       .where('boost.user_id IN (:...userIds)', { userIds })
       .andWhere('boost.end_time > :now', { now })

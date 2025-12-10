@@ -57,36 +57,79 @@ export class SessionService {
 
     if (cached) {
       const expiresAt = new Date(cached.expiresAt);
+      const now = new Date();
 
-      if (expiresAt < new Date()) {
+      if (expiresAt < now) {
         await this.cacheService.del(cacheKey);
-        return null;
-      }
+        const session = await this.sessionRepository.findOne({
+          where: { session_id: sessionId },
+        });
+        if (!session || session.expires_at < now) {
+          return null;
+        }
 
-      let shouldExtend = false;
-      if (expiresInSeconds) {
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + expiresInSeconds);
+        session.last_used_at = now;
+        let shouldExtend = false;
+        let newExpiresAt = session.expires_at;
+        if (expiresInSeconds) {
+          newExpiresAt = new Date();
+          newExpiresAt.setSeconds(newExpiresAt.getSeconds() + expiresInSeconds);
+          session.expires_at = newExpiresAt;
+          shouldExtend = true;
+        }
+        await this.sessionRepository.save(session);
+
+        const remainingSeconds = Math.floor(
+          (newExpiresAt.getTime() - now.getTime()) / 1000,
+        );
+        const cacheTtl =
+          remainingSeconds > 0
+            ? remainingSeconds + this.SESSION_CACHE_TTL_BUFFER
+            : this.SESSION_CACHE_TTL_BUFFER;
 
         await this.cacheService.set(
           cacheKey,
           {
-            userId: cached.userId,
+            userId: session.user_id,
             expiresAt: newExpiresAt.toISOString(),
           },
-          expiresInSeconds + this.SESSION_CACHE_TTL_BUFFER,
+          cacheTtl,
         );
 
-        this.updateSessionInDb(sessionId, newExpiresAt, expiresInSeconds).catch(
-          (err) => {
-            console.error('Error updating session in DB:', err);
-          },
-        );
+        return { userId: session.user_id, shouldExtend };
+      } else {
+        let shouldExtend = false;
+        if (expiresInSeconds) {
+          const newExpiresAt = new Date();
+          newExpiresAt.setSeconds(newExpiresAt.getSeconds() + expiresInSeconds);
 
-        shouldExtend = true;
+          const session = await this.sessionRepository.findOne({
+            where: { session_id: sessionId },
+          });
+
+          if (!session || session.expires_at < now) {
+            await this.cacheService.del(cacheKey);
+            return null;
+          }
+
+          session.expires_at = newExpiresAt;
+          session.last_used_at = now;
+          await this.sessionRepository.save(session);
+
+          await this.cacheService.set(
+            cacheKey,
+            {
+              userId: cached.userId,
+              expiresAt: newExpiresAt.toISOString(),
+            },
+            expiresInSeconds + this.SESSION_CACHE_TTL_BUFFER,
+          );
+
+          shouldExtend = true;
+        }
+
+        return { userId: cached.userId, shouldExtend };
       }
-
-      return { userId: cached.userId, shouldExtend };
     }
 
     const session = await this.sessionRepository.findOne({
@@ -97,12 +140,12 @@ export class SessionService {
       return null;
     }
 
-    if (session.expires_at < new Date()) {
+    const now = new Date();
+    if (session.expires_at < now) {
       await this.sessionRepository.remove(session);
       return null;
     }
 
-    const now = new Date();
     session.last_used_at = now;
 
     let shouldExtend = false;
@@ -116,16 +159,21 @@ export class SessionService {
 
     await this.sessionRepository.save(session);
 
+    const remainingSeconds = Math.floor(
+      (newExpiresAt.getTime() - now.getTime()) / 1000,
+    );
+    const cacheTtl =
+      remainingSeconds > 0
+        ? remainingSeconds + this.SESSION_CACHE_TTL_BUFFER
+        : this.SESSION_CACHE_TTL_BUFFER;
+
     await this.cacheService.set(
       cacheKey,
       {
         userId: session.user_id,
         expiresAt: newExpiresAt.toISOString(),
       },
-      expiresInSeconds
-        ? expiresInSeconds + this.SESSION_CACHE_TTL_BUFFER
-        : Math.floor((newExpiresAt.getTime() - now.getTime()) / 1000) +
-            this.SESSION_CACHE_TTL_BUFFER,
+      cacheTtl,
     );
 
     return { userId: session.user_id, shouldExtend };

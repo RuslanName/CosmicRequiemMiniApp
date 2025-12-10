@@ -114,7 +114,6 @@ export class UserAccessoryService {
     const accessories = await this.userAccessoryRepository
       .createQueryBuilder('accessory')
       .leftJoinAndSelect('accessory.item_template', 'item_template')
-      .leftJoin('accessory.user', 'user')
       .select([
         'accessory.id',
         'accessory.user_id',
